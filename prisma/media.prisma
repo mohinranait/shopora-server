@@ -1,0 +1,44 @@
+// use prisma-8
+model Media {
+  id               Int               @id @default(autoincrement())
+  url              String
+  publicId         String            @unique
+  format           String?
+  bytes            Int?
+  width            Int?
+  height           Int?
+  originalFilename String?
+  folder           String?
+  userId           Int
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sellerId         Int?
+  seller           SellerProfile?    @relation(fields: [sellerId], references: [id], onDelete: SetNull)
+  useMedias        UseMedia[]
+  createdAt        TimestamptzString @default(now())
+}
+
+model UseMedia {
+  id              Int                        @id @default(autoincrement())
+  mediaId         Int
+  media           Media                      @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  alt             String?
+  description     String?
+  userId          Int
+  user            User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sellerId        Int?
+  seller          SellerProfile?             @relation(fields: [sellerId], references: [id], onDelete: SetNull)
+
+  // Reverse relations to models using this media
+  productsMain    Product[]                  @relation("ProductMainImage")
+  productImages   ProductImage[]
+  productVariants ProductVariant[]
+  brands          Brand[]
+  categories      Category[]
+  banners         Banner[]
+  userAvatars     User[]                     @relation("UserAvatar")
+  sellerLogos     SellerProfile[]            @relation("SellerLogo")
+  sellerBanners   SellerProfile[]            @relation("SellerBanner")
+
+  createdAt       TimestamptzString          @default(now())
+  updatedAt       temporal.updatedAtString()
+}

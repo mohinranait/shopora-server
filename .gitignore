@@ -1,3 +1,56 @@
+# Dependencies
 node_modules/
-dist/
+.pnp
+.pnp.js
+
+# Environment Variables
 .env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+!.env.example
+
+# Production Build Outputs
+dist/
+build/
+.next/
+out/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# AI Agent & Internal System Artifacts
+.agents/
+.cursor/
+.claude/
+.devin/
+.system_generated/
+
+# OS Generated Files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# IDE / Editor
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# Testing & Coverage
+coverage/
+.nyc_output/
+
+# Temporary / Cache
+.cache/
+.eslintcache
+tmp/
+temp/

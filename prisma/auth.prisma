@@ -1,0 +1,43 @@
+// use prisma-8
+model User {
+  id               Int                        @id @default(autoincrement())
+  email            String                     @unique
+  password         String
+  name             String
+  role             String                     @default("CUSTOMER") // "ADMIN" | "SELLER" | "CUSTOMER"
+  phone            String?
+  avatar           String?
+  isActive         Boolean                    @default(true)
+  isVerified       Boolean                    @default(false)
+  addresses        Address[]
+  sellerProfile    SellerProfile?
+  orders           Order[]
+  reviews          ProductReview[]
+  wishlist         WishlistItem[]
+  cartItems        CartItem[]
+  notifications    Notification[]
+  returnRequests   ReturnRequest[]
+  medias           Media[]
+  useMedias        UseMedia[]
+  avatarUseMediaId Int?
+  avatarUseMedia   UseMedia?                  @relation("UserAvatar", fields: [avatarUseMediaId], references: [id], onDelete: SetNull)
+  createdAt        TimestamptzString          @default(now())
+  updatedAt        temporal.updatedAtString()
+}
+
+model Address {
+  id            Int                        @id @default(autoincrement())
+  userId        Int
+  user          User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName      String
+  phone         String
+  streetAddress String
+  city          String
+  state         String?
+  postalCode    String?
+  country       String                     @default("Bangladesh")
+  isDefault     Boolean                    @default(false)
+  type          String                     @default("SHIPPING") // "SHIPPING" | "BILLING"
+  createdAt     TimestamptzString          @default(now())
+  updatedAt     temporal.updatedAtString()
+}

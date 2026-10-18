@@ -6,6 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "contract:emit": "prisma contract emit",
+    "seed": "node src/scripts/seed.ts",
     "dev": "node --watch --watch-path=src --watch-path=.env src/index.ts",
     "start": "node src/index.ts"
   },
@@ -13,14 +14,31 @@
   "author": "",
   "license": "ISC",
   "type": "module",
+  "prisma": {
+    "schema": "prisma"
+  },
   "dependencies": {
     "@prisma/orm-postgres": "^8.0.0-rc.18",
+    "bcryptjs": "^3.0.3",
+    "cloudinary": "^2.11.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
     "dotenv": "^18.0.8",
-    "express": "^5.3.0"
+    "express": "^5.3.0",
+    "jsonwebtoken": "^9.0.3",
+    "morgan": "^1.12.1",
+    "multer": "^2.4.0",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@prisma/cli-engine": "^0.7.0",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cookie-parser": "^1.4.10",
+    "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/morgan": "^1.9.10",
+    "@types/multer": "^2.3.0",
     "@types/node": "^26.6.5",
     "prisma": "^8.0.0-rc.23"
   }

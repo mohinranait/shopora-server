@@ -1,0 +1,116 @@
+// use prisma-8
+model Category {
+  id           Int                        @id @default(autoincrement())
+  name         String
+  slug         String                     @unique
+  description  String?
+  image        String?
+  icon         String?
+  useMediaId   Int?
+  useMedia     UseMedia?                  @relation(fields: [useMediaId], references: [id], onDelete: SetNull)
+  parentId     Int?
+  parent       Category?                  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children     Category[]                 @relation("CategoryHierarchy")
+  isActive     Boolean                    @default(true)
+  displayOrder Int                        @default(0)
+  products     Product[]
+  createdAt    TimestamptzString          @default(now())
+  updatedAt    temporal.updatedAtString()
+}
+
+model Brand {
+  id          Int                        @id @default(autoincrement())
+  name        String
+  slug        String                     @unique
+  logo        String?
+  description String?
+  website     String?
+  useMediaId  Int?
+  useMedia    UseMedia?                  @relation(fields: [useMediaId], references: [id], onDelete: SetNull)
+  isActive    Boolean                    @default(true)
+  products    Product[]
+  createdAt   TimestamptzString          @default(now())
+  updatedAt   temporal.updatedAtString()
+}
+
+model Product {
+  id                  Int                        @id @default(autoincrement())
+  name                String
+  slug                String                     @unique
+  sku                 String                     @unique
+  shortDescription    String?
+  description         String
+  categoryId          Int
+  category            Category                   @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  brandId             Int?
+  brand               Brand?                     @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  sellerId            Int? // NULL = Platform-owned (Admin direct product)
+  seller              SellerProfile?             @relation(fields: [sellerId], references: [id], onDelete: SetNull)
+  isPlatformOwned     Boolean                    @default(false)
+  approvalStatus      String                     @default("PENDING") // "DRAFT" | "PENDING" | "APPROVED" | "REJECTED"
+  rejectionReason     String?
+  status              String                     @default("PUBLISHED") // "PUBLISHED" | "UNPUBLISHED" | "ARCHIVED"
+  productType         String                     @default("SIMPLE") // "SIMPLE" | "VARIABLE"
+  basePrice           Float
+  comparePrice        Float?
+  costPrice           Float?
+  stock               Int                        @default(0)
+  lowStockThreshold   Int                        @default(5)
+  mainImage           String
+  mainImageUseMediaId Int?
+  mainImageUseMedia   UseMedia?                  @relation("ProductMainImage", fields: [mainImageUseMediaId], references: [id], onDelete: SetNull)
+  images              ProductImage[]
+  variants            ProductVariant[]
+  reviews             ProductReview[]
+  orderItems          OrderItem[]
+  wishlistItems       WishlistItem[]
+  cartItems           CartItem[]
+  ratingAverage       Float                      @default(0.0)
+  ratingCount         Int                        @default(0)
+  totalSold           Int                        @default(0)
+  isFeatured          Boolean                    @default(false)
+  isTrending          Boolean                    @default(false)
+  metaTitle           String?
+  metaDescription     String?
+  metaKeywords        String?
+  tags                String[]
+  warranty            String?
+  weightKg            Float?
+  createdAt           TimestamptzString          @default(now())
+  updatedAt           temporal.updatedAtString()
+}
+
+model ProductImage {
+  id           Int               @id @default(autoincrement())
+  productId    Int
+  product      Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url          String
+  altText      String?
+  displayOrder Int               @default(0)
+  isPrimary    Boolean           @default(false)
+  useMediaId   Int?
+  useMedia     UseMedia?         @relation(fields: [useMediaId], references: [id], onDelete: Cascade)
+  createdAt    TimestamptzString @default(now())
+}
+
+model ProductVariant {
+  id           Int                        @id @default(autoincrement())
+  productId    Int
+  product      Product                    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sku          String                     @unique
+  title        String // e.g. "Red / XL"
+  price        Float
+  comparePrice Float?
+  costPrice    Float?
+  stock        Int                        @default(0)
+  image        String?
+  useMediaId   Int?
+  useMedia     UseMedia?                  @relation(fields: [useMediaId], references: [id], onDelete: SetNull)
+  attributes   Json // e.g. {"Color": "Red", "Size": "XL"}
+  barcode      String?
+  isActive     Boolean                    @default(true)
+  orderItems   OrderItem[]
+  cartItems    CartItem[]
+  createdAt    TimestamptzString          @default(now())
+  updatedAt    temporal.updatedAtString()
+}

@@ -1,0 +1,56 @@
+// use prisma-8
+model Coupon {
+  id                Int                        @id @default(autoincrement())
+  code              String                     @unique
+  discountType      String // "PERCENTAGE" | "FIXED"
+  discountValue     Float
+  minOrderAmount    Float                      @default(0.0)
+  maxDiscountAmount Float?
+  usageLimit        Int?
+  usedCount         Int                        @default(0)
+  startDate         TimestamptzString?
+  endDate           TimestamptzString?
+  isActive          Boolean                    @default(true)
+  sellerId          Int? // NULL = Platform-wide; or specific SellerProfile id
+  createdAt         TimestamptzString          @default(now())
+  updatedAt         temporal.updatedAtString()
+}
+
+model Banner {
+  id             Int                        @id @default(autoincrement())
+  title          String
+  subtitle       String?
+  imageUrl       String
+  mobileImageUrl String?
+  linkUrl        String?
+  useMediaId     Int?
+  useMedia       UseMedia?                  @relation(fields: [useMediaId], references: [id], onDelete: SetNull)
+  position       String                     @default("HERO_SLIDER") // "HERO_SLIDER" | "PROMO_GRID" | "MIDDLE_STRIP" | "POPUP"
+  displayOrder   Int                        @default(0)
+  isActive       Boolean                    @default(true)
+  startDate      TimestamptzString?
+  endDate        TimestamptzString?
+  createdAt      TimestamptzString          @default(now())
+  updatedAt      temporal.updatedAtString()
+}
+
+model WebsiteSetting {
+  id          Int                        @id @default(autoincrement())
+  key         String                     @unique
+  value       Json
+  group       String                     @default("GENERAL") // "GENERAL" | "COMMISSION" | "SHIPPING" | "SEO" | "PAYMENT"
+  description String?
+  updatedAt   temporal.updatedAtString()
+}
+
+model Notification {
+  id        Int               @id @default(autoincrement())
+  userId    Int
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String            @default("SYSTEM") // "ORDER" | "PAYOUT" | "PRODUCT_APPROVAL" | "SYSTEM"
+  link      String?
+  isRead    Boolean           @default(false)
+  createdAt TimestamptzString @default(now())
+}

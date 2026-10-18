@@ -1,0 +1,76 @@
+// use prisma-8
+model SellerProfile {
+  id                Int                        @id @default(autoincrement())
+  userId            Int                        @unique
+  user              User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  storeName         String                     @unique
+  storeSlug         String                     @unique
+  storeLogo         String?
+  storeBanner       String?
+  storeDescription  String?
+  phone             String?
+  businessAddress   String?
+  taxNumber         String?
+  nidOrTradeLicense String?
+  bankName          String?
+  bankAccountNumber String?
+  bankRouting       String?
+  bkashOrNagad      String?
+  status            String                     @default("PENDING") // "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED"
+  rejectionReason   String?
+  commissionRate    Float? // Custom commission rate % (null = uses global setting)
+  isVerified        Boolean                    @default(false)
+  verifiedAt        TimestamptzString?
+  products          Product[]
+  subOrders         SubOrder[]
+  wallet            SellerWallet?
+  payouts           PayoutRequest[]
+  medias            Media[]
+  useMedias         UseMedia[]
+  logoUseMediaId    Int?
+  logoUseMedia      UseMedia?                  @relation("SellerLogo", fields: [logoUseMediaId], references: [id], onDelete: SetNull)
+  bannerUseMediaId  Int?
+  bannerUseMedia    UseMedia?                  @relation("SellerBanner", fields: [bannerUseMediaId], references: [id], onDelete: SetNull)
+  createdAt         TimestamptzString          @default(now())
+  updatedAt         temporal.updatedAtString()
+}
+
+model SellerWallet {
+  id                  Int                        @id @default(autoincrement())
+  sellerId            Int                        @unique
+  seller              SellerProfile              @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  balance             Float                      @default(0.0) // Available for withdrawal
+  pendingBalance      Float                      @default(0.0) // On hold until order delivered / return window
+  totalWithdrawn      Float                      @default(0.0)
+  totalEarnings       Float                      @default(0.0) // Lifetime net earnings
+  totalCommissionPaid Float                      @default(0.0) // Lifetime platform commission paid
+  transactions        WalletTransaction[]
+  createdAt           TimestamptzString          @default(now())
+  updatedAt           temporal.updatedAtString()
+}
+
+model WalletTransaction {
+  id          Int               @id @default(autoincrement())
+  walletId    Int
+  wallet      SellerWallet      @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  subOrderId  Int?
+  amount      Float
+  type        String // "ORDER_EARNING" | "COMMISSION_DEDUCTION" | "PAYOUT_WITHDRAWAL" | "REFUND_REVERSAL"
+  description String
+  createdAt   TimestamptzString @default(now())
+}
+
+model PayoutRequest {
+  id                   Int                        @id @default(autoincrement())
+  sellerId             Int
+  seller               SellerProfile              @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  amount               Float
+  paymentMethod        String // "BANK" | "BKASH" | "NAGAD"
+  accountDetails       Json
+  status               String                     @default("PENDING") // "PENDING" | "APPROVED" | "PAID" | "REJECTED"
+  rejectionReason      String?
+  transactionReference String?
+  processedAt          TimestamptzString?
+  createdAt            TimestamptzString          @default(now())
+  updatedAt            temporal.updatedAtString()
+}
