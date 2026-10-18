@@ -257,6 +257,54 @@ export const getProductBySlug = async (slug: string, requestingUser?: any) => {
     })
   );
 
+  // Load selectedAttributes (both simple specification attributes and variation attributes)
+  const rawProductAttributes = await db.orm.public.ProductAttribute
+    .where({ productId: product.id })
+    .all();
+
+  const selectedAttributes = await Promise.all(
+    rawProductAttributes.map(async (pa) => {
+      const attribute = await db.orm.public.Attribute.where({ id: pa.attributeId }).first();
+      const rawPav = await db.orm.public.ProductAttributeValue
+        .where({ productAttributeId: pa.id })
+        .all();
+
+      const values = await Promise.all(
+        rawPav.map(async (pav) => {
+          if (pav.attributeValueId) {
+            const av = await db.orm.public.AttributeValue.where({ id: pav.attributeValueId }).first();
+            return {
+              id: pav.id,
+              attributeValueId: av?.id || pav.attributeValueId,
+              value: av?.value || "",
+              colorCode: av?.colorCode || null,
+              displayOrder: av?.displayOrder || 0,
+            };
+          }
+          return {
+            id: pav.id,
+            attributeValueId: null,
+            value: pav.customValue || "",
+            customValue: pav.customValue,
+            colorCode: null,
+            displayOrder: 0,
+          };
+        })
+      );
+
+      return {
+        id: pa.id,
+        attributeId: pa.attributeId,
+        name: attribute?.name || "",
+        slug: attribute?.slug || "",
+        type: attribute?.type || "SELECT",
+        description: attribute?.description || null,
+        isVariation: pa.isVariation,
+        values,
+      };
+    })
+  );
+
   const rawVariants = await db.orm.public.ProductVariant
     .where({ productId: product.id })
     .where({ isActive: true })
@@ -272,9 +320,33 @@ export const getProductBySlug = async (slug: string, requestingUser?: any) => {
           useMedia = { ...um, media: m };
         }
       }
+
+      // Load relational variant attribute values
+      const rawVav = await db.orm.public.ProductVariantAttributeValue
+        .where({ variantId: v.id })
+        .all();
+
+      const attributeValues = await Promise.all(
+        rawVav.map(async (vav) => {
+          const attr = await db.orm.public.Attribute.where({ id: vav.attributeId }).first();
+          const av = await db.orm.public.AttributeValue.where({ id: vav.attributeValueId }).first();
+          return {
+            id: vav.id,
+            attributeId: vav.attributeId,
+            attributeName: attr?.name || "",
+            attributeSlug: attr?.slug || "",
+            attributeValueId: vav.attributeValueId,
+            value: av?.value || "",
+            colorCode: av?.colorCode || null,
+          };
+        })
+      );
+
       return {
         ...v,
         useMedia,
+        attributeValues,
+        attributeValueIds: rawVav.map((x) => x.attributeValueId),
       };
     })
   );
@@ -301,6 +373,7 @@ export const getProductBySlug = async (slug: string, requestingUser?: any) => {
         }
       : null,
     images,
+    selectedAttributes,
     variants,
     reviews,
   };
@@ -406,6 +479,10 @@ export const createProduct = async (
       tags: payload.tags || [],
       warranty: payload.warranty ?? null,
       weightKg: payload.weightKg ?? null,
+      dimensions: payload.dimensions ?? null,
+      videoUrl: payload.videoUrl ?? null,
+      trackStock: payload.trackStock !== undefined ? payload.trackStock : true,
+      isFreeShipping: payload.isFreeShipping ?? false,
       metaTitle: payload.metaTitle ?? payload.name,
       metaDescription: payload.metaDescription ?? payload.shortDescription ?? null,
       metaKeywords: payload.metaKeywords ?? null,
@@ -442,7 +519,37 @@ export const createProduct = async (
       }
     }
 
-    // 3. Insert product variants if variable product
+    // 3. Insert Selected Product Attributes & Attribute Values (Simple Specs or Variation Attributes)
+    if (Array.isArray(payload.selectedAttributes) && payload.selectedAttributes.length > 0) {
+      for (const attrItem of payload.selectedAttributes) {
+        const prodAttr = await tx.orm.public.ProductAttribute.create({
+          productId: newProduct.id,
+          attributeId: attrItem.attributeId,
+          isVariation: attrItem.isVariation || false,
+        });
+
+        if (Array.isArray(attrItem.values)) {
+          for (const val of attrItem.values) {
+            const numVal = Number(val);
+            if (!Number.isNaN(numVal) && typeof val === "number") {
+              await tx.orm.public.ProductAttributeValue.create({
+                productAttributeId: prodAttr.id,
+                attributeValueId: numVal,
+                customValue: null,
+              });
+            } else {
+              await tx.orm.public.ProductAttributeValue.create({
+                productAttributeId: prodAttr.id,
+                attributeValueId: null,
+                customValue: String(val),
+              });
+            }
+          }
+        }
+      }
+    }
+
+    // 4. Insert product variants if variable product
     if (payload.productType === PRODUCT_TYPE.VARIABLE && Array.isArray(payload.variants)) {
       for (let i = 0; i < payload.variants.length; i++) {
         const v = payload.variants[i];
@@ -460,7 +567,7 @@ export const createProduct = async (
           }
         }
 
-        await tx.orm.public.ProductVariant.create({
+        const variant = await tx.orm.public.ProductVariant.create({
           productId: newProduct.id,
           sku: vSku,
           title: v.title,
@@ -468,12 +575,30 @@ export const createProduct = async (
           comparePrice: v.comparePrice ?? null,
           costPrice: v.costPrice ?? null,
           stock: v.stock || 0,
+          lowStockThreshold: v.lowStockThreshold || 5,
           image: variantImage,
           useMediaId,
           attributes: v.attributes || {},
           barcode: v.barcode ?? null,
+          weightKg: v.weightKg ?? null,
+          dimensions: v.dimensions ?? null,
+          isDefault: v.isDefault || false,
           isActive: v.isActive !== false,
         });
+
+        // Insert variant attribute values in ProductVariantAttributeValue
+        if (Array.isArray(v.attributeValueIds) && v.attributeValueIds.length > 0) {
+          for (const attrValId of v.attributeValueIds) {
+            const av = await tx.orm.public.AttributeValue.where({ id: attrValId }).first();
+            if (av) {
+              await tx.orm.public.ProductVariantAttributeValue.create({
+                variantId: variant.id,
+                attributeId: av.attributeId,
+                attributeValueId: av.id,
+              });
+            }
+          }
+        }
       }
     }
 
@@ -529,9 +654,14 @@ export const updateProduct = async (
       }
     }
     if (payload.status !== undefined) updateData.status = payload.status;
+    if (payload.productType !== undefined) updateData.productType = payload.productType;
     if (payload.tags !== undefined) updateData.tags = payload.tags;
     if (payload.warranty !== undefined) updateData.warranty = payload.warranty;
     if (payload.weightKg !== undefined) updateData.weightKg = payload.weightKg;
+    if (payload.dimensions !== undefined) updateData.dimensions = payload.dimensions;
+    if (payload.videoUrl !== undefined) updateData.videoUrl = payload.videoUrl;
+    if (payload.trackStock !== undefined) updateData.trackStock = payload.trackStock;
+    if (payload.isFreeShipping !== undefined) updateData.isFreeShipping = payload.isFreeShipping;
     if (payload.metaTitle !== undefined) updateData.metaTitle = payload.metaTitle;
     if (payload.metaDescription !== undefined) updateData.metaDescription = payload.metaDescription;
     if (payload.metaKeywords !== undefined) updateData.metaKeywords = payload.metaKeywords;
@@ -566,6 +696,37 @@ export const updateProduct = async (
       }
     }
 
+    // Handle selectedAttributes update if provided
+    if (Array.isArray(payload.selectedAttributes)) {
+      await tx.orm.public.ProductAttribute.where({ productId: id }).delete();
+      for (const attrItem of payload.selectedAttributes) {
+        const prodAttr = await tx.orm.public.ProductAttribute.create({
+          productId: id,
+          attributeId: attrItem.attributeId,
+          isVariation: attrItem.isVariation || false,
+        });
+
+        if (Array.isArray(attrItem.values)) {
+          for (const val of attrItem.values) {
+            const numVal = Number(val);
+            if (!Number.isNaN(numVal) && typeof val === "number") {
+              await tx.orm.public.ProductAttributeValue.create({
+                productAttributeId: prodAttr.id,
+                attributeValueId: numVal,
+                customValue: null,
+              });
+            } else {
+              await tx.orm.public.ProductAttributeValue.create({
+                productAttributeId: prodAttr.id,
+                attributeValueId: null,
+                customValue: String(val),
+              });
+            }
+          }
+        }
+      }
+    }
+
     // Handle variants update if provided
     if (Array.isArray(payload.variants)) {
       // Recalculate total stock from variants
@@ -584,22 +745,27 @@ export const updateProduct = async (
           }
         }
 
-        if (v.id) {
-          await tx.orm.public.ProductVariant.where({ id: v.id }).update({
+        let variantId = v.id;
+        if (variantId) {
+          await tx.orm.public.ProductVariant.where({ id: variantId }).update({
             title: v.title,
             price: v.price,
             comparePrice: v.comparePrice ?? null,
             costPrice: v.costPrice ?? null,
             stock: v.stock || 0,
+            lowStockThreshold: v.lowStockThreshold !== undefined ? v.lowStockThreshold : 5,
             image: variantImage,
             useMediaId,
             attributes: v.attributes || {},
             barcode: v.barcode ?? null,
+            weightKg: v.weightKg ?? null,
+            dimensions: v.dimensions ?? null,
+            isDefault: v.isDefault || false,
             isActive: v.isActive !== false,
           });
         } else {
           const vSku = v.sku || `${product.sku}-VAR${Math.floor(100 + Math.random() * 900)}`;
-          await tx.orm.public.ProductVariant.create({
+          const createdVariant = await tx.orm.public.ProductVariant.create({
             productId: product.id,
             sku: vSku,
             title: v.title,
@@ -607,12 +773,32 @@ export const updateProduct = async (
             comparePrice: v.comparePrice ?? null,
             costPrice: v.costPrice ?? null,
             stock: v.stock || 0,
+            lowStockThreshold: v.lowStockThreshold || 5,
             image: variantImage,
             useMediaId,
             attributes: v.attributes || {},
             barcode: v.barcode ?? null,
+            weightKg: v.weightKg ?? null,
+            dimensions: v.dimensions ?? null,
+            isDefault: v.isDefault || false,
             isActive: v.isActive !== false,
           });
+          variantId = createdVariant.id;
+        }
+
+        // Synchronize ProductVariantAttributeValue
+        if (Array.isArray(v.attributeValueIds) && variantId) {
+          await tx.orm.public.ProductVariantAttributeValue.where({ variantId }).delete();
+          for (const attrValId of v.attributeValueIds) {
+            const av = await tx.orm.public.AttributeValue.where({ id: attrValId }).first();
+            if (av) {
+              await tx.orm.public.ProductVariantAttributeValue.create({
+                variantId,
+                attributeId: av.attributeId,
+                attributeValueId: av.id,
+              });
+            }
+          }
         }
       }
     } else if (payload.stock !== undefined) {

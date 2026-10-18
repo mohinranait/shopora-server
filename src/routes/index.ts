@@ -15,6 +15,7 @@ import { SettingsRoutes } from "../modules/settings/settings.routes.ts";
 import { AnalyticsRoutes } from "../modules/analytics/analytics.routes.ts";
 import { ReturnRoutes } from "../modules/returns/return.routes.ts";
 import { mediaRoutes } from "../modules/media/media.routes.ts";
+import { AttributeRoutes } from "../modules/attributes/attribute.routes.ts";
 
 const router = Router();
 
@@ -24,6 +25,7 @@ const moduleRoutes = [
   { path: "/categories", route: CategoryRoutes },
   { path: "/brands", route: BrandRoutes },
   { path: "/products", route: ProductRoutes },
+  { path: "/attributes", route: AttributeRoutes },
   { path: "/sellers", route: SellerRoutes },
   { path: "/orders", route: OrderRoutes },
   { path: "/cart", route: CartRoutes },

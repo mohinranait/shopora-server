@@ -61,6 +61,7 @@ model Product {
   mainImageUseMedia   UseMedia?                  @relation("ProductMainImage", fields: [mainImageUseMediaId], references: [id], onDelete: SetNull)
   images              ProductImage[]
   variants            ProductVariant[]
+  productAttributes   ProductAttribute[]
   reviews             ProductReview[]
   orderItems          OrderItem[]
   wishlistItems       WishlistItem[]
@@ -70,6 +71,10 @@ model Product {
   totalSold           Int                        @default(0)
   isFeatured          Boolean                    @default(false)
   isTrending          Boolean                    @default(false)
+  videoUrl            String?
+  trackStock          Boolean                    @default(true)
+  isFreeShipping      Boolean                    @default(false)
+  dimensions          Json?                      // { length, width, height }
   metaTitle           String?
   metaDescription     String?
   metaKeywords        String?
@@ -94,23 +99,28 @@ model ProductImage {
 }
 
 model ProductVariant {
-  id           Int                        @id @default(autoincrement())
-  productId    Int
-  product      Product                    @relation(fields: [productId], references: [id], onDelete: Cascade)
-  sku          String                     @unique
-  title        String // e.g. "Red / XL"
-  price        Float
-  comparePrice Float?
-  costPrice    Float?
-  stock        Int                        @default(0)
-  image        String?
-  useMediaId   Int?
-  useMedia     UseMedia?                  @relation(fields: [useMediaId], references: [id], onDelete: SetNull)
-  attributes   Json // e.g. {"Color": "Red", "Size": "XL"}
-  barcode      String?
-  isActive     Boolean                    @default(true)
-  orderItems   OrderItem[]
-  cartItems    CartItem[]
-  createdAt    TimestamptzString          @default(now())
-  updatedAt    temporal.updatedAtString()
+  id                Int                            @id @default(autoincrement())
+  productId         Int
+  product           Product                        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sku               String                         @unique
+  title             String                         // e.g. "Red / XL"
+  price             Float
+  comparePrice      Float?
+  costPrice         Float?
+  stock             Int                            @default(0)
+  lowStockThreshold Int                            @default(5)
+  image             String?
+  useMediaId        Int?
+  useMedia          UseMedia?                      @relation(fields: [useMediaId], references: [id], onDelete: SetNull)
+  attributes        Json?                          // Cached key-value helper e.g. {"Color": "Red", "Size": "XL"}
+  attributeValues   ProductVariantAttributeValue[]
+  barcode           String?
+  weightKg          Float?
+  dimensions        Json?                          // { length, width, height }
+  isDefault         Boolean                        @default(false)
+  isActive          Boolean                        @default(true)
+  orderItems        OrderItem[]
+  cartItems         CartItem[]
+  createdAt         TimestamptzString              @default(now())
+  updatedAt         temporal.updatedAtString()
 }
