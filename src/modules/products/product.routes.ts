@@ -42,6 +42,9 @@ router.patch(
   ProductController.reviewProductApproval
 );
 
+// Single Product by ID (Admin, Seller, or Public depending on product status)
+router.get("/:id", ProductController.getProductById);
+
 // Creation route (Admin or Approved Seller)
 router.post(
   "/",

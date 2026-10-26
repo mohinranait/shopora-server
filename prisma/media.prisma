@@ -35,6 +35,7 @@ model UseMedia {
   brands          Brand[]
   categories      Category[]
   banners         Banner[]
+  sliders         Slider[]
   userAvatars     User[]                     @relation("UserAvatar")
   sellerLogos     SellerProfile[]            @relation("SellerLogo")
   sellerBanners   SellerProfile[]            @relation("SellerBanner")

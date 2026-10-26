@@ -193,14 +193,9 @@ export const getAllProducts = async (filters: IProductFilterOptions) => {
 };
 
 /**
- * Get Product Details by Slug (including full images, variants, category, brand, seller)
+ * Helper: Populate full product relations (category, brand, seller, media, images, attributes, variants, reviews)
  */
-export const getProductBySlug = async (slug: string, requestingUser?: any) => {
-  const product = await db.orm.public.Product.where({ slug }).first();
-  if (!product) {
-    throw new AppError("Product not found", 404);
-  }
-
+export const populateProductDetails = async (product: any, requestingUser?: any) => {
   // If product is not approved or not published, allow only its seller or admin to view
   const isOwner =
     requestingUser &&
@@ -307,7 +302,6 @@ export const getProductBySlug = async (slug: string, requestingUser?: any) => {
 
   const rawVariants = await db.orm.public.ProductVariant
     .where({ productId: product.id })
-    .where({ isActive: true })
     .all();
 
   const variants = await Promise.all(
@@ -377,6 +371,28 @@ export const getProductBySlug = async (slug: string, requestingUser?: any) => {
     variants,
     reviews,
   };
+};
+
+/**
+ * Get Product Details by Slug (including full images, variants, category, brand, seller)
+ */
+export const getProductBySlug = async (slug: string, requestingUser?: any) => {
+  const product = await db.orm.public.Product.where({ slug }).first();
+  if (!product) {
+    throw new AppError("Product not found", 404);
+  }
+  return await populateProductDetails(product, requestingUser);
+};
+
+/**
+ * Get Product Details by ID (for admin/seller editing and detail viewing)
+ */
+export const getProductById = async (id: number, requestingUser?: any) => {
+  const product = await db.orm.public.Product.where({ id }).first();
+  if (!product) {
+    throw new AppError("Product not found", 404);
+  }
+  return await populateProductDetails(product, requestingUser);
 };
 
 /**
@@ -732,6 +748,19 @@ export const updateProduct = async (
       // Recalculate total stock from variants
       updateData.stock = payload.variants.reduce((acc: number, v: any) => acc + (v.stock || 0), 0);
       
+      // Cleanup variants removed in UI
+      const retainedVariantIds = payload.variants
+        .map((v: any) => (v.id ? Number(v.id) : null))
+        .filter((id: number | null): id is number => id !== null && !Number.isNaN(id));
+
+      const existingVariants = await tx.orm.public.ProductVariant.where({ productId: id }).all();
+      for (const exVar of existingVariants) {
+        if (!retainedVariantIds.includes(exVar.id)) {
+          await tx.orm.public.ProductVariantAttributeValue.where({ variantId: exVar.id }).delete();
+          await tx.orm.public.ProductVariant.where({ id: exVar.id }).delete();
+        }
+      }
+
       // Upsert/create variants
       for (const v of payload.variants) {
         let variantImage = v.image ?? null;
@@ -882,6 +911,7 @@ export const deleteProduct = async (
 export const ProductService = {
   getAllProducts,
   getProductBySlug,
+  getProductById,
   createProduct,
   updateProduct,
   reviewProductApproval,

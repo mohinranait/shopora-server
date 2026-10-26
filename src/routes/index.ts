@@ -16,6 +16,7 @@ import { AnalyticsRoutes } from "../modules/analytics/analytics.routes.ts";
 import { ReturnRoutes } from "../modules/returns/return.routes.ts";
 import { mediaRoutes } from "../modules/media/media.routes.ts";
 import { AttributeRoutes } from "../modules/attributes/attribute.routes.ts";
+import { SliderRoutes } from "../modules/sliders/slider.routes.ts";
 
 const router = Router();
 
@@ -26,6 +27,7 @@ const moduleRoutes = [
   { path: "/brands", route: BrandRoutes },
   { path: "/products", route: ProductRoutes },
   { path: "/attributes", route: AttributeRoutes },
+  { path: "/sliders", route: SliderRoutes },
   { path: "/sellers", route: SellerRoutes },
   { path: "/orders", route: OrderRoutes },
   { path: "/cart", route: CartRoutes },

@@ -3,6 +3,7 @@ import { catchAsync } from "../../utils/catchAsync.ts";
 import { sendResponse } from "../../utils/sendResponse.ts";
 import { ProductService, type IProductFilterOptions } from "./product.service.ts";
 import { USER_ROLES } from "../../constants/index.ts";
+import { AppError } from "../../errors/AppError.ts";
 
 /**
  * Get all products with filters and search
@@ -43,6 +44,24 @@ export const getAllProducts = catchAsync(async (req: Request, res: Response) => 
 export const getProductBySlug = catchAsync(async (req: Request, res: Response) => {
   const slug = Array.isArray(req.params.slug) ? req.params.slug[0] : req.params.slug;
   const result = await ProductService.getProductBySlug(slug, req.user);
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Product details retrieved successfully",
+    data: result,
+  });
+});
+
+/**
+ * Get single product by ID
+ */
+export const getProductById = catchAsync(async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  if (Number.isNaN(id)) {
+    throw new AppError("Invalid product ID", 400);
+  }
+  const result = await ProductService.getProductById(id, req.user);
 
   sendResponse(res, {
     statusCode: 200,
@@ -168,6 +187,7 @@ export const deleteProduct = catchAsync(async (req: Request, res: Response) => {
 export const ProductController = {
   getAllProducts,
   getProductBySlug,
+  getProductById,
   getSellerProducts,
   getAdminProducts,
   createProduct,
