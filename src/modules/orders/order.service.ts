@@ -12,6 +12,206 @@ import {
 } from "../../constants/index.ts";
 import { ENV } from "../../config/env.ts";
 
+type OrderItemInput = { productId: number; variantId?: number | null; quantity: number };
+
+export const SHIPPING_RULES = { freeShippingThreshold: 1500, flatFee: 70 } as const;
+
+interface IPricedLine {
+  product: any;
+  selectedVariant: any;
+  productId: number;
+  variantId: number | null;
+  sellerId: number | null;
+  isPlatformOwned: boolean;
+  productName: string;
+  variantTitle: string | null;
+  productImage: string;
+  sku: string;
+  price: number;
+  comparePrice: number | null;
+  quantity: number;
+  totalPrice: number;
+  isFreeShipping: boolean;
+}
+
+/**
+ * Validate a coupon against the priced lines. Never throws: returns why it doesn't apply.
+ */
+const evaluateCoupon = async (code: string, lines: IPricedLine[]) => {
+  const normalized = code.trim().toUpperCase();
+  const coupon = await db.orm.public.Coupon.where({ code: normalized }).first();
+  const fail = (message: string) => ({ coupon: null, discount: 0, message });
+
+  if (!coupon || !coupon.isActive) return fail("This coupon code is not valid");
+  const now = Date.now();
+  const toTime = (v: unknown) => (v ? new Date(String(v).replace(" ", "T").replace(/([+-]\d{2})$/, "$1:00")).getTime() : NaN);
+  if (coupon.startDate && toTime(coupon.startDate) > now) return fail("This coupon is not active yet");
+  if (coupon.endDate && toTime(coupon.endDate) < now) return fail("This coupon has expired");
+  if (coupon.usageLimit != null && coupon.usedCount >= coupon.usageLimit) {
+    return fail("This coupon has reached its usage limit");
+  }
+
+  // Seller coupons only discount that seller's items
+  const eligible = coupon.sellerId ? lines.filter((l) => l.sellerId === coupon.sellerId) : lines;
+  const eligibleSubtotal = eligible.reduce((sum, l) => sum + l.totalPrice, 0);
+  if (eligible.length === 0) return fail("This coupon doesn't apply to items in your cart");
+  if (eligibleSubtotal < coupon.minOrderAmount) {
+    return fail(`Add ৳${Math.ceil(coupon.minOrderAmount - eligibleSubtotal).toLocaleString("en-US")} more to use this coupon`);
+  }
+
+  let discount =
+    coupon.discountType === "PERCENTAGE" ? (eligibleSubtotal * coupon.discountValue) / 100 : coupon.discountValue;
+  if (coupon.maxDiscountAmount && discount > coupon.maxDiscountAmount) discount = coupon.maxDiscountAmount;
+  discount = Math.round(Math.min(discount, eligibleSubtotal));
+
+  return { coupon, discount, message: "Coupon applied" };
+};
+
+/**
+ * Price an order: validates products, variants and stock, applies the coupon and
+ * shipping rules. Shared by checkout and the cart/checkout quote endpoint so the
+ * totals a customer sees are exactly what gets charged.
+ */
+export const priceOrder = async (items: OrderItemInput[], couponCode?: string) => {
+  const productIds = [...new Set(items.map((i) => i.productId))];
+  const variantIds = [...new Set(items.map((i) => i.variantId).filter((id): id is number => id != null))];
+  const [products, variants] = await Promise.all([
+    productIds.length ? db.orm.public.Product.where((p) => p.id.in(productIds)).all() : [],
+    variantIds.length ? db.orm.public.ProductVariant.where((v) => v.id.in(variantIds)).all() : [],
+  ]);
+  const productMap = new Map(products.map((p) => [p.id, p]));
+  const variantMap = new Map(variants.map((v) => [v.id, v]));
+
+  const lines: IPricedLine[] = [];
+  const issues: { productId: number; variantId: number | null; message: string }[] = [];
+
+  for (const item of items) {
+    const variantId = item.variantId ?? null;
+    const issue = (message: string) => issues.push({ productId: item.productId, variantId, message });
+    const product = productMap.get(item.productId);
+
+    if (!product) {
+      issue("This product no longer exists");
+      continue;
+    }
+    if (product.approvalStatus !== PRODUCT_APPROVAL_STATUS.APPROVED || product.status !== PRODUCT_STATUS.PUBLISHED) {
+      issue(`"${product.name}" is currently not available for purchase`);
+      continue;
+    }
+
+    let selectedVariant: any = null;
+    let unitPrice = product.basePrice;
+    let comparePrice = product.comparePrice ?? null;
+    let stock = product.stock;
+    let variantTitle: string | null = null;
+    let sku = product.sku;
+
+    if (product.productType === PRODUCT_TYPE.VARIABLE && variantId) {
+      selectedVariant = variantMap.get(variantId);
+      if (!selectedVariant || !selectedVariant.isActive || selectedVariant.productId !== product.id) {
+        issue(`Selected option for "${product.name}" is no longer available`);
+        continue;
+      }
+      unitPrice = selectedVariant.price;
+      comparePrice = selectedVariant.comparePrice ?? null;
+      stock = selectedVariant.stock;
+      variantTitle = selectedVariant.title;
+      sku = selectedVariant.sku;
+    }
+
+    if (stock < item.quantity) {
+      issue(
+        stock <= 0
+          ? `"${product.name}${variantTitle ? ` (${variantTitle})` : ""}" is out of stock`
+          : `Only ${stock} left of "${product.name}${variantTitle ? ` (${variantTitle})` : ""}"`
+      );
+      continue;
+    }
+
+    lines.push({
+      product,
+      selectedVariant,
+      productId: product.id,
+      variantId,
+      sellerId: product.sellerId ?? null,
+      isPlatformOwned: product.isPlatformOwned,
+      productName: product.name,
+      variantTitle,
+      productImage: selectedVariant?.image || product.mainImage,
+      sku,
+      price: unitPrice,
+      comparePrice,
+      quantity: item.quantity,
+      totalPrice: unitPrice * item.quantity,
+      isFreeShipping: Boolean(product.isFreeShipping),
+    });
+  }
+
+  const subtotal = lines.reduce((sum, l) => sum + l.totalPrice, 0);
+  const savings = lines.reduce(
+    (sum, l) => sum + (l.comparePrice && l.comparePrice > l.price ? (l.comparePrice - l.price) * l.quantity : 0),
+    0
+  );
+
+  let discount = 0;
+  let coupon: any = null;
+  let couponMessage: string | null = null;
+  if (couponCode?.trim() && lines.length > 0) {
+    const result = await evaluateCoupon(couponCode, lines);
+    discount = result.discount;
+    coupon = result.coupon;
+    couponMessage = result.message;
+  }
+
+  const allFreeShipping = lines.length > 0 && lines.every((l) => l.isFreeShipping);
+  const shippingFee =
+    lines.length === 0 || allFreeShipping || subtotal >= SHIPPING_RULES.freeShippingThreshold
+      ? 0
+      : SHIPPING_RULES.flatFee;
+  const tax = 0;
+  const totalAmount = Math.max(0, subtotal - discount + shippingFee + tax);
+
+  return {
+    lines,
+    issues,
+    subtotal,
+    savings,
+    discount,
+    coupon,
+    couponMessage,
+    shippingFee,
+    tax,
+    totalAmount,
+    freeShippingThreshold: SHIPPING_RULES.freeShippingThreshold,
+  };
+};
+
+/**
+ * Public price quote for the cart / checkout summary
+ */
+export const quoteOrder = async (items: OrderItemInput[], couponCode?: string) => {
+  const priced = await priceOrder(items, couponCode);
+  return {
+    subtotal: priced.subtotal,
+    savings: priced.savings,
+    discount: priced.discount,
+    shippingFee: priced.shippingFee,
+    tax: priced.tax,
+    totalAmount: priced.totalAmount,
+    freeShippingThreshold: priced.freeShippingThreshold,
+    coupon: priced.coupon
+      ? {
+          code: priced.coupon.code,
+          discountType: priced.coupon.discountType,
+          discountValue: priced.coupon.discountValue,
+        }
+      : null,
+    couponMessage: priced.couponMessage,
+    issues: priced.issues,
+    itemCount: priced.lines.reduce((sum, l) => sum + l.quantity, 0),
+  };
+};
+
 /**
  * Checkout / Place Order with Multi-Vendor Splitting & Commission Accounting
  */
@@ -26,7 +226,8 @@ export const createOrder = async (
     notes?: string;
     guestEmail?: string;
     guestPhone?: string;
-  }
+  },
+  sessionId?: string
 ) => {
   if (payload.items.length === 0) {
     throw new AppError("Cannot place an order with zero items", 400);
@@ -42,104 +243,18 @@ export const createOrder = async (
     defaultCommissionRate = commissionSetting.value;
   }
 
-  // 2. Validate all products and stock availability
-  const validatedItems: any[] = [];
-  let subtotal = 0;
-
-  for (const item of payload.items) {
-    const product = await db.orm.public.Product.where({ id: item.productId }).first();
-    if (!product) {
-      throw new AppError(`Product with ID ${item.productId} not found`, 404);
-    }
-
-    if (
-      product.approvalStatus !== PRODUCT_APPROVAL_STATUS.APPROVED ||
-      product.status !== PRODUCT_STATUS.PUBLISHED
-    ) {
-      throw new AppError(`Product "${product.name}" is currently not available for purchase`, 400);
-    }
-
-    let unitPrice = product.basePrice;
-    let variantTitle: string | null = null;
-    let sku = product.sku;
-    let selectedVariant = null;
-
-    if (product.productType === PRODUCT_TYPE.VARIABLE && item.variantId) {
-      selectedVariant = await db.orm.public.ProductVariant.where({ id: item.variantId }).first();
-      if (!selectedVariant || !selectedVariant.isActive) {
-        throw new AppError(`Selected variant for "${product.name}" is invalid or inactive`, 400);
-      }
-      if (selectedVariant.stock < item.quantity) {
-        throw new AppError(
-          `Insufficient stock for "${product.name} (${selectedVariant.title})". Available: ${selectedVariant.stock}, Requested: ${item.quantity}`,
-          400
-        );
-      }
-      unitPrice = selectedVariant.price;
-      variantTitle = selectedVariant.title;
-      sku = selectedVariant.sku;
-    } else {
-      if (product.stock < item.quantity) {
-        throw new AppError(
-          `Insufficient stock for "${product.name}". Available: ${product.stock}, Requested: ${item.quantity}`,
-          400
-        );
-      }
-    }
-
-    const itemTotal = unitPrice * item.quantity;
-    subtotal += itemTotal;
-
-    validatedItems.push({
-      product,
-      selectedVariant,
-      productId: product.id,
-      variantId: item.variantId ?? null,
-      sellerId: product.sellerId,
-      isPlatformOwned: product.isPlatformOwned,
-      productName: product.name,
-      variantTitle,
-      productImage: selectedVariant?.image || product.mainImage,
-      sku,
-      price: unitPrice,
-      quantity: item.quantity,
-      totalPrice: itemTotal,
-    });
+  // 2. Validate products & stock, apply coupon and shipping (single source of truth)
+  const priced = await priceOrder(payload.items, payload.couponCode);
+  if (priced.issues.length > 0) {
+    throw new AppError(priced.issues[0].message, 400);
+  }
+  if (payload.couponCode?.trim() && !priced.coupon) {
+    throw new AppError(priced.couponMessage || "This coupon code is not valid", 400);
   }
 
-  // 3. Process Coupon Discount if provided
-  let discount = 0;
-  let appliedCouponCode: string | null = null;
-
-  if (payload.couponCode) {
-    const coupon = await db.orm.public.Coupon.where({
-      code: payload.couponCode.trim().toUpperCase(),
-    }).first();
-
-    if (coupon && coupon.isActive) {
-      if (subtotal >= coupon.minOrderAmount) {
-        if (coupon.discountType === "PERCENTAGE") {
-          discount = (subtotal * coupon.discountValue) / 100;
-          if (coupon.maxDiscountAmount && discount > coupon.maxDiscountAmount) {
-            discount = coupon.maxDiscountAmount;
-          }
-        } else {
-          discount = coupon.discountValue;
-        }
-        discount = Math.min(discount, subtotal);
-        appliedCouponCode = coupon.code;
-
-        // Increment used count
-        await db.orm.public.Coupon.where({ id: coupon.id }).update({
-          usedCount: coupon.usedCount + 1,
-        });
-      }
-    }
-  }
-
-  const shippingFee = subtotal > 1500 ? 0 : 70; // e.g. Free shipping above 1500 BDT
-  const tax = 0;
-  const totalAmount = Math.max(0, subtotal - discount + shippingFee + tax);
+  const validatedItems = priced.lines;
+  const { subtotal, discount, shippingFee, tax, totalAmount } = priced;
+  const appliedCouponCode: string | null = priced.coupon?.code ?? null;
   const orderNumber = generateOrderNumber();
 
   // 4. Group items by Seller (or Platform)
@@ -259,9 +374,17 @@ export const createOrder = async (
       }
     }
 
-    // Clear cart items for this customer
+    if (priced.coupon) {
+      await tx.orm.public.Coupon.where({ id: priced.coupon.id }).update({
+        usedCount: priced.coupon.usedCount + 1,
+      });
+    }
+
+    // Clear cart items for this customer (or guest session)
     if (userId) {
       await tx.orm.public.CartItem.where({ userId }).deleteAll();
+    } else if (sessionId) {
+      await tx.orm.public.CartItem.where({ sessionId }).deleteAll();
     }
 
     return order;
@@ -514,6 +637,7 @@ export const updatePaymentStatus = async (
 };
 
 export const OrderService = {
+  quoteOrder,
   createOrder,
   getCustomerOrders,
   getOrderDetails,

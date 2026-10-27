@@ -46,6 +46,16 @@ export const createOrderSchema = z.object({
 });
 
 /**
+ * Price quote for cart / checkout summary
+ */
+export const quoteOrderSchema = z.object({
+  body: z.object({
+    items: z.array(orderItemInputSchema).max(100),
+    couponCode: z.string().max(50).optional(),
+  }),
+});
+
+/**
  * Update Order / Sub-Order Status Schema
  */
 export const updateSubOrderStatusSchema = z.object({

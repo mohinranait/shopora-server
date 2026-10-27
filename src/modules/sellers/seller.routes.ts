@@ -13,6 +13,10 @@ const router = Router();
 // Public route to view seller store
 router.get("/store/:slug", SellerController.getStoreBySlug);
 
+// Public vendor directory & store profile
+router.get("/stores", SellerController.getPublicStores);
+router.get("/stores/:slug", SellerController.getPublicStoreBySlug);
+
 // Seller authenticated routes
 router.get(
   "/me/dashboard",

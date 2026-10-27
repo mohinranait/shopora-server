@@ -60,6 +60,158 @@ export const getStoreBySlug = async (storeSlug: string) => {
   };
 };
 
+export interface IPublicStoreFilters {
+  search?: string;
+  sortBy?: "popular" | "rating" | "products" | "newest" | "name";
+  verifiedOnly?: boolean;
+  page?: number;
+  limit?: number;
+}
+
+/**
+ * Resolve logo/banner UseMedia -> Media urls for a batch of sellers in two queries
+ */
+const resolveStoreMedia = async (sellers: { logoUseMediaId: number | null; bannerUseMediaId: number | null }[]) => {
+  const useMediaIds = [
+    ...new Set(
+      sellers.flatMap((s) => [s.logoUseMediaId, s.bannerUseMediaId]).filter((id): id is number => typeof id === "number")
+    ),
+  ];
+  if (useMediaIds.length === 0) return new Map<number, string>();
+  const useMedias = await db.orm.public.UseMedia.where((u) => u.id.in(useMediaIds)).select("id", "mediaId").all();
+  const mediaIds = [...new Set(useMedias.map((u) => u.mediaId))];
+  const medias = mediaIds.length
+    ? await db.orm.public.Media.where((m) => m.id.in(mediaIds)).select("id", "url").all()
+    : [];
+  const mediaUrl = new Map(medias.map((m) => [m.id, m.url]));
+  return new Map(useMedias.map((u) => [u.id, mediaUrl.get(u.mediaId) ?? ""]));
+};
+
+/**
+ * Aggregate public product stats per seller (count, units sold, rating)
+ */
+const getStoreStats = async (sellerIds: number[]) => {
+  if (sellerIds.length === 0) return new Map<number, { productCount: number; totalSold: number; reviewCount: number; rating: number }>();
+  const groups = await db.orm.public.Product
+    .where({ approvalStatus: PRODUCT_APPROVAL_STATUS.APPROVED })
+    .where({ status: PRODUCT_STATUS.PUBLISHED })
+    .where((p) => p.sellerId.in(sellerIds))
+    .groupBy("sellerId")
+    .aggregate((a) => ({
+      count: a.count(),
+      sold: a.sum("totalSold"),
+      reviews: a.sum("ratingCount"),
+      rating: a.avg("ratingAverage"),
+    }));
+  return new Map(
+    groups.map((g) => [
+      g.sellerId as number,
+      {
+        productCount: Number(g.count) || 0,
+        totalSold: Number(g.sold) || 0,
+        reviewCount: Number(g.reviews) || 0,
+        rating: Math.round((Number(g.rating) || 0) * 10) / 10,
+      },
+    ])
+  );
+};
+
+const toPublicStore = (
+  seller: any,
+  mediaMap: Map<number, string>,
+  stats?: { productCount: number; totalSold: number; reviewCount: number; rating: number }
+) => ({
+  id: seller.id,
+  storeName: seller.storeName,
+  storeSlug: seller.storeSlug,
+  storeLogo: (seller.logoUseMediaId && mediaMap.get(seller.logoUseMediaId)) || seller.storeLogo || null,
+  storeBanner: (seller.bannerUseMediaId && mediaMap.get(seller.bannerUseMediaId)) || seller.storeBanner || null,
+  storeDescription: seller.storeDescription ?? null,
+  businessAddress: seller.businessAddress ?? null,
+  isVerified: Boolean(seller.isVerified),
+  createdAt: seller.createdAt,
+  productCount: stats?.productCount ?? 0,
+  totalSold: stats?.totalSold ?? 0,
+  reviewCount: stats?.reviewCount ?? 0,
+  rating: stats?.rating ?? 0,
+});
+
+const PUBLIC_STORE_FIELDS = [
+  "id",
+  "storeName",
+  "storeSlug",
+  "storeLogo",
+  "storeBanner",
+  "storeDescription",
+  "businessAddress",
+  "isVerified",
+  "createdAt",
+  "logoUseMediaId",
+  "bannerUseMediaId",
+] as const;
+
+/**
+ * Public directory of approved vendor stores with live stats
+ */
+export const getPublicStores = async (filters: IPublicStoreFilters) => {
+  const page = Math.max(1, Number(filters.page) || 1);
+  const limit = Math.max(1, Math.min(60, Number(filters.limit) || 24));
+
+  let query = db.orm.public.SellerProfile.where({ status: SELLER_STATUS.APPROVED });
+  if (filters.verifiedOnly) {
+    query = query.where({ isVerified: true });
+  }
+  if (filters.search?.trim()) {
+    const pattern = `%${filters.search.trim()}%`;
+    query = query.where((s, { fns }) =>
+      fns.or(s.storeName.ilike(pattern), s.storeDescription.ilike(pattern), s.businessAddress.ilike(pattern))
+    );
+  }
+
+  // Store counts are small, so stats-based sorting happens in memory after one stats query
+  const sellers = await query.select(...PUBLIC_STORE_FIELDS).all();
+  const [stats, mediaMap] = await Promise.all([
+    getStoreStats(sellers.map((s) => s.id)),
+    resolveStoreMedia(sellers),
+  ]);
+
+  const stores = sellers.map((s) => toPublicStore(s, mediaMap, stats.get(s.id)));
+  const sortBy = filters.sortBy ?? "popular";
+  stores.sort((a, b) => {
+    switch (sortBy) {
+      case "rating":
+        return b.rating - a.rating || b.reviewCount - a.reviewCount;
+      case "products":
+        return b.productCount - a.productCount;
+      case "newest":
+        return String(b.createdAt).localeCompare(String(a.createdAt));
+      case "name":
+        return a.storeName.localeCompare(b.storeName);
+      default:
+        return b.totalSold - a.totalSold || b.productCount - a.productCount;
+    }
+  });
+
+  const total = stores.length;
+  return {
+    stores: stores.slice((page - 1) * limit, page * limit),
+    meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+  };
+};
+
+/**
+ * Public profile + stats of a single approved store (products are fetched
+ * separately via /products?sellerId=... so they can be filtered and paginated)
+ */
+export const getPublicStoreBySlug = async (storeSlug: string) => {
+  const seller = await db.orm.public.SellerProfile.where({ storeSlug }).select(...PUBLIC_STORE_FIELDS, "status").first();
+  if (!seller || seller.status !== SELLER_STATUS.APPROVED) {
+    throw new AppError("Seller store not found", 404);
+  }
+  const [stats, mediaMap] = await Promise.all([getStoreStats([seller.id]), resolveStoreMedia([seller])]);
+  return toPublicStore(seller, mediaMap, stats.get(seller.id));
+};
+
 /**
  * Get seller's own dashboard stats & overview
  */
@@ -255,6 +407,8 @@ export const adminReviewSellerApplication = async (
 };
 
 export const SellerService = {
+  getPublicStores,
+  getPublicStoreBySlug,
   getStoreBySlug,
   getSellerDashboardStats,
   updateSellerProfile,

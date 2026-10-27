@@ -53,9 +53,10 @@ export const updateCartItemQuantity = catchAsync(async (req: Request, res: Respo
 
 export const removeCartItem = catchAsync(async (req: Request, res: Response) => {
   const userId = req.user ? req.user.id : null;
+  const sessionId = req.headers["x-session-id"] as string | undefined;
   const itemId = Number(req.params.id);
 
-  await CartService.removeCartItem(itemId, userId);
+  await CartService.removeCartItem(itemId, userId, sessionId);
 
   sendResponse(res, {
     statusCode: 200,

@@ -14,6 +14,35 @@ export const getStoreBySlug = catchAsync(async (req: Request, res: Response) => 
   });
 });
 
+export const getPublicStores = catchAsync(async (req: Request, res: Response) => {
+  const q = req.query as Record<string, string | undefined>;
+  const result = await SellerService.getPublicStores({
+    search: q.search,
+    sortBy: q.sortBy as any,
+    verifiedOnly: q.verified === "true",
+    page: q.page ? Number(q.page) : 1,
+    limit: q.limit ? Number(q.limit) : 24,
+  });
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Stores retrieved successfully",
+    meta: result.meta,
+    data: result.stores,
+  });
+});
+
+export const getPublicStoreBySlug = catchAsync(async (req: Request, res: Response) => {
+  const slug = Array.isArray(req.params.slug) ? req.params.slug[0] : req.params.slug;
+  const result = await SellerService.getPublicStoreBySlug(slug);
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Store retrieved successfully",
+    data: result,
+  });
+});
+
 export const getSellerDashboardStats = catchAsync(async (req: Request, res: Response) => {
   const result = await SellerService.getSellerDashboardStats(req.user!.id);
   sendResponse(res, {
@@ -58,6 +87,8 @@ export const adminReviewSellerApplication = catchAsync(async (req: Request, res:
 
 export const SellerController = {
   getStoreBySlug,
+  getPublicStores,
+  getPublicStoreBySlug,
   getSellerDashboardStats,
   updateSellerProfile,
   adminGetAllSellers,

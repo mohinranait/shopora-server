@@ -5,12 +5,24 @@ import { OrderService } from "./order.service.ts";
 
 export const createOrder = catchAsync(async (req: Request, res: Response) => {
   const userId = req.user ? req.user.id : null;
-  const result = await OrderService.createOrder(userId, req.body);
+  const sessionId = req.headers["x-session-id"] as string | undefined;
+  const result = await OrderService.createOrder(userId, req.body, sessionId);
 
   sendResponse(res, {
     statusCode: 201,
     success: true,
     message: "Order placed successfully",
+    data: result,
+  });
+});
+
+export const quoteOrder = catchAsync(async (req: Request, res: Response) => {
+  const result = await OrderService.quoteOrder(req.body.items, req.body.couponCode);
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Order quote calculated",
     data: result,
   });
 });
@@ -94,6 +106,7 @@ export const updatePaymentStatus = catchAsync(async (req: Request, res: Response
 });
 
 export const OrderController = {
+  quoteOrder,
   createOrder,
   getCustomerOrders,
   getOrderDetails,

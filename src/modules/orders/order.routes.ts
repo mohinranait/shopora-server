@@ -3,6 +3,7 @@ import { OrderController } from "./order.controller.ts";
 import { validateRequest } from "../../middlewares/validate.ts";
 import {
   createOrderSchema,
+  quoteOrderSchema,
   updateSubOrderStatusSchema,
   updatePaymentStatusSchema,
 } from "./order.validation.ts";
@@ -10,6 +11,9 @@ import { authGuard, optionalAuth } from "../../middlewares/auth.ts";
 import { USER_ROLES } from "../../constants/index.ts";
 
 const router = Router();
+
+// Price quote for cart / checkout summary (public)
+router.post("/quote", validateRequest(quoteOrderSchema), OrderController.quoteOrder);
 
 // Checkout route (supports guest or logged-in user)
 router.post(
