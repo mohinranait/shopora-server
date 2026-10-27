@@ -14,6 +14,7 @@ import {
   type PaymentMethod,
 } from "../../constants/index.ts";
 import { ENV } from "../../config/env.ts";
+import { getAllSettings } from "../settings/settings.service.ts";
 
 type OrderItemInput = { productId: number; variantId?: number | null; quantity: number };
 
@@ -166,12 +167,17 @@ export const priceOrder = async (items: OrderItemInput[], couponCode?: string) =
     couponMessage = result.message;
   }
 
+  const settings: Record<string, any> = await getAllSettings().catch(() => ({} as Record<string, any>));
+  const standardFee = typeof settings.shipping_fee_standard === "number" ? settings.shipping_fee_standard : 70;
+  const freeShippingThreshold = typeof settings.free_shipping_threshold === "number" ? settings.free_shipping_threshold : 1500;
+  const vatPercentage = typeof settings.vat_percentage === "number" ? settings.vat_percentage : 0;
+
   const allFreeShipping = lines.length > 0 && lines.every((l) => l.isFreeShipping);
   const shippingFee =
-    lines.length === 0 || allFreeShipping || subtotal >= SHIPPING_RULES.freeShippingThreshold
+    lines.length === 0 || allFreeShipping || subtotal >= freeShippingThreshold
       ? 0
-      : SHIPPING_RULES.flatFee;
-  const tax = 0;
+      : standardFee;
+  const tax = Math.round(subtotal * (vatPercentage / 100));
   const totalAmount = Math.max(0, subtotal - discount + shippingFee + tax);
 
   return {
@@ -185,7 +191,7 @@ export const priceOrder = async (items: OrderItemInput[], couponCode?: string) =
     shippingFee,
     tax,
     totalAmount,
-    freeShippingThreshold: SHIPPING_RULES.freeShippingThreshold,
+    freeShippingThreshold,
   };
 };
 
@@ -194,6 +200,14 @@ export const priceOrder = async (items: OrderItemInput[], couponCode?: string) =
  */
 export const quoteOrder = async (items: OrderItemInput[], couponCode?: string) => {
   const priced = await priceOrder(items, couponCode);
+  const settings: Record<string, any> = await getAllSettings().catch(() => ({} as Record<string, any>));
+
+  const enabledPaymentMethods: PaymentMethod[] = [];
+  if (settings.enable_cod !== false) enabledPaymentMethods.push("COD");
+  if (settings.enable_bkash) enabledPaymentMethods.push("BKASH");
+  if (settings.enable_nagad) enabledPaymentMethods.push("NAGAD");
+  if (enabledPaymentMethods.length === 0) enabledPaymentMethods.push("COD");
+
   return {
     subtotal: priced.subtotal,
     savings: priced.savings,
@@ -212,7 +226,7 @@ export const quoteOrder = async (items: OrderItemInput[], couponCode?: string) =
     couponMessage: priced.couponMessage,
     issues: priced.issues,
     itemCount: priced.lines.reduce((sum, l) => sum + l.quantity, 0),
-    paymentMethods: ENABLED_PAYMENT_METHODS,
+    paymentMethods: enabledPaymentMethods,
   };
 };
 
@@ -236,19 +250,22 @@ export const createOrder = async (
   if (payload.items.length === 0) {
     throw new AppError("Cannot place an order with zero items", 400);
   }
-  if (!ENABLED_PAYMENT_METHODS.includes(payload.paymentMethod as PaymentMethod)) {
-    throw new AppError("This payment method isn't available yet. Please choose Cash on Delivery.", 400);
+  const settings: Record<string, any> = await getAllSettings().catch(() => ({} as Record<string, any>));
+  const enabledMethods: string[] = [];
+  if (settings.enable_cod !== false) enabledMethods.push("COD");
+  if (settings.enable_bkash) enabledMethods.push("BKASH");
+  if (settings.enable_nagad) enabledMethods.push("NAGAD");
+  if (enabledMethods.length === 0) enabledMethods.push("COD");
+
+  if (!enabledMethods.includes(payload.paymentMethod)) {
+    throw new AppError(`The payment method "${payload.paymentMethod}" is currently disabled. Please select an available payment method.`, 400);
   }
 
   // 1. Fetch default platform commission from WebsiteSetting or fallback
-  let defaultCommissionRate = ENV.DEFAULT_COMMISSION_RATE;
-  const commissionSetting = await db.orm.public.WebsiteSetting.where({
-    key: "default_commission_rate",
-  }).first();
-
-  if (commissionSetting && typeof commissionSetting.value === "number") {
-    defaultCommissionRate = commissionSetting.value;
-  }
+  const defaultCommissionRate =
+    typeof settings.default_commission_rate === "number"
+      ? settings.default_commission_rate
+      : ENV.DEFAULT_COMMISSION_RATE;
 
   // 2. Validate products & stock, apply coupon and shipping (single source of truth)
   const priced = await priceOrder(payload.items, payload.couponCode);

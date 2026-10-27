@@ -8,6 +8,7 @@ import {
 } from "../../utils/token.ts";
 import { slugify } from "../../utils/slugify.ts";
 import { USER_ROLES, SELLER_STATUS } from "../../constants/index.ts";
+import { getAllSettings } from "../settings/settings.service.ts";
 
 /**
  * Register a new Customer
@@ -108,6 +109,10 @@ export const registerSeller = async (payload: {
     });
 
     // 2. Create Seller Profile (Verification Status: PENDING)
+    const settings: Record<string, any> = await getAllSettings().catch(() => ({} as Record<string, any>));
+    const autoApprove = Boolean(settings.auto_approve_sellers);
+    const defaultCommission = typeof settings.default_commission_rate === "number" ? settings.default_commission_rate : 10.0;
+
     const seller = await tx.orm.public.SellerProfile.create({
       userId: user.id,
       storeName: payload.storeName,
@@ -121,8 +126,10 @@ export const registerSeller = async (payload: {
       bankAccountNumber: payload.bankAccountNumber ?? null,
       bankRouting: payload.bankRouting ?? null,
       bkashOrNagad: payload.bkashOrNagad ?? null,
-      status: SELLER_STATUS.PENDING,
-      isVerified: false,
+      status: autoApprove ? SELLER_STATUS.APPROVED : SELLER_STATUS.PENDING,
+      commissionRate: defaultCommission,
+      isVerified: autoApprove,
+      verifiedAt: autoApprove ? new Date().toISOString() : null,
     });
 
     // 3. Initialize Seller Wallet
