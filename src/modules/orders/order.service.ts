@@ -1,5 +1,6 @@
 import { db } from "../../config/db.ts";
 import { AppError } from "../../errors/AppError.ts";
+import { hashPassword } from "../../utils/hash.ts";
 import { generateOrderNumber, generateSubOrderNumber } from "../../utils/orderNumber.ts";
 import {
   ORDER_STATUS,
@@ -263,6 +264,14 @@ export const createOrder = async (
   const appliedCouponCode: string | null = priced.coupon?.code ?? null;
   const orderNumber = generateOrderNumber();
 
+  // 3. Validate and normalize customer phone number (mandatory for all orders)
+  const rawPhone = payload.shippingAddress?.phone || payload.guestPhone;
+  const digits = String(rawPhone || "").replace(/\D/g, "").replace(/^88/, "");
+  if (!/^01[3-9]\d{8}$/.test(digits)) {
+    throw new AppError("A valid 11-digit Bangladeshi mobile number (01XXXXXXXXX) is required to place an order", 400);
+  }
+  const normalizedPhone = digits;
+
   // 4. Group items by Seller (or Platform)
   const vendorGroups = new Map<string, typeof validatedItems>();
   for (const item of validatedItems) {
@@ -275,14 +284,91 @@ export const createOrder = async (
 
   // 5. Execute Order Placement in Database Transaction
   return await db.transaction(async (tx) => {
+    // 5.0. Resolve or Auto-Create User linked by Phone Number
+    let resolvedUserId: number | null = userId;
+
+    if (!resolvedUserId) {
+      // Check if user already exists with this phone number
+      const existingUser = await tx.orm.public.User.where({ phone: normalizedPhone }).first();
+
+      if (existingUser) {
+        resolvedUserId = existingUser.id;
+        // If existing user has placeholder/empty name, update with shipping name
+        if ((!existingUser.name || existingUser.name === "Customer") && payload.shippingAddress?.fullName) {
+          await tx.orm.public.User.where({ id: existingUser.id }).update({
+            name: payload.shippingAddress.fullName.trim(),
+          });
+        }
+      } else {
+        // Auto-create new customer account with checkout details
+        const customerName = payload.shippingAddress?.fullName?.trim() || "Customer";
+        const emailInput = payload.guestEmail?.trim() || payload.shippingAddress?.email?.trim();
+
+        let userEmail = emailInput;
+        if (!userEmail) {
+          userEmail = `${normalizedPhone}@guest.shopora.com`;
+        } else {
+          const emailExists = await tx.orm.public.User.where({ email: userEmail }).first();
+          if (emailExists) {
+            userEmail = `${normalizedPhone}.${Date.now()}@guest.shopora.com`;
+          }
+        }
+
+        const randomPassword = `Shopora@${normalizedPhone.slice(-4)}#${Math.random().toString(36).slice(2, 6)}`;
+        const passwordHash = await hashPassword(randomPassword);
+
+        const newUser = await tx.orm.public.User.create({
+          name: customerName,
+          phone: normalizedPhone,
+          email: userEmail,
+          password: passwordHash,
+          role: USER_ROLES.CUSTOMER,
+          isActive: true,
+          isVerified: false,
+        });
+
+        resolvedUserId = newUser.id;
+
+        // Auto-save shipping address for customer
+        if (payload.shippingAddress) {
+          await tx.orm.public.Address.create({
+            userId: newUser.id,
+            fullName: customerName,
+            phone: normalizedPhone,
+            streetAddress: payload.shippingAddress.streetAddress || "",
+            city: payload.shippingAddress.city || "",
+            state: payload.shippingAddress.state || null,
+            postalCode: payload.shippingAddress.postalCode || null,
+            country: payload.shippingAddress.country || "Bangladesh",
+            isDefault: true,
+            type: "SHIPPING",
+          });
+        }
+      }
+    } else {
+      // If user was logged in, ensure their profile has their verified phone number
+      const loggedInUser = await tx.orm.public.User.where({ id: resolvedUserId }).first();
+      if (loggedInUser && !loggedInUser.phone) {
+        await tx.orm.public.User.where({ id: resolvedUserId }).update({
+          phone: normalizedPhone,
+        });
+      }
+    }
+
     // 5.1. Create Main Customer Order
     const order = await tx.orm.public.Order.create({
       orderNumber,
-      userId,
+      userId: resolvedUserId,
       guestEmail: payload.guestEmail ?? null,
-      guestPhone: payload.guestPhone ?? null,
-      shippingAddress: payload.shippingAddress,
-      billingAddress: payload.billingAddress ?? payload.shippingAddress,
+      guestPhone: normalizedPhone,
+      shippingAddress: {
+        ...payload.shippingAddress,
+        phone: normalizedPhone,
+      },
+      billingAddress: payload.billingAddress ?? {
+        ...payload.shippingAddress,
+        phone: normalizedPhone,
+      },
       subtotal,
       discount,
       shippingFee,
@@ -395,9 +481,10 @@ export const createOrder = async (
     );
 
     // Clear cart items for this customer (or guest session)
-    if (userId) {
-      await tx.orm.public.CartItem.where({ userId }).deleteAll();
-    } else if (sessionId) {
+    if (resolvedUserId) {
+      await tx.orm.public.CartItem.where({ userId: resolvedUserId }).deleteAll();
+    }
+    if (sessionId) {
       await tx.orm.public.CartItem.where({ sessionId }).deleteAll();
     }
 

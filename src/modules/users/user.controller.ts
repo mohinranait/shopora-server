@@ -51,6 +51,8 @@ export const adminGetAllUsers = catchAsync(async (req: Request, res: Response) =
   const filters = {
     role: req.query.role as string | undefined,
     isActive: req.query.isActive !== undefined ? req.query.isActive === "true" : undefined,
+    isVerified: req.query.isVerified !== undefined ? req.query.isVerified === "true" : undefined,
+    search: req.query.search as string | undefined,
     page: req.query.page ? Number(req.query.page) : 1,
     limit: req.query.limit ? Number(req.query.limit) : 20,
   };
@@ -63,6 +65,30 @@ export const adminGetAllUsers = catchAsync(async (req: Request, res: Response) =
     message: "Users retrieved successfully",
     meta: result.meta,
     data: result.users,
+  });
+});
+
+export const adminGetUserDetail = catchAsync(async (req: Request, res: Response) => {
+  const userId = Number(req.params.id);
+  const result = await UserService.adminGetUserDetail(userId);
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Customer details retrieved successfully",
+    data: result,
+  });
+});
+
+export const adminUpdateUser = catchAsync(async (req: Request, res: Response) => {
+  const userId = Number(req.params.id);
+  const result = await UserService.adminUpdateUser(userId, req.body);
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Customer updated successfully",
+    data: result,
   });
 });
 
@@ -85,5 +111,7 @@ export const UserController = {
   getUserAddresses,
   deleteAddress,
   adminGetAllUsers,
+  adminGetUserDetail,
+  adminUpdateUser,
   adminToggleUserStatus,
 };

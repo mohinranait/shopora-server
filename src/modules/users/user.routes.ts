@@ -1,7 +1,11 @@
 import { Router } from "express";
 import { UserController } from "./user.controller.ts";
 import { validateRequest } from "../../middlewares/validate.ts";
-import { updateProfileSchema, addAddressSchema } from "./user.validation.ts";
+import {
+  updateProfileSchema,
+  addAddressSchema,
+  adminUpdateUserSchema,
+} from "./user.validation.ts";
 import { authGuard } from "../../middlewares/auth.ts";
 import { USER_ROLES } from "../../constants/index.ts";
 
@@ -26,11 +30,24 @@ router.post(
 
 router.delete("/addresses/:id", authGuard(), UserController.deleteAddress);
 
-// Admin user management
+// Admin user & customer management
 router.get(
   "/admin/all",
   authGuard(USER_ROLES.ADMIN),
   UserController.adminGetAllUsers
+);
+
+router.get(
+  "/admin/:id",
+  authGuard(USER_ROLES.ADMIN),
+  UserController.adminGetUserDetail
+);
+
+router.patch(
+  "/admin/:id",
+  authGuard(USER_ROLES.ADMIN),
+  validateRequest(adminUpdateUserSchema),
+  UserController.adminUpdateUser
 );
 
 router.patch(

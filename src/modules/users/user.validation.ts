@@ -22,3 +22,14 @@ export const addAddressSchema = z.object({
     type: z.enum(["SHIPPING", "BILLING"]).default("SHIPPING"),
   }),
 });
+
+export const adminUpdateUserSchema = z.object({
+  body: z.object({
+    name: z.string().min(2, "Name must be at least 2 characters").optional(),
+    email: z.string().email("Invalid email address").optional(),
+    phone: z.string().nullable().optional(),
+    isActive: z.boolean().optional(),
+    isVerified: z.boolean().optional(),
+    role: z.enum(["CUSTOMER", "SELLER", "ADMIN"]).optional(),
+  }),
+});
