@@ -4,6 +4,8 @@ import { validateRequest } from "../../middlewares/validate.ts";
 import {
   createOrderSchema,
   quoteOrderSchema,
+  adminUpdateOrderStatusSchema,
+  cancelOrderSchema,
   updateSubOrderStatusSchema,
   updatePaymentStatusSchema,
 } from "./order.validation.ts";
@@ -37,6 +39,14 @@ router.get(
   OrderController.getOrderDetails
 );
 
+// Customer (or guest with phone) cancels an order before it's packed
+router.post(
+  "/:id/cancel",
+  optionalAuth(),
+  validateRequest(cancelOrderSchema),
+  OrderController.cancelOrder
+);
+
 // Seller SubOrders management
 router.get(
   "/seller/my-suborders",
@@ -56,6 +66,19 @@ router.get(
   "/admin/all",
   authGuard(USER_ROLES.ADMIN),
   OrderController.adminGetAllOrders
+);
+
+router.get(
+  "/admin/:id",
+  authGuard(USER_ROLES.ADMIN),
+  OrderController.getOrderDetails
+);
+
+router.patch(
+  "/admin/:id/status",
+  authGuard(USER_ROLES.ADMIN),
+  validateRequest(adminUpdateOrderStatusSchema),
+  OrderController.adminUpdateOrderStatus
 );
 
 router.patch(

@@ -95,6 +95,9 @@ export const PAYMENT_METHOD = {
 
 export type PaymentMethod = (typeof PAYMENT_METHOD)[keyof typeof PAYMENT_METHOD];
 
+/** Payment methods customers can choose at checkout. Add BKASH / NAGAD here once their gateways are integrated. */
+export const ENABLED_PAYMENT_METHODS: readonly PaymentMethod[] = [PAYMENT_METHOD.COD];
+
 /**
  * Payout Request Status
  */

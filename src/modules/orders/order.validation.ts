@@ -66,9 +66,37 @@ export const updateSubOrderStatusSchema = z.object({
       ORDER_STATUS.SHIPPED,
       ORDER_STATUS.DELIVERED,
       ORDER_STATUS.CANCELLED,
+      ORDER_STATUS.RETURNED,
     ]),
-    trackingNumber: z.string().optional(),
-    courierName: z.string().optional(),
+    trackingNumber: z.string().max(100).optional(),
+    courierName: z.string().max(100).optional(),
+  }),
+});
+
+/**
+ * Admin: move a whole order to a status
+ */
+export const adminUpdateOrderStatusSchema = z.object({
+  body: z.object({
+    status: z.enum([
+      ORDER_STATUS.CONFIRMED,
+      ORDER_STATUS.PROCESSING,
+      ORDER_STATUS.SHIPPED,
+      ORDER_STATUS.DELIVERED,
+      ORDER_STATUS.CANCELLED,
+      ORDER_STATUS.RETURNED,
+    ]),
+    reason: z.string().max(300).optional(),
+  }),
+});
+
+/**
+ * Customer / guest cancellation
+ */
+export const cancelOrderSchema = z.object({
+  body: z.object({
+    reason: z.string().max(300).optional(),
+    phone: z.string().max(20).optional(),
   }),
 });
 
