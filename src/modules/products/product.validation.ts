@@ -163,7 +163,9 @@ export const productFilterQuerySchema = z.object({
     isPlatformOwned: z.string().optional(), // "true" | "false"
     minPrice: z.string().optional(),
     maxPrice: z.string().optional(),
+    minRating: z.string().optional(),
     inStock: z.string().optional(),
+    freeShipping: z.string().optional(),
     isFeatured: z.string().optional(),
     isTrending: z.string().optional(),
     sortBy: z.enum(["newest", "price_asc", "price_desc", "popular", "top_rated"]).optional(),

@@ -15,12 +15,14 @@ import {
 export interface IProductFilterOptions {
   search?: string;
   category?: string;
-  brand?: string;
+  brand?: string; // single or comma-separated brand slugs / ids
   sellerId?: number;
   isPlatformOwned?: boolean;
   minPrice?: number;
   maxPrice?: number;
+  minRating?: number;
   inStock?: boolean;
+  isFreeShipping?: boolean;
   isFeatured?: boolean;
   isTrending?: boolean;
   sortBy?: "newest" | "price_asc" | "price_desc" | "popular" | "top_rated";
@@ -32,39 +34,85 @@ export interface IProductFilterOptions {
   isAdmin?: boolean;
 }
 
+type FacetKey = "category" | "brand" | "price";
+
+interface IResolvedFilters {
+  categoryIds?: number[]; // selected category + all of its descendants
+  brandIds?: number[];
+  sellerProfileId?: number;
+  unresolved: boolean; // a category/brand was requested but doesn't exist -> no results
+}
+
+const splitList = (value?: string) =>
+  (value ?? "")
+    .split(",")
+    .map((v) => v.trim())
+    .filter(Boolean);
+
 /**
- * Get Paginated and Filtered Products List
+ * Resolve slug/id based filters (category, brand, seller) into numeric ids in parallel
  */
-export const getAllProducts = async (filters: IProductFilterOptions) => {
-  const page = Math.max(1, Number(filters.page) || 1);
-  const limit = Math.max(1, Math.min(100, Number(filters.limit) || 12));
-  const offset = (page - 1) * limit;
+const resolveFilters = async (filters: IProductFilterOptions): Promise<IResolvedFilters> => {
+  const resolved: IResolvedFilters = { unresolved: false };
 
-  // Resolve category filter (id or slug)
-  let categoryIdFilter: number | undefined;
-  if (filters.category) {
-    const catId = Number(filters.category);
-    if (!Number.isNaN(catId)) {
-      categoryIdFilter = catId;
-    } else {
-      const cat = await db.orm.public.Category.where({ slug: filters.category }).first();
-      if (cat) categoryIdFilter = cat.id;
+  const categoryTask = (async () => {
+    if (!filters.category) return;
+    const categories = await db.orm.public.Category.select("id", "slug", "parentId").all();
+    const asId = Number(filters.category);
+    const root = categories.find((c) =>
+      Number.isNaN(asId) ? c.slug === filters.category : c.id === asId
+    );
+    if (!root) {
+      resolved.unresolved = true;
+      return;
     }
-  }
-
-  // Resolve brand filter (id or slug)
-  let brandIdFilter: number | undefined;
-  if (filters.brand) {
-    const bId = Number(filters.brand);
-    if (!Number.isNaN(bId)) {
-      brandIdFilter = bId;
-    } else {
-      const b = await db.orm.public.Brand.where({ slug: filters.brand }).first();
-      if (b) brandIdFilter = b.id;
+    const childrenOf = new Map<number, number[]>();
+    for (const c of categories) {
+      if (c.parentId == null) continue;
+      childrenOf.set(c.parentId, [...(childrenOf.get(c.parentId) ?? []), c.id]);
     }
-  }
+    const ids: number[] = [];
+    const stack = [root.id];
+    while (stack.length) {
+      const id = stack.pop()!;
+      ids.push(id);
+      stack.push(...(childrenOf.get(id) ?? []));
+    }
+    resolved.categoryIds = ids;
+  })();
 
-  // Build ORM query
+  const brandTask = (async () => {
+    const values = splitList(filters.brand);
+    if (values.length === 0) return;
+    const ids = values.map(Number).filter((n) => !Number.isNaN(n));
+    const slugs = values.filter((v) => Number.isNaN(Number(v)));
+    if (slugs.length > 0) {
+      const brands = await db.orm.public.Brand.where((b) => b.slug.in(slugs)).select("id").all();
+      ids.push(...brands.map((b) => b.id));
+    }
+    if (ids.length === 0) resolved.unresolved = true;
+    else resolved.brandIds = ids;
+  })();
+
+  const sellerTask = (async () => {
+    if (!filters.sellerUserId) return;
+    const seller = await db.orm.public.SellerProfile.where({ userId: filters.sellerUserId }).first();
+    if (seller) resolved.sellerProfileId = seller.id;
+  })();
+
+  await Promise.all([categoryTask, brandTask, sellerTask]);
+  return resolved;
+};
+
+/**
+ * Build the filtered product query. `omit` skips one filter group, which is
+ * used for facet counts (e.g. brand counts ignore the currently selected brand).
+ */
+const buildProductQuery = (
+  filters: IProductFilterOptions,
+  resolved: IResolvedFilters,
+  omit?: FacetKey
+) => {
   let query = db.orm.public.Product;
 
   // Role based filtering: By default public users only see APPROVED & PUBLISHED products
@@ -73,10 +121,8 @@ export const getAllProducts = async (filters: IProductFilterOptions) => {
       .where({ approvalStatus: PRODUCT_APPROVAL_STATUS.APPROVED })
       .where({ status: PRODUCT_STATUS.PUBLISHED });
   } else if (filters.sellerUserId) {
-    // Find seller profile ID for this user
-    const seller = await db.orm.public.SellerProfile.where({ userId: filters.sellerUserId }).first();
-    if (seller) {
-      query = query.where({ sellerId: seller.id });
+    if (resolved.sellerProfileId) {
+      query = query.where({ sellerId: resolved.sellerProfileId });
     }
     if (filters.approvalStatus) {
       query = query.where({ approvalStatus: filters.approvalStatus });
@@ -90,12 +136,13 @@ export const getAllProducts = async (filters: IProductFilterOptions) => {
     }
   }
 
-  // Apply filters
-  if (categoryIdFilter) {
-    query = query.where({ categoryId: categoryIdFilter });
+  if (omit !== "category" && resolved.categoryIds) {
+    const ids = resolved.categoryIds;
+    query = query.where((p) => p.categoryId.in(ids));
   }
-  if (brandIdFilter) {
-    query = query.where({ brandId: brandIdFilter });
+  if (omit !== "brand" && resolved.brandIds) {
+    const ids = resolved.brandIds;
+    query = query.where((p) => p.brandId.in(ids));
   }
   if (filters.sellerId !== undefined) {
     query = query.where({ sellerId: filters.sellerId });
@@ -109,77 +156,118 @@ export const getAllProducts = async (filters: IProductFilterOptions) => {
   if (filters.isTrending !== undefined) {
     query = query.where({ isTrending: filters.isTrending });
   }
+  if (filters.isFreeShipping) {
+    query = query.where({ isFreeShipping: true });
+  }
   if (filters.inStock) {
     query = query.where((p) => p.stock.gt(0));
   }
-  if (filters.minPrice !== undefined) {
+  if (filters.minRating !== undefined) {
+    query = query.where((p) => p.ratingAverage.gte(filters.minRating!));
+  }
+  if (omit !== "price" && filters.minPrice !== undefined) {
     query = query.where((p) => p.basePrice.gte(filters.minPrice!));
   }
-  if (filters.maxPrice !== undefined) {
+  if (omit !== "price" && filters.maxPrice !== undefined) {
     query = query.where((p) => p.basePrice.lte(filters.maxPrice!));
   }
-  if (filters.search) {
-    const searchPattern = `%${filters.search.toLowerCase()}%`;
-    query = query.where((p) => p.name.ilike(searchPattern));
+  if (filters.search?.trim()) {
+    const pattern = `%${filters.search.trim()}%`;
+    query = query.where((p, { fns }) =>
+      fns.or(p.name.ilike(pattern), p.sku.ilike(pattern), p.shortDescription.ilike(pattern))
+    );
   }
 
-  // Count total matches
-  const countResult = await query.aggregate((a) => ({ total: a.count() }));
-  const total = countResult.total;
+  return query;
+};
 
-  // Apply sorting
+/**
+ * Get Paginated and Filtered Products List
+ */
+export const getAllProducts = async (filters: IProductFilterOptions) => {
+  const page = Math.max(1, Number(filters.page) || 1);
+  const limit = Math.max(1, Math.min(100, Number(filters.limit) || 12));
+  const offset = (page - 1) * limit;
+  const isPublic = !filters.isAdmin && !filters.sellerUserId;
+
+  const resolved = await resolveFilters(filters);
+
+  if (resolved.unresolved) {
+    return { products: [], meta: { page, limit, total: 0, totalPages: 0 } };
+  }
+
+  const query = buildProductQuery(filters, resolved);
+
+  let sorted;
   if (filters.sortBy === "price_asc") {
-    query = query.orderBy((p) => p.basePrice.asc());
+    sorted = query.orderBy([(p) => p.basePrice.asc(), (p) => p.id.desc()]);
   } else if (filters.sortBy === "price_desc") {
-    query = query.orderBy((p) => p.basePrice.desc());
+    sorted = query.orderBy([(p) => p.basePrice.desc(), (p) => p.id.desc()]);
   } else if (filters.sortBy === "popular") {
-    query = query.orderBy((p) => p.totalSold.desc());
+    sorted = query.orderBy([(p) => p.totalSold.desc(), (p) => p.id.desc()]);
   } else if (filters.sortBy === "top_rated") {
-    query = query.orderBy((p) => p.ratingAverage.desc());
+    sorted = query.orderBy([(p) => p.ratingAverage.desc(), (p) => p.ratingCount.desc(), (p) => p.id.desc()]);
   } else {
-    // Default newest
-    query = query.orderBy((p) => p.createdAt.desc());
+    sorted = query.orderBy([(p) => p.createdAt.desc(), (p) => p.id.desc()]);
   }
 
-  // Pagination
-  const products = await query.limit(limit).offset(offset).all();
+  // Count and page fetch run in parallel
+  const [countResult, products] = await Promise.all([
+    query.aggregate((a) => ({ total: a.count() })),
+    sorted.limit(limit).offset(offset).all(),
+  ]);
+  const total = Number(countResult.total) || 0;
 
-  // Populate category, brand, seller and media info for display
-  const populatedProducts = await Promise.all(
-    products.map(async (prod) => {
-      const category = await db.orm.public.Category.where({ id: prod.categoryId }).first();
-      const brand = prod.brandId
-        ? await db.orm.public.Brand.where({ id: prod.brandId }).first()
-        : null;
-      const seller = prod.sellerId
-        ? await db.orm.public.SellerProfile.where({ id: prod.sellerId }).first()
-        : null;
+  // Batch-load relations (one query per relation instead of per product)
+  const uniq = (ids: (number | null | undefined)[]) =>
+    [...new Set(ids.filter((id): id is number => typeof id === "number"))];
+  const categoryIds = uniq(products.map((p) => p.categoryId));
+  const brandIds = uniq(products.map((p) => p.brandId));
+  const sellerIds = uniq(products.map((p) => p.sellerId));
+  const useMediaIds = uniq(products.map((p) => p.mainImageUseMediaId));
 
-      let mainImageUseMedia: any = null;
-      if (prod.mainImageUseMediaId) {
-        const um = await db.orm.public.UseMedia.where({ id: prod.mainImageUseMediaId }).first();
-        if (um) {
-          const m = await db.orm.public.Media.where({ id: um.mediaId }).first();
-          mainImageUseMedia = { ...um, media: m };
-        }
-      }
+  const [categories, brands, sellers, useMedias] = await Promise.all([
+    categoryIds.length
+      ? db.orm.public.Category.where((c) => c.id.in(categoryIds)).select("id", "name", "slug").all()
+      : [],
+    brandIds.length
+      ? db.orm.public.Brand.where((b) => b.id.in(brandIds)).select("id", "name", "slug").all()
+      : [],
+    sellerIds.length
+      ? db.orm.public.SellerProfile.where((s) => s.id.in(sellerIds))
+          .select("id", "storeName", "storeSlug", "storeLogo")
+          .all()
+      : [],
+    useMediaIds.length ? db.orm.public.UseMedia.where((u) => u.id.in(useMediaIds)).all() : [],
+  ]);
 
-      return {
-        ...prod,
-        mainImageUseMedia,
-        category: category ? { id: category.id, name: category.name, slug: category.slug } : null,
-        brand: brand ? { id: brand.id, name: brand.name, slug: brand.slug } : null,
-        seller: seller
-          ? {
-              id: seller.id,
-              storeName: seller.storeName,
-              storeSlug: seller.storeSlug,
-              storeLogo: seller.storeLogo,
-            }
-          : null,
-      };
-    })
+  const mediaIds = uniq(useMedias.map((u) => u.mediaId));
+  const medias = mediaIds.length
+    ? await db.orm.public.Media.where((m) => m.id.in(mediaIds)).all()
+    : [];
+
+  const categoryMap = new Map(categories.map((c) => [c.id, c]));
+  const brandMap = new Map(brands.map((b) => [b.id, b]));
+  const sellerMap = new Map(sellers.map((s) => [s.id, s]));
+  const mediaMap = new Map(medias.map((m) => [m.id, m]));
+  const useMediaMap = new Map(
+    useMedias.map((u) => [u.id, { ...u, media: mediaMap.get(u.mediaId) ?? null }])
   );
+
+  const populatedProducts = products.map((prod) => {
+    // Public listings don't need the long description or internal cost price
+    const { description, costPrice, ...rest } = prod;
+    const base = isPublic ? rest : prod;
+    return {
+      ...base,
+      mainImageUseMedia: prod.mainImageUseMediaId
+        ? useMediaMap.get(prod.mainImageUseMediaId) ?? null
+        : null,
+      category: categoryMap.get(prod.categoryId) ?? null,
+      brand: prod.brandId ? brandMap.get(prod.brandId) ?? null : null,
+      seller: prod.sellerId ? sellerMap.get(prod.sellerId) ?? null : null,
+    };
+  });
 
   return {
     products: populatedProducts,
@@ -188,6 +276,69 @@ export const getAllProducts = async (filters: IProductFilterOptions) => {
       limit,
       total,
       totalPages: Math.ceil(total / limit),
+    },
+  };
+};
+
+/**
+ * Filter facets for the storefront products page: categories and brands with
+ * live product counts, plus the price range for the current filter set.
+ */
+export const getProductFilters = async (filters: IProductFilterOptions) => {
+  const publicFilters = { ...filters, isAdmin: false, sellerUserId: undefined };
+  const resolved = await resolveFilters(publicFilters);
+
+  const [categoryGroups, brandGroups, priceRange, allCategories, allBrands] = await Promise.all([
+    buildProductQuery(publicFilters, resolved, "category")
+      .groupBy("categoryId")
+      .aggregate((a) => ({ count: a.count() })),
+    buildProductQuery(publicFilters, resolved, "brand")
+      .groupBy("brandId")
+      .aggregate((a) => ({ count: a.count() })),
+    buildProductQuery(publicFilters, resolved, "price").aggregate((a) => ({
+      min: a.min("basePrice"),
+      max: a.max("basePrice"),
+    })),
+    db.orm.public.Category.where({ isActive: true })
+      .orderBy((c) => c.displayOrder.asc())
+      .select("id", "name", "slug", "parentId")
+      .all(),
+    db.orm.public.Brand.where({ isActive: true }).select("id", "name", "slug", "logo").all(),
+  ]);
+
+  // Category tree with counts rolled up into parents
+  const directCount = new Map(categoryGroups.map((g) => [g.categoryId, Number(g.count) || 0]));
+  type CategoryNode = { id: number; name: string; slug: string; parentId: number | null; count: number; children: CategoryNode[] };
+  const nodes = new Map<number, CategoryNode>(
+    allCategories.map((c) => [
+      c.id,
+      { id: c.id, name: c.name, slug: c.slug, parentId: c.parentId ?? null, count: 0, children: [] },
+    ])
+  );
+  const roots: CategoryNode[] = [];
+  for (const node of nodes.values()) {
+    const parent = node.parentId != null ? nodes.get(node.parentId) : undefined;
+    if (parent) parent.children.push(node);
+    else roots.push(node);
+  }
+  const rollUp = (node: CategoryNode): number => {
+    node.count = (directCount.get(node.id) ?? 0) + node.children.reduce((sum, c) => sum + rollUp(c), 0);
+    return node.count;
+  };
+  roots.forEach(rollUp);
+
+  const brandCount = new Map(brandGroups.map((g) => [g.brandId, Number(g.count) || 0]));
+  const brands = allBrands
+    .map((b) => ({ ...b, count: brandCount.get(b.id) ?? 0 }))
+    .filter((b) => b.count > 0 || resolved.brandIds?.includes(b.id))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+
+  return {
+    categories: roots,
+    brands,
+    price: {
+      min: priceRange.min == null ? 0 : Math.floor(Number(priceRange.min)),
+      max: priceRange.max == null ? 0 : Math.ceil(Number(priceRange.max)),
     },
   };
 };
@@ -910,6 +1061,7 @@ export const deleteProduct = async (
 
 export const ProductService = {
   getAllProducts,
+  getProductFilters,
   getProductBySlug,
   getProductById,
   createProduct,

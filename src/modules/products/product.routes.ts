@@ -19,6 +19,12 @@ router.get(
   ProductController.getAllProducts
 );
 
+router.get(
+  "/filters",
+  validateRequest(productFilterQuerySchema),
+  ProductController.getProductFilters
+);
+
 router.get("/detail/:slug", ProductController.getProductBySlug);
 
 // Seller routes

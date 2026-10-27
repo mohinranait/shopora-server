@@ -8,26 +8,32 @@ import { AppError } from "../../errors/AppError.ts";
 /**
  * Get all products with filters and search
  */
-export const getAllProducts = catchAsync(async (req: Request, res: Response) => {
-  const query = req.query as any;
-
-  const filters: IProductFilterOptions = {
+const parsePublicFilters = (query: any): IProductFilterOptions => {
+  const num = (v: unknown) => {
+    const n = Number(v);
+    return v !== undefined && v !== "" && Number.isFinite(n) ? n : undefined;
+  };
+  return {
     search: query.search,
     category: query.category,
     brand: query.brand,
-    sellerId: query.sellerId ? Number(query.sellerId) : undefined,
+    sellerId: num(query.sellerId),
     isPlatformOwned: query.isPlatformOwned !== undefined ? query.isPlatformOwned === "true" : undefined,
-    minPrice: query.minPrice ? Number(query.minPrice) : undefined,
-    maxPrice: query.maxPrice ? Number(query.maxPrice) : undefined,
+    minPrice: num(query.minPrice),
+    maxPrice: num(query.maxPrice),
+    minRating: num(query.minRating),
     inStock: query.inStock === "true",
+    isFreeShipping: query.freeShipping === "true",
     isFeatured: query.isFeatured === "true" ? true : undefined,
     isTrending: query.isTrending === "true" ? true : undefined,
     sortBy: query.sortBy,
-    page: query.page ? Number(query.page) : 1,
-    limit: query.limit ? Number(query.limit) : 12,
+    page: num(query.page) ?? 1,
+    limit: num(query.limit) ?? 12,
   };
+};
 
-  const result = await ProductService.getAllProducts(filters);
+export const getAllProducts = catchAsync(async (req: Request, res: Response) => {
+  const result = await ProductService.getAllProducts(parsePublicFilters(req.query));
 
   sendResponse(res, {
     statusCode: 200,
@@ -35,6 +41,20 @@ export const getAllProducts = catchAsync(async (req: Request, res: Response) => 
     message: "Products retrieved successfully",
     meta: result.meta,
     data: result.products,
+  });
+});
+
+/**
+ * Get filter facets (category/brand counts, price range) for the storefront
+ */
+export const getProductFilters = catchAsync(async (req: Request, res: Response) => {
+  const result = await ProductService.getProductFilters(parsePublicFilters(req.query));
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Product filters retrieved successfully",
+    data: result,
   });
 });
 
@@ -186,6 +206,7 @@ export const deleteProduct = catchAsync(async (req: Request, res: Response) => {
 
 export const ProductController = {
   getAllProducts,
+  getProductFilters,
   getProductBySlug,
   getProductById,
   getSellerProducts,
