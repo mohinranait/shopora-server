@@ -267,14 +267,26 @@ export const generateVariantCombinations = async (payload: {
   const combinations = cartesian(valueArrays);
 
   // Map into ready-to-use variant templates for the UI table
+  const seenSuffixes = new Map<string, number>();
+
   const generatedRows = combinations.map((combo, index) => {
     const titleParts = combo.map((c) => c.value);
     const title = titleParts.join(" / ");
     
-    // Create clean SKU suffix e.g. "RED-XL"
-    const skuSuffix = combo
-      .map((c) => c.value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 4))
+    // Create clean, unique SKU suffix e.g. "JETBLA-M", "TITBLK-M", "TITGRA-M"
+    let baseSuffix = combo
+      .map((c) => {
+        const words = c.value.trim().split(/\s+/);
+        if (words.length > 1) {
+          return words.map((w) => w.replace(/[^a-zA-Z0-9]/g, "").slice(0, 3)).join("").toUpperCase();
+        }
+        return c.value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 4);
+      })
       .join("-");
+
+    const occurrence = seenSuffixes.get(baseSuffix) || 0;
+    seenSuffixes.set(baseSuffix, occurrence + 1);
+    const skuSuffix = occurrence > 0 ? `${baseSuffix}-${occurrence + 1}` : baseSuffix;
 
     const attributeValueIds = combo.map((c) => c.valueId);
 
