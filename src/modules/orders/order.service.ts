@@ -497,6 +497,18 @@ export const createOrder = async (
       `/orders/${orderNumber}`
     );
 
+    // Broadcast notification to all store Administrators
+    const admins = await tx.orm.public.User.where({ role: "ADMIN", isActive: true }).all();
+    for (const admin of admins) {
+      await tx.orm.public.Notification.create({
+        userId: admin.id,
+        title: `New Order Placed: ${orderNumber}`,
+        message: `${payload.shippingAddress.fullName} placed order #${orderNumber} (${payload.items.length} item(s), Total: ${order.totalAmount} BDT).`,
+        type: "ORDER",
+        link: `/admin/orders/${order.id}`,
+      });
+    }
+
     // Clear cart items for this customer (or guest session)
     if (resolvedUserId) {
       await tx.orm.public.CartItem.where({ userId: resolvedUserId }).deleteAll();

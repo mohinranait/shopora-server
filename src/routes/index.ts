@@ -17,6 +17,7 @@ import { ReturnRoutes } from "../modules/returns/return.routes.ts";
 import { mediaRoutes } from "../modules/media/media.routes.ts";
 import { AttributeRoutes } from "../modules/attributes/attribute.routes.ts";
 import { SliderRoutes } from "../modules/sliders/slider.routes.ts";
+import { NotificationRoutes } from "../modules/notifications/notification.routes.ts";
 
 const router = Router();
 
@@ -39,6 +40,7 @@ const moduleRoutes = [
   { path: "/analytics", route: AnalyticsRoutes },
   { path: "/returns", route: ReturnRoutes },
   { path: "/media", route: mediaRoutes },
+  { path: "/notifications", route: NotificationRoutes },
 ];
 
 for (const { path, route } of moduleRoutes) {

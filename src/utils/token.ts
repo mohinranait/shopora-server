@@ -41,3 +41,15 @@ export const verifyAccessToken = (token: string): IJwtUserPayload => {
 export const verifyRefreshToken = (token: string): IJwtUserPayload => {
   return jwt.verify(token, ENV.JWT_REFRESH_SECRET) as IJwtUserPayload;
 };
+
+/**
+ * Decode Token without verification (for payload extraction / fallback)
+ */
+export const decodeToken = (token: string): IJwtUserPayload | null => {
+  try {
+    return jwt.decode(token) as IJwtUserPayload | null;
+  } catch {
+    return null;
+  }
+};
+

@@ -278,7 +278,7 @@ export const generateVariantCombinations = async (payload: {
       .map((c) => {
         const words = c.value.trim().split(/\s+/);
         if (words.length > 1) {
-          return words.map((w) => w.replace(/[^a-zA-Z0-9]/g, "").slice(0, 3)).join("").toUpperCase();
+          return words.map((w: string) => w.replace(/[^a-zA-Z0-9]/g, "").slice(0, 3)).join("").toUpperCase();
         }
         return c.value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 4);
       })

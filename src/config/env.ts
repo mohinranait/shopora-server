@@ -10,9 +10,9 @@ export const ENV = {
   
   // JWT Configuration
   JWT_ACCESS_SECRET: process.env.JWT_ACCESS_SECRET || "shopora_super_secure_access_secret_key_2026",
-  JWT_ACCESS_EXPIRES_IN: process.env.JWT_ACCESS_EXPIRES_IN || "1d",
+  JWT_ACCESS_EXPIRES_IN: process.env.JWT_ACCESS_EXPIRES_IN || "7d",
   JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET || "shopora_super_secure_refresh_secret_key_2026",
-  JWT_REFRESH_EXPIRES_IN: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
+  JWT_REFRESH_EXPIRES_IN: process.env.JWT_REFRESH_EXPIRES_IN || "30d",
   
   // Default Platform Business Settings
   DEFAULT_COMMISSION_RATE: Number(process.env.DEFAULT_COMMISSION_RATE) || 10.0, // 10% default platform commission

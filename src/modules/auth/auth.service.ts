@@ -142,6 +142,29 @@ export const registerSeller = async (payload: {
       totalCommissionPaid: 0.0,
     });
 
+    // Notify Admins about new seller registration
+    const admins = await tx.orm.public.User.where({ role: USER_ROLES.ADMIN, isActive: true }).all();
+    for (const admin of admins) {
+      await tx.orm.public.Notification.create({
+        userId: admin.id,
+        title: `New Seller Application: ${payload.storeName}`,
+        message: `${payload.name} applied for a merchant account for "${payload.storeName}". Please review KYC documents.`,
+        type: "KYC",
+        link: `/admin/sellers/kyc`,
+      });
+    }
+
+    // Send welcome notification to seller
+    await tx.orm.public.Notification.create({
+      userId: user.id,
+      title: `Welcome to Shopora Seller Center!`,
+      message: autoApprove
+        ? `Your store "${payload.storeName}" has been approved! You can now start adding products.`
+        : `Your application for "${payload.storeName}" has been received and is currently under review by our team.`,
+      type: "KYC",
+      link: `/seller/dashboard`,
+    });
+
     const tokenPayload = {
       id: user.id,
       email: user.email,
