@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { authGuard } from "../../middlewares/auth.ts";
-import { upload } from "../../middlewares/multer.ts";
+import { upload, uploadSingleAny, uploadMultipleAny } from "../../middlewares/multer.ts";
 import { validateRequest } from "../../middlewares/validate.ts";
 import { USER_ROLES } from "../../constants/index.ts";
 import { MediaController } from "./media.controller.ts";
@@ -21,7 +21,7 @@ const router = Router();
 router.post(
   "/upload",
   authGuard(USER_ROLES.ADMIN, USER_ROLES.SELLER, USER_ROLES.CUSTOMER),
-  upload.single("image"),
+  uploadSingleAny,
   MediaController.uploadSingleMedia
 );
 
@@ -31,7 +31,7 @@ router.post(
 router.post(
   "/upload-multiple",
   authGuard(USER_ROLES.ADMIN, USER_ROLES.SELLER),
-  upload.array("images", 10),
+  uploadMultipleAny,
   MediaController.uploadMultipleMedia
 );
 
@@ -41,7 +41,7 @@ router.post(
 router.post(
   "/upload-and-use",
   authGuard(USER_ROLES.ADMIN, USER_ROLES.SELLER, USER_ROLES.CUSTOMER),
-  upload.single("image"),
+  uploadSingleAny,
   MediaController.uploadAndUse
 );
 

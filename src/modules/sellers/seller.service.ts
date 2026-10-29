@@ -406,6 +406,195 @@ export const adminReviewSellerApplication = async (
   return updatedSeller;
 };
 
+/**
+ * Admin: Get comprehensive Seller Details, Financials, Performance, and Health/Risk Score
+ */
+export const adminGetSellerDetails = async (sellerId: number) => {
+  const seller = await db.orm.public.SellerProfile.where({ id: sellerId }).first();
+  if (!seller) {
+    throw new AppError("Seller not found", 404);
+  }
+
+  // 1. Owner info
+  const owner = await db.orm.public.User.where({ id: seller.userId }).first();
+
+  // 2. Wallet & Payout info
+  const wallet = await db.orm.public.SellerWallet.where({ sellerId: seller.id }).first();
+  const payouts = await db.orm.public.PayoutRequest
+    .where({ sellerId: seller.id })
+    .orderBy((p) => p.createdAt.desc())
+    .limit(10)
+    .all();
+
+  // 3. Products Stats & Recent Products
+  const products = await db.orm.public.Product
+    .where({ sellerId: seller.id })
+    .orderBy((p) => p.createdAt.desc())
+    .all();
+
+  const totalProducts = products.length;
+  const approvedProducts = products.filter((p) => p.approvalStatus === "APPROVED").length;
+  const pendingProducts = products.filter((p) => p.approvalStatus === "PENDING").length;
+  const rejectedProducts = products.filter((p) => p.approvalStatus === "REJECTED").length;
+  const outOfStockProducts = products.filter((p) => p.stock <= 0).length;
+
+  // Average Rating
+  const ratedProducts = products.filter((p) => p.ratingAverage && p.ratingAverage > 0);
+  const avgRating = ratedProducts.length > 0
+    ? ratedProducts.reduce((sum, p) => sum + (p.ratingAverage || 0), 0) / ratedProducts.length
+    : 0;
+  const totalReviews = products.reduce((sum, p) => sum + (p.ratingCount || 0), 0);
+
+  // 4. SubOrders (Sales Performance)
+  const subOrders = await db.orm.public.SubOrder
+    .where({ sellerId: seller.id })
+    .orderBy((s) => s.createdAt.desc())
+    .all();
+
+  const totalOrders = subOrders.length;
+  const deliveredOrders = subOrders.filter((s) => s.status === "DELIVERED").length;
+  const processingOrders = subOrders.filter((s) => ["PROCESSING", "SHIPPED", "CONFIRMED"].includes(s.status)).length;
+  const cancelledOrders = subOrders.filter((s) => s.status === "CANCELLED").length;
+  const returnedOrders = subOrders.filter((s) => s.status === "RETURNED").length;
+
+  const grossSales = subOrders.reduce((sum, s) => sum + (s.totalAmount || 0), 0);
+  const netEarnings = subOrders.reduce((sum, s) => sum + (s.sellerEarnings || 0), 0);
+  const platformCommission = subOrders.reduce((sum, s) => sum + (s.commissionAmount || 0), 0);
+
+  const fulfillmentRate = totalOrders > 0 ? (deliveredOrders / totalOrders) * 100 : 100;
+  const cancellationRate = totalOrders > 0 ? (cancelledOrders / totalOrders) * 100 : 0;
+  const returnRate = totalOrders > 0 ? (returnedOrders / totalOrders) * 100 : 0;
+
+  // 5. Calculate Health Score (0 - 100) & Reputation
+  let healthScore = 70; // baseline
+  if (seller.isVerified) healthScore += 10;
+  if (seller.status === "APPROVED") healthScore += 10;
+  else if (seller.status === "SUSPENDED") healthScore -= 40;
+  else if (seller.status === "REJECTED") healthScore -= 50;
+
+  if (avgRating >= 4.5) healthScore += 10;
+  else if (avgRating >= 3.5) healthScore += 5;
+  else if (avgRating > 0 && avgRating < 3.0) healthScore -= 15;
+
+  if (cancellationRate > 20) healthScore -= 20;
+  else if (cancellationRate > 10) healthScore -= 10;
+
+  if (returnRate > 15) healthScore -= 15;
+
+  healthScore = Math.max(0, Math.min(100, Math.round(healthScore)));
+
+  let reputation: "EXCELLENT" | "GOOD" | "AVERAGE" | "RISKY" | "CRITICAL" = "GOOD";
+  if (healthScore >= 85) reputation = "EXCELLENT";
+  else if (healthScore >= 70) reputation = "GOOD";
+  else if (healthScore >= 50) reputation = "AVERAGE";
+  else if (healthScore >= 30) reputation = "RISKY";
+  else reputation = "CRITICAL";
+
+  // Risk & Health Flags
+  const riskFlags: string[] = [];
+  if (seller.status === "SUSPENDED") riskFlags.push("Store is currently SUSPENDED by administration");
+  if (!seller.isVerified) riskFlags.push("KYC verification is incomplete or unverified");
+  if (cancellationRate > 15) riskFlags.push(`High cancellation rate detected (${cancellationRate.toFixed(1)}%)`);
+  if (returnRate > 10) riskFlags.push(`High product return rate (${returnRate.toFixed(1)}%)`);
+  if (avgRating > 0 && avgRating < 3.5) riskFlags.push(`Low customer satisfaction rating (${avgRating.toFixed(1)}/5.0)`);
+  if (outOfStockProducts > 0 && outOfStockProducts >= totalProducts / 2 && totalProducts > 0) {
+    riskFlags.push(`${outOfStockProducts} out of ${totalProducts} products are out of stock`);
+  }
+
+  // 6. Recent SubOrders with Order & Buyer info
+  const recentOrders = await Promise.all(
+    subOrders.slice(0, 10).map(async (so) => {
+      const order = await db.orm.public.Order.where({ id: so.orderId }).first();
+      return {
+        id: so.id,
+        subOrderNumber: so.subOrderNumber,
+        orderId: so.orderId,
+        orderNumber: order?.orderNumber,
+        customerName: order?.shippingAddress ? (order.shippingAddress as any).fullName : "Customer",
+        customerPhone: order?.shippingAddress ? (order.shippingAddress as any).phone : null,
+        totalAmount: so.totalAmount,
+        sellerEarnings: so.sellerEarnings,
+        commissionAmount: so.commissionAmount,
+        status: so.status,
+        createdAt: so.createdAt,
+      };
+    })
+  );
+
+  return {
+    seller,
+    owner: owner
+      ? {
+          id: owner.id,
+          name: owner.name,
+          email: owner.email,
+          phone: owner.phone,
+          role: owner.role,
+          isActive: owner.isActive,
+          createdAt: owner.createdAt,
+        }
+      : null,
+    wallet,
+    payouts,
+    performance: {
+      totalProducts,
+      approvedProducts,
+      pendingProducts,
+      rejectedProducts,
+      outOfStockProducts,
+      avgRating,
+      totalReviews,
+      totalOrders,
+      deliveredOrders,
+      processingOrders,
+      cancelledOrders,
+      returnedOrders,
+      fulfillmentRate: Math.round(fulfillmentRate),
+      cancellationRate: Math.round(cancellationRate),
+      returnRate: Math.round(returnRate),
+      grossSales,
+      netEarnings,
+      platformCommission,
+      healthScore,
+      reputation,
+      riskFlags,
+    },
+    recentProducts: products.slice(0, 8).map((p) => ({
+      id: p.id,
+      name: p.name,
+      slug: p.slug,
+      sku: p.sku,
+      mainImage: p.mainImage,
+      basePrice: p.basePrice,
+      stock: p.stock,
+      status: p.status,
+      approvalStatus: p.approvalStatus,
+      ratingAverage: p.ratingAverage,
+      createdAt: p.createdAt,
+    })),
+    recentOrders,
+  };
+};
+
+/**
+ * Admin: Send direct warning or system notice to seller
+ */
+export const adminSendSellerNotice = async (sellerId: number, title: string, message: string) => {
+  const seller = await db.orm.public.SellerProfile.where({ id: sellerId }).first();
+  if (!seller) throw new AppError("Seller not found", 404);
+
+  await db.orm.public.Notification.create({
+    userId: seller.userId,
+    title,
+    message,
+    type: "SYSTEM",
+    link: "/seller/dashboard",
+  });
+
+  return { message: "Notice sent to seller successfully" };
+};
+
+
 export const SellerService = {
   getPublicStores,
   getPublicStoreBySlug,
@@ -413,5 +602,7 @@ export const SellerService = {
   getSellerDashboardStats,
   updateSellerProfile,
   adminGetAllSellers,
+  adminGetSellerDetails,
   adminReviewSellerApplication,
+  adminSendSellerNotice,
 };

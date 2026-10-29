@@ -4,6 +4,7 @@ import { validateRequest } from "../../middlewares/validate.ts";
 import {
   updateSellerProfileSchema,
   reviewSellerApplicationSchema,
+  sendSellerNoticeSchema,
 } from "./seller.validation.ts";
 import { authGuard } from "../../middlewares/auth.ts";
 import { USER_ROLES } from "../../constants/index.ts";
@@ -38,11 +39,24 @@ router.get(
   SellerController.adminGetAllSellers
 );
 
+router.get(
+  "/admin/:id",
+  authGuard(USER_ROLES.ADMIN),
+  SellerController.adminGetSellerDetails
+);
+
 router.patch(
   "/admin/:id/review",
   authGuard(USER_ROLES.ADMIN),
   validateRequest(reviewSellerApplicationSchema),
   SellerController.adminReviewSellerApplication
+);
+
+router.post(
+  "/admin/:id/notice",
+  authGuard(USER_ROLES.ADMIN),
+  validateRequest(sendSellerNoticeSchema),
+  SellerController.adminSendSellerNotice
 );
 
 export const SellerRoutes = router;

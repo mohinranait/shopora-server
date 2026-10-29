@@ -63,7 +63,18 @@ export const globalErrorHandler = (
       },
     ];
   }
-  // 4. Standard JS Error
+  // 4. Multer Upload Errors
+  else if (err?.name === "MulterError") {
+    statusCode = 400;
+    message = err.code === "LIMIT_FILE_SIZE" ? "File size exceeds maximum allowed limit (15MB)" : (err.message || "File upload failed");
+    errorSources = [
+      {
+        path: err.field || "file",
+        message,
+      },
+    ];
+  }
+  // 5. Standard JS Error
   else if (err instanceof Error) {
     message = err.message;
     errorSources = [

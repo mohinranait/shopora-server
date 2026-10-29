@@ -85,6 +85,29 @@ export const adminReviewSellerApplication = catchAsync(async (req: Request, res:
   });
 });
 
+export const adminGetSellerDetails = catchAsync(async (req: Request, res: Response) => {
+  const sellerId = Number(req.params.id);
+  const result = await SellerService.adminGetSellerDetails(sellerId);
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Seller comprehensive details retrieved successfully",
+    data: result,
+  });
+});
+
+export const adminSendSellerNotice = catchAsync(async (req: Request, res: Response) => {
+  const sellerId = Number(req.params.id);
+  const { title, message } = req.body;
+  const result = await SellerService.adminSendSellerNotice(sellerId, title, message);
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: result.message,
+    data: result,
+  });
+});
+
 export const SellerController = {
   getStoreBySlug,
   getPublicStores,
@@ -92,5 +115,7 @@ export const SellerController = {
   getSellerDashboardStats,
   updateSellerProfile,
   adminGetAllSellers,
+  adminGetSellerDetails,
   adminReviewSellerApplication,
+  adminSendSellerNotice,
 };
