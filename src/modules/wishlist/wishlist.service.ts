@@ -49,19 +49,21 @@ export const getUserWishlist = async (userId: number) => {
               id: product.id,
               name: product.name,
               slug: product.slug,
+              productType: product.productType,
               mainImage: product.mainImage,
               basePrice: product.basePrice,
               comparePrice: product.comparePrice,
               stock: product.stock,
               ratingAverage: product.ratingAverage,
               ratingCount: product.ratingCount,
+              status: product.status,
             }
           : null,
       };
     })
   );
 
-  return populated;
+  return populated.filter((item) => item.product !== null);
 };
 
 /**
@@ -81,8 +83,20 @@ export const removeWishlistItem = async (userId: number, productId: number) => {
   return { message: "Item removed from wishlist" };
 };
 
+/**
+ * Clear all items from user's Wishlist
+ */
+export const clearWishlist = async (userId: number) => {
+  const items = await db.orm.public.WishlistItem.where({ userId }).all();
+  for (const item of items) {
+    await db.orm.public.WishlistItem.where({ id: item.id }).delete();
+  }
+  return { message: "Wishlist cleared successfully" };
+};
+
 export const WishlistService = {
   toggleWishlistItem,
   getUserWishlist,
   removeWishlistItem,
+  clearWishlist,
 };

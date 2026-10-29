@@ -37,8 +37,19 @@ export const removeWishlistItem = catchAsync(async (req: Request, res: Response)
   });
 });
 
+export const clearWishlist = catchAsync(async (req: Request, res: Response) => {
+  const result = await WishlistService.clearWishlist(req.user!.id);
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: result.message,
+  });
+});
+
 export const WishlistController = {
   toggleWishlist,
   getUserWishlist,
   removeWishlistItem,
+  clearWishlist,
 };
