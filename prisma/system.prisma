@@ -17,45 +17,45 @@ model Coupon {
 }
 
 model Banner {
-  id               Int                        @id @default(autoincrement())
-  title            String
-  subtitle         String?
-  linkUrl          String?
-  useMediaId       Int?
-  useMedia         UseMedia?                  @relation("BannerDesktopImage", fields: [useMediaId], references: [id], onDelete: SetNull)
-  mobileUseMediaId Int?
-  mobileUseMedia   UseMedia?                  @relation("BannerMobileImage", fields: [mobileUseMediaId], references: [id], onDelete: SetNull)
-  position         String                     @default("HERO_SLIDER") // "HERO_SLIDER" | "PROMO_GRID" | "MIDDLE_STRIP" | "POPUP"
-  displayOrder     Int                        @default(0)
-  isActive         Boolean                    @default(true)
-  startDate        TimestamptzString?
-  endDate          TimestamptzString?
-  createdAt        TimestamptzString          @default(now())
-  updatedAt        temporal.updatedAtString()
+  id            Int                        @id @default(autoincrement())
+  title         String
+  subtitle      String?
+  linkUrl       String?
+  imageId       Int?
+  image         UseMedia?                  @relation("BannerDesktopImage", fields: [imageId], references: [id], onDelete: SetNull)
+  mobileImageId Int?
+  mobileImage   UseMedia?                  @relation("BannerMobileImage", fields: [mobileImageId], references: [id], onDelete: SetNull)
+  position      String                     @default("HERO_SLIDER") // "HERO_SLIDER" | "PROMO_GRID" | "MIDDLE_STRIP" | "POPUP"
+  displayOrder  Int                        @default(0)
+  isActive      Boolean                    @default(true)
+  startDate     TimestamptzString?
+  endDate       TimestamptzString?
+  createdAt     TimestamptzString          @default(now())
+  updatedAt     temporal.updatedAtString()
 }
 
 model Slider {
-  id               Int                        @id @default(autoincrement())
-  title            String?
-  subtitle         String?
-  description      String?
-  badgeText        String?                    // "New Arrival", "Hot Deal", "Limited Offer"
-  type             String                     @default("IMAGE_BG_CONTENT") // "IMAGE_ONLY" | "IMAGE_BG_CONTENT" | "CONTENT_ONLY"
-  linkUrl          String?                    // Click destination URL
-  buttonText       String?                    @default("Shop Now")
-  bgGradient       String?                    // e.g. "from-indigo-900 via-purple-900 to-slate-950"
-  bgColor          String?                    // Hex or CSS color
-  textColor        String?                    @default("LIGHT") // "LIGHT" | "DARK"
-  displayOrder     Int                        @default(0)
-  isActive         Boolean                    @default(true)
-  useMediaId       Int?
-  useMedia         UseMedia?                  @relation("SliderDesktopImage", fields: [useMediaId], references: [id], onDelete: SetNull)
-  mobileUseMediaId Int?
-  mobileUseMedia   UseMedia?                  @relation("SliderMobileImage", fields: [mobileUseMediaId], references: [id], onDelete: SetNull)
-  startDate        TimestamptzString?
-  endDate          TimestamptzString?
-  createdAt        TimestamptzString          @default(now())
-  updatedAt        temporal.updatedAtString()
+  id            Int                        @id @default(autoincrement())
+  title         String?
+  subtitle      String?
+  description   String?
+  badgeText     String?                    // "New Arrival", "Hot Deal", "Limited Offer"
+  type          String                     @default("IMAGE_BG_CONTENT") // "IMAGE_ONLY" | "IMAGE_BG_CONTENT" | "CONTENT_ONLY"
+  linkUrl       String?                    // Click destination URL
+  buttonText    String?                    @default("Shop Now")
+  bgGradient    String?                    // e.g. "from-indigo-900 via-purple-900 to-slate-950"
+  bgColor       String?                    // Hex or CSS color
+  textColor     String?                    @default("LIGHT") // "LIGHT" | "DARK"
+  displayOrder  Int                        @default(0)
+  isActive      Boolean                    @default(true)
+  imageId       Int?
+  image         UseMedia?                  @relation("SliderDesktopImage", fields: [imageId], references: [id], onDelete: SetNull)
+  mobileImageId Int?
+  mobileImage   UseMedia?                  @relation("SliderMobileImage", fields: [mobileImageId], references: [id], onDelete: SetNull)
+  startDate     TimestamptzString?
+  endDate       TimestamptzString?
+  createdAt     TimestamptzString          @default(now())
+  updatedAt     temporal.updatedAtString()
 }
 
 model WebsiteSetting {

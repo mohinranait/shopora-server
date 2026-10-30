@@ -22,6 +22,7 @@ export const variantInputSchema = z.object({
   costPrice: z.number().nonnegative().nullable().optional(),
   stock: z.number().int().nonnegative("Variant stock cannot be negative").default(0),
   lowStockThreshold: z.number().int().default(5).optional(),
+  imageId: z.number().int().positive().nullable().optional(),
   useMediaId: z.number().int().positive().nullable().optional(),
   barcode: z.string().nullable().optional(),
   weightKg: z.number().positive().nullable().optional(),
@@ -43,10 +44,13 @@ export const variantInputSchema = z.object({
  * Image Gallery Input Schema
  */
 export const productImageInputSchema = z.object({
-  useMediaId: z.number().int().positive("useMediaId is required for gallery image"),
+  imageId: z.number().int().positive().optional(),
+  useMediaId: z.number().int().positive().optional(),
   altText: z.string().optional(),
   displayOrder: z.number().int().default(0).optional(),
   isPrimary: z.boolean().default(false).optional(),
+}).refine((data) => data.imageId !== undefined || data.useMediaId !== undefined, {
+  message: "imageId or useMediaId is required for gallery image",
 });
 
 /**
@@ -66,7 +70,8 @@ export const createProductSchema = z.object({
     costPrice: z.number().positive().nullable().optional(),
     stock: z.number().int().nonnegative().default(0),
     lowStockThreshold: z.number().int().default(5).optional(),
-    mainImageUseMediaId: z.number().int().positive("mainImageUseMediaId is required").nullable().optional(),
+    mainImageId: z.number().int().positive().nullable().optional(),
+    mainImageUseMediaId: z.number().int().positive().nullable().optional(),
     images: z.array(productImageInputSchema).optional(),
     selectedAttributes: z.array(productSelectedAttributeSchema).optional(),
     variants: z.array(variantInputSchema).optional(),
@@ -107,6 +112,7 @@ export const updateProductSchema = z.object({
     costPrice: z.number().positive().nullable().optional(),
     stock: z.number().int().nonnegative().optional(),
     lowStockThreshold: z.number().int().optional(),
+    mainImageId: z.number().int().positive().nullable().optional(),
     mainImageUseMediaId: z.number().int().positive().nullable().optional(),
     images: z.array(productImageInputSchema).optional(),
     selectedAttributes: z.array(productSelectedAttributeSchema).optional(),

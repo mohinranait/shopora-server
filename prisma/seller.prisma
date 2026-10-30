@@ -25,10 +25,10 @@ model SellerProfile {
   payouts           PayoutRequest[]
   medias            Media[]
   useMedias         UseMedia[]
-  logoUseMediaId    Int?
-  logoUseMedia      UseMedia?                  @relation("SellerLogo", fields: [logoUseMediaId], references: [id], onDelete: SetNull)
-  bannerUseMediaId  Int?
-  bannerUseMedia    UseMedia?                  @relation("SellerBanner", fields: [bannerUseMediaId], references: [id], onDelete: SetNull)
+  logoId            Int?
+  logo              UseMedia?                  @relation("SellerLogo", fields: [logoId], references: [id], onDelete: SetNull)
+  bannerId          Int?
+  banner            UseMedia?                  @relation("SellerBanner", fields: [bannerId], references: [id], onDelete: SetNull)
   createdAt         TimestamptzString          @default(now())
   updatedAt         temporal.updatedAtString()
 }

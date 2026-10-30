@@ -41,8 +41,9 @@ export const getUserWishlist = async (userId: number) => {
     items.map(async (item) => {
       const product = await db.orm.public.Product.where({ id: item.productId }).first();
       let mainImage: string | null = null;
-      if (product?.mainImageUseMediaId) {
-        const um = await db.orm.public.UseMedia.where({ id: product.mainImageUseMediaId }).first();
+      const pMainId = (product as any)?.mainImageId ?? (product as any)?.mainImageUseMediaId;
+      if (pMainId) {
+        const um = await db.orm.public.UseMedia.where({ id: pMainId }).first();
         if (um) {
           const m = await db.orm.public.Media.where({ id: um.mediaId }).first();
           mainImage = m?.url ?? null;
@@ -59,7 +60,8 @@ export const getUserWishlist = async (userId: number) => {
               name: product.name,
               slug: product.slug,
               productType: product.productType,
-              mainImageUseMediaId: product.mainImageUseMediaId,
+              mainImageId: pMainId ?? null,
+              mainImageUseMediaId: pMainId ?? null,
               mainImage,
               basePrice: product.basePrice,
               comparePrice: product.comparePrice,

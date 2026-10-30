@@ -63,16 +63,16 @@ export const getCart = async (userId: number | null, sessionId?: string) => {
   const sellerIds = [...new Set(products.map((p) => p.sellerId).filter((id): id is number => id != null))];
   const sellers = sellerIds.length
     ? await db.orm.public.SellerProfile.where((s) => s.id.in(sellerIds))
-        .select("id", "storeName", "storeSlug", "logoUseMediaId", "isVerified")
+        .select("id", "storeName", "storeSlug", "logoId", "isVerified")
         .all()
     : [];
 
   // Batch-load UseMedia for products, variants, and sellers
   const allUseMediaIds = [
     ...new Set([
-      ...products.map((p) => p.mainImageUseMediaId),
-      ...variants.map((v) => v.useMediaId),
-      ...sellers.map((s) => s.logoUseMediaId),
+      ...products.map((p: any) => p.mainImageId ?? p.mainImageUseMediaId),
+      ...variants.map((v: any) => v.imageId ?? v.useMediaId),
+      ...sellers.map((s: any) => s.logoId ?? s.logoUseMediaId),
     ].filter((id): id is number => typeof id === "number"))
   ];
 
@@ -89,13 +89,17 @@ export const getCart = async (userId: number | null, sessionId?: string) => {
   const productMap = new Map(products.map((p) => [p.id, p]));
   const variantMap = new Map(variants.map((v) => [v.id, v]));
   const sellerMap = new Map(
-    sellers.map((s) => [
-      s.id,
-      {
-        ...s,
-        storeLogo: (s.logoUseMediaId ? useMediaUrlMap.get(s.logoUseMediaId) : null) ?? null,
-      },
-    ])
+    sellers.map((s: any) => {
+      const sLogoId = s.logoId ?? s.logoUseMediaId;
+      return [
+        s.id,
+        {
+          ...s,
+          logoId: sLogoId ?? null,
+          storeLogo: (sLogoId ? useMediaUrlMap.get(sLogoId) : null) ?? null,
+        },
+      ];
+    })
   );
 
   let subtotal = 0;
@@ -123,8 +127,10 @@ export const getCart = async (userId: number | null, sessionId?: string) => {
     }
 
     const seller = product?.sellerId ? sellerMap.get(product.sellerId) ?? null : null;
-    const mainImageUrl = product?.mainImageUseMediaId ? useMediaUrlMap.get(product.mainImageUseMediaId) ?? "" : "";
-    const variantImageUrl = variant?.useMediaId ? useMediaUrlMap.get(variant.useMediaId) ?? null : null;
+    const pMainId = (product as any)?.mainImageId ?? (product as any)?.mainImageUseMediaId;
+    const vImgId = (variant as any)?.imageId ?? (variant as any)?.useMediaId;
+    const mainImageUrl = pMainId ? useMediaUrlMap.get(pMainId) ?? "" : "";
+    const variantImageUrl = vImgId ? useMediaUrlMap.get(vImgId) ?? null : null;
 
     return {
       id: item.id,
@@ -137,7 +143,8 @@ export const getCart = async (userId: number | null, sessionId?: string) => {
             name: product.name,
             slug: product.slug,
             mainImage: mainImageUrl,
-            mainImageUseMediaId: product.mainImageUseMediaId,
+            mainImageId: pMainId ?? null,
+            mainImageUseMediaId: pMainId ?? null,
             basePrice: product.basePrice,
             stock: product.stock,
             isPlatformOwned: product.isPlatformOwned,
@@ -152,7 +159,8 @@ export const getCart = async (userId: number | null, sessionId?: string) => {
             price: variant.price,
             stock: variant.stock,
             image: variantImageUrl,
-            useMediaId: variant.useMediaId,
+            imageId: vImgId ?? null,
+            useMediaId: vImgId ?? null,
             attributes: variant.attributes,
           }
         : null,

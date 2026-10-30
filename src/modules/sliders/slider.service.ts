@@ -1,4 +1,4 @@
-﻿import { db } from "../../config/db.ts";
+import { db } from "../../config/db.ts";
 import { AppError } from "../../errors/AppError.ts";
 
 /**
@@ -6,8 +6,9 @@ import { AppError } from "../../errors/AppError.ts";
  */
 const populateSliderMedia = async (slider: any) => {
   let useMedia: any = null;
-  if (slider.useMediaId) {
-    const um = await db.orm.public.UseMedia.where({ id: slider.useMediaId }).first();
+  const targetImageId = slider.imageId ?? slider.useMediaId;
+  if (targetImageId) {
+    const um = await db.orm.public.UseMedia.where({ id: targetImageId }).first();
     if (um) {
       const m = await db.orm.public.Media.where({ id: um.mediaId }).first();
       useMedia = { ...um, media: m };
@@ -15,8 +16,9 @@ const populateSliderMedia = async (slider: any) => {
   }
 
   let mobileUseMedia: any = null;
-  if (slider.mobileUseMediaId) {
-    const mum = await db.orm.public.UseMedia.where({ id: slider.mobileUseMediaId }).first();
+  const targetMobileImageId = slider.mobileImageId ?? slider.mobileUseMediaId;
+  if (targetMobileImageId) {
+    const mum = await db.orm.public.UseMedia.where({ id: targetMobileImageId }).first();
     if (mum) {
       const mm = await db.orm.public.Media.where({ id: mum.mediaId }).first();
       mobileUseMedia = { ...mum, media: mm };
@@ -25,6 +27,8 @@ const populateSliderMedia = async (slider: any) => {
 
   return {
     ...slider,
+    imageId: slider.imageId ?? targetImageId ?? null,
+    mobileImageId: slider.mobileImageId ?? targetMobileImageId ?? null,
     useMedia,
     mobileUseMedia,
     imageUrl: useMedia?.media?.url ?? null,
@@ -59,8 +63,8 @@ export const createSlider = async (payload: any) => {
     subtitle: payload.subtitle ?? null,
     description: payload.description ?? null,
     badgeText: payload.badgeText ?? null,
-    useMediaId: payload.useMediaId ?? null,
-    mobileUseMediaId: payload.mobileUseMediaId ?? null,
+    imageId: payload.imageId ?? payload.useMediaId ?? null,
+    mobileImageId: payload.mobileImageId ?? payload.mobileUseMediaId ?? null,
     linkUrl: payload.linkUrl ?? null,
     buttonText: payload.buttonText ?? "Shop Now",
     bgGradient: payload.bgGradient ?? null,
@@ -87,8 +91,12 @@ export const updateSlider = async (id: number, payload: any) => {
   if (payload.subtitle !== undefined) updateData.subtitle = payload.subtitle;
   if (payload.description !== undefined) updateData.description = payload.description;
   if (payload.badgeText !== undefined) updateData.badgeText = payload.badgeText;
-  if (payload.useMediaId !== undefined) updateData.useMediaId = payload.useMediaId;
-  if (payload.mobileUseMediaId !== undefined) updateData.mobileUseMediaId = payload.mobileUseMediaId;
+  if (payload.imageId !== undefined || payload.useMediaId !== undefined) {
+    updateData.imageId = payload.imageId !== undefined ? payload.imageId : payload.useMediaId;
+  }
+  if (payload.mobileImageId !== undefined || payload.mobileUseMediaId !== undefined) {
+    updateData.mobileImageId = payload.mobileImageId !== undefined ? payload.mobileImageId : payload.mobileUseMediaId;
+  }
   if (payload.linkUrl !== undefined) updateData.linkUrl = payload.linkUrl;
   if (payload.buttonText !== undefined) updateData.buttonText = payload.buttonText;
   if (payload.bgGradient !== undefined) updateData.bgGradient = payload.bgGradient;

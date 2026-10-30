@@ -236,8 +236,9 @@ export const loginUser = async (payload: {
   const refreshToken = generateRefreshToken(tokenPayload);
 
   let avatarUseMedia: any = null;
-  if (user.avatarUseMediaId) {
-    const um = await db.orm.public.UseMedia.where({ id: user.avatarUseMediaId }).first();
+  const userAvatarId = (user as any).avatarId ?? (user as any).avatarUseMediaId;
+  if (userAvatarId) {
+    const um = await db.orm.public.UseMedia.where({ id: userAvatarId }).first();
     if (um) {
       const m = await db.orm.public.Media.where({ id: um.mediaId }).first();
       avatarUseMedia = { ...um, media: m };
@@ -251,7 +252,8 @@ export const loginUser = async (payload: {
       email: user.email,
       role: user.role,
       phone: user.phone,
-      avatarUseMediaId: user.avatarUseMediaId,
+      avatarId: userAvatarId ?? null,
+      avatarUseMediaId: userAvatarId ?? null,
       avatarUseMedia,
       avatar: avatarUseMedia?.media?.url ?? null,
       sellerProfile: sellerProfile
@@ -283,8 +285,9 @@ export const getMe = async (userId: number) => {
   }
 
   let avatarUseMedia: any = null;
-  if (user.avatarUseMediaId) {
-    const um = await db.orm.public.UseMedia.where({ id: user.avatarUseMediaId }).first();
+  const meAvatarId = (user as any).avatarId ?? (user as any).avatarUseMediaId;
+  if (meAvatarId) {
+    const um = await db.orm.public.UseMedia.where({ id: meAvatarId }).first();
     if (um) {
       const m = await db.orm.public.Media.where({ id: um.mediaId }).first();
       avatarUseMedia = { ...um, media: m };
@@ -299,7 +302,8 @@ export const getMe = async (userId: number) => {
     email: user.email,
     role: user.role,
     phone: user.phone,
-    avatarUseMediaId: user.avatarUseMediaId,
+    avatarId: meAvatarId ?? null,
+    avatarUseMediaId: meAvatarId ?? null,
     avatarUseMedia,
     avatar: avatarUseMedia?.media?.url ?? null,
     isActive: user.isActive,

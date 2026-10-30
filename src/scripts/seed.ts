@@ -270,7 +270,7 @@ async function main() {
       name: "Electronics & Gadgets",
       slug: "electronics",
       description: "Smartphones, Laptops, Audio, Smartwatches and Accessories",
-      useMediaId: catElectronicsImg.useMediaId,
+      imageId: catElectronicsImg.useMediaId,
       icon: "laptop",
       displayOrder: 1,
       isActive: true,
@@ -311,7 +311,7 @@ async function main() {
       name: "Fashion & Lifestyle",
       slug: "fashion",
       description: "Men and Women Clothing, Leather Accessories and Bags",
-      useMediaId: catFashionImg.useMediaId,
+      imageId: catFashionImg.useMediaId,
       icon: "shirt",
       displayOrder: 2,
       isActive: true,
@@ -376,12 +376,12 @@ async function main() {
         slug: b.slug,
         website: b.website,
         description: b.desc,
-        useMediaId: brandImg.useMediaId,
+        logoId: brandImg.useMediaId,
         isActive: true,
       });
     } else {
       await db.orm.public.Brand.where({ id: brandRecord.id }).update({
-        useMediaId: brandImg.useMediaId,
+        logoId: brandImg.useMediaId,
       });
       brandRecord = await db.orm.public.Brand.where({ id: brandRecord.id }).first();
     }
@@ -638,7 +638,7 @@ async function main() {
         costPrice: 3800.0,
         stock: 50,
         lowStockThreshold: 8,
-        mainImageUseMediaId: img1.useMediaId,
+        mainImageId: img1.useMediaId,
         tags: ["smartwatch", "calling", "amoled", "kieslect", "fitness"],
         warranty: "1 Year Official Replacement Warranty",
         weightKg: 0.18,
@@ -687,7 +687,7 @@ async function main() {
           comparePrice: 6999,
           costPrice: 3800,
           stock: v.stock,
-          useMediaId: img1.useMediaId,
+          imageId: img1.useMediaId,
           attributes: { Color: v.color, "Strap Material": v.strap },
           barcode: `890128${Math.floor(100000 + Math.random() * 900000)}`,
           weightKg: 0.18,
@@ -751,7 +751,7 @@ async function main() {
         comparePrice: 2850.0,
         costPrice: 1600.0,
         stock: 60,
-        mainImageUseMediaId: img2.useMediaId,
+        mainImageId: img2.useMediaId,
         tags: ["anker", "soundcore", "earbuds", "tws", "wireless"],
         warranty: "18 Months Official Anker Replacement Warranty",
         ratingAverage: 4.8,
@@ -783,7 +783,7 @@ async function main() {
           comparePrice: 2850,
           costPrice: 1600,
           stock: v.stock,
-          useMediaId: img2.useMediaId,
+          imageId: img2.useMediaId,
           attributes: { Color: v.color },
           isActive: true,
         });
@@ -839,7 +839,7 @@ async function main() {
         comparePrice: 1650.0,
         costPrice: 720.0,
         stock: 55,
-        mainImageUseMediaId: img3.useMediaId,
+        mainImageId: img3.useMediaId,
         tags: ["cotton", "shirt", "formal", "casual", "mens fashion"],
         warranty: "7 Days Easy Replacement Warranty",
         ratingAverage: 4.7,
@@ -882,7 +882,7 @@ async function main() {
           comparePrice: 1650,
           costPrice: 720,
           stock: v.stock,
-          useMediaId: img3.useMediaId,
+          imageId: img3.useMediaId,
           attributes: { Color: v.color, Size: v.size },
           isActive: true,
         });
@@ -931,7 +931,7 @@ async function main() {
         comparePrice: 12500.0,
         costPrice: 7800.0,
         stock: 25,
-        mainImageUseMediaId: img4.useMediaId,
+        mainImageId: img4.useMediaId,
         tags: ["logitech", "mouse", "ergonomic", "mx master", "productivity"],
         warranty: "2 Years Official Logitech Warranty",
         ratingAverage: 5.0,
@@ -962,7 +962,7 @@ async function main() {
           comparePrice: 12500,
           costPrice: 7800,
           stock: v.stock,
-          useMediaId: img4.useMediaId,
+          imageId: img4.useMediaId,
           attributes: { Color: v.color },
           isActive: true,
         });
@@ -1007,7 +1007,7 @@ async function main() {
         comparePrice: 7500.0,
         costPrice: 4600.0,
         stock: 35,
-        mainImageUseMediaId: img5.useMediaId,
+        mainImageId: img5.useMediaId,
         tags: ["baseus", "power bank", "100w", "laptop charger", "fast charging"],
         warranty: "6 Months Official Warranty",
         ratingAverage: 4.8,
@@ -1064,7 +1064,7 @@ async function main() {
         comparePrice: 3800.0,
         costPrice: 2200.0,
         stock: 40,
-        mainImageUseMediaId: img6.useMediaId,
+        mainImageId: img6.useMediaId,
         tags: ["redragon", "keyboard", "gaming", "mechanical", "rgb"],
         warranty: "1 Year Official Warranty",
         ratingAverage: 4.6,
@@ -1094,7 +1094,7 @@ async function main() {
           comparePrice: 3800,
           costPrice: 2200,
           stock: v.stock,
-          useMediaId: img6.useMediaId,
+          imageId: img6.useMediaId,
           attributes: { "Mechanical Switch": v.sw },
           isActive: true,
         });
@@ -1139,7 +1139,7 @@ async function main() {
         comparePrice: 1350.0,
         costPrice: 480.0,
         stock: 50,
-        mainImageUseMediaId: img7.useMediaId,
+        mainImageId: img7.useMediaId,
         tags: ["leather", "wallet", "rfid", "handmade", "mens accessories"],
         warranty: "2 Years Stitching & Leather Guarantee",
         ratingAverage: 4.9,
@@ -1170,7 +1170,7 @@ async function main() {
           comparePrice: 1350,
           costPrice: 480,
           stock: v.stock,
-          useMediaId: img7.useMediaId,
+          imageId: img7.useMediaId,
           attributes: { Color: v.color },
           isActive: true,
         });
@@ -1214,7 +1214,7 @@ async function main() {
         comparePrice: 13500.0,
         costPrice: 8900.0,
         stock: 30,
-        mainImageUseMediaId: img8.useMediaId,
+        mainImageId: img8.useMediaId,
         tags: ["jbl", "speaker", "bluetooth", "waterproof", "flip 6"],
         warranty: "1 Year Official Warranty",
         ratingAverage: 4.9,
@@ -1245,7 +1245,7 @@ async function main() {
           comparePrice: 13500,
           costPrice: 8900,
           stock: v.stock,
-          useMediaId: img8.useMediaId,
+          imageId: img8.useMediaId,
           attributes: { Color: v.color },
           isActive: true,
         });
@@ -1290,7 +1290,7 @@ async function main() {
         comparePrice: 160000.0,
         costPrice: 135000.0,
         stock: 20,
-        mainImageUseMediaId: img9.useMediaId,
+        mainImageId: img9.useMediaId,
         tags: ["samsung", "flagship", "galaxy ai", "s24 ultra", "5g"],
         warranty: "1 Year Official Brand Warranty",
         ratingAverage: 5.0,
@@ -1330,7 +1330,7 @@ async function main() {
           comparePrice: v.price + 12000,
           costPrice: v.price - 12000,
           stock: v.stock,
-          useMediaId: img9.useMediaId,
+          imageId: img9.useMediaId,
           attributes: { Color: v.color, "Internal Storage": v.storage },
           isActive: true,
         });
@@ -1379,7 +1379,7 @@ async function main() {
         comparePrice: 27000.0,
         costPrice: 18500.0,
         stock: 20,
-        mainImageUseMediaId: img10.useMediaId,
+        mainImageId: img10.useMediaId,
         tags: ["xiaomi", "robot vacuum", "cleaner", "smart home", "iot"],
         warranty: "1 Year Service Warranty",
         ratingAverage: 4.9,
@@ -1427,7 +1427,7 @@ async function main() {
         comparePrice: 52000.0,
         costPrice: 41000.0,
         stock: 25,
-        mainImageUseMediaId: img11.useMediaId,
+        mainImageId: img11.useMediaId,
         tags: ["apple", "ipad", "tablet", "a14 bionic", "liquid retina"],
         warranty: "1 Year Apple International Official Warranty",
         ratingAverage: 5.0,
@@ -1467,7 +1467,7 @@ async function main() {
           comparePrice: v.price + 5500,
           costPrice: v.price - 5500,
           stock: v.stock,
-          useMediaId: img11.useMediaId,
+          imageId: img11.useMediaId,
           attributes: { Color: v.color, "Internal Storage": v.storage },
           isActive: true,
         });
@@ -1517,7 +1517,7 @@ async function main() {
         comparePrice: 3400.0,
         costPrice: 1950.0,
         stock: 50,
-        mainImageUseMediaId: img12.useMediaId,
+        mainImageId: img12.useMediaId,
         tags: ["ugreen", "gan", "charger", "65w", "fast charging", "type-c"],
         warranty: "1 Year Official Warranty",
         ratingAverage: 4.9,
@@ -1544,12 +1544,12 @@ async function main() {
   // Synchronize Categories and Products with their unique UseMedia
   if (electronics) {
     await db.orm.public.Category.where({ id: electronics.id }).update({
-      useMediaId: catElectronicsImg.useMediaId,
+      imageId: catElectronicsImg.useMediaId,
     });
   }
   if (fashion) {
     await db.orm.public.Category.where({ id: fashion.id }).update({
-      useMediaId: catFashionImg.useMediaId,
+      imageId: catFashionImg.useMediaId,
     });
   }
 
@@ -1595,7 +1595,7 @@ async function main() {
     await db.orm.public.Banner.create({
       title: "Smart Sourcing & Multi-Vendor Marketplace",
       subtitle: "Discover authentic gadgets, smartwatches, lifestyle apparel and electronics directly from verified sellers.",
-      useMediaId: bannerMedia.useMediaId,
+      imageId: bannerMedia.useMediaId,
       linkUrl: "/products",
       position: "HERO_SLIDER",
       displayOrder: 1,
@@ -1621,7 +1621,7 @@ async function main() {
       title: "Sony WH-1000XM5 Studio Wireless",
       subtitle: "Industry-leading noise cancellation with two processors, 8 microphones, and ultra-comfortable lightweight fit.",
       description: "Experience 30 hours battery life with quick charging, crystal clear hands-free calling, and Multipoint connection.",
-      useMediaId: slider1Media.useMediaId,
+      imageId: slider1Media.useMediaId,
       linkUrl: "/products",
       buttonText: "Explore Headphone",
       textColor: "LIGHT",
@@ -1642,7 +1642,7 @@ async function main() {
     await db.orm.public.Slider.create({
       type: "IMAGE_ONLY",
       title: "Official Brand Week Showcase",
-      useMediaId: slider2Media.useMediaId,
+      imageId: slider2Media.useMediaId,
       linkUrl: "/products",
       displayOrder: 2,
       isActive: true,

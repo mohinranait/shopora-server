@@ -1,4 +1,4 @@
-﻿import { z } from "zod";
+import { z } from "zod";
 
 export const createCouponSchema = z.object({
   body: z.object({
@@ -26,7 +26,9 @@ export const createBannerSchema = z.object({
   body: z.object({
     title: z.string().min(2, "Title is required"),
     subtitle: z.string().optional(),
+    imageId: z.number().int().positive().nullable().optional(),
     useMediaId: z.number().int().positive().nullable().optional(),
+    mobileImageId: z.number().int().positive().nullable().optional(),
     mobileUseMediaId: z.number().int().positive().nullable().optional(),
     linkUrl: z.string().optional(),
     position: z.enum(["HERO_SLIDER", "PROMO_GRID", "MIDDLE_STRIP", "POPUP"]).default("HERO_SLIDER"),

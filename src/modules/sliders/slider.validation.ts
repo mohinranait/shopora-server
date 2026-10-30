@@ -1,4 +1,4 @@
-﻿import { z } from "zod";
+import { z } from "zod";
 
 export const createSliderSchema = z.object({
   body: z.object({
@@ -7,7 +7,9 @@ export const createSliderSchema = z.object({
     subtitle: z.string().optional().nullable(),
     description: z.string().optional().nullable(),
     badgeText: z.string().optional().nullable(),
+    imageId: z.number().int().positive().nullable().optional(),
     useMediaId: z.number().int().positive().nullable().optional(),
+    mobileImageId: z.number().int().positive().nullable().optional(),
     mobileUseMediaId: z.number().int().positive().nullable().optional(),
     linkUrl: z.string().optional().nullable(),
     buttonText: z.string().optional().nullable(),
@@ -28,7 +30,9 @@ export const updateSliderSchema = z.object({
     subtitle: z.string().optional().nullable(),
     description: z.string().optional().nullable(),
     badgeText: z.string().optional().nullable(),
+    imageId: z.number().int().positive().nullable().optional(),
     useMediaId: z.number().int().positive().nullable().optional(),
+    mobileImageId: z.number().int().positive().nullable().optional(),
     mobileUseMediaId: z.number().int().positive().nullable().optional(),
     linkUrl: z.string().optional().nullable(),
     buttonText: z.string().optional().nullable(),

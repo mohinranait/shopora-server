@@ -1,4 +1,4 @@
-﻿import { db } from "../../config/db.ts";
+import { db } from "../../config/db.ts";
 import { AppError } from "../../errors/AppError.ts";
 
 /**
@@ -88,8 +88,9 @@ export const deleteCoupon = async (id: number) => {
  */
 const populateBannerMedia = async (b: any) => {
   let useMedia: any = null;
-  if (b.useMediaId) {
-    const um = await db.orm.public.UseMedia.where({ id: b.useMediaId }).first();
+  const targetImageId = b.imageId ?? b.useMediaId;
+  if (targetImageId) {
+    const um = await db.orm.public.UseMedia.where({ id: targetImageId }).first();
     if (um) {
       const m = await db.orm.public.Media.where({ id: um.mediaId }).first();
       useMedia = { ...um, media: m };
@@ -97,8 +98,9 @@ const populateBannerMedia = async (b: any) => {
   }
 
   let mobileUseMedia: any = null;
-  if (b.mobileUseMediaId) {
-    const mum = await db.orm.public.UseMedia.where({ id: b.mobileUseMediaId }).first();
+  const targetMobileImageId = b.mobileImageId ?? b.mobileUseMediaId;
+  if (targetMobileImageId) {
+    const mum = await db.orm.public.UseMedia.where({ id: targetMobileImageId }).first();
     if (mum) {
       const mm = await db.orm.public.Media.where({ id: mum.mediaId }).first();
       mobileUseMedia = { ...mum, media: mm };
@@ -107,6 +109,8 @@ const populateBannerMedia = async (b: any) => {
 
   return {
     ...b,
+    imageId: b.imageId ?? targetImageId ?? null,
+    mobileImageId: b.mobileImageId ?? targetMobileImageId ?? null,
     useMedia,
     mobileUseMedia,
     imageUrl: useMedia?.media?.url ?? null,
@@ -134,8 +138,8 @@ export const createBanner = async (payload: any) => {
   const banner = await db.orm.public.Banner.create({
     title: payload.title,
     subtitle: payload.subtitle ?? null,
-    useMediaId: payload.useMediaId ?? null,
-    mobileUseMediaId: payload.mobileUseMediaId ?? null,
+    imageId: payload.imageId ?? payload.useMediaId ?? null,
+    mobileImageId: payload.mobileImageId ?? payload.mobileUseMediaId ?? null,
     linkUrl: payload.linkUrl ?? null,
     position: payload.position || "HERO_SLIDER",
     displayOrder: payload.displayOrder || 0,

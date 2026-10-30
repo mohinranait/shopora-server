@@ -1,23 +1,25 @@
-﻿import { db } from "../../config/db.ts";
+import { db } from "../../config/db.ts";
 import { AppError } from "../../errors/AppError.ts";
 import { slugify } from "../../utils/slugify.ts";
 
 /**
- * Helper to populate useMedia and virtual logo URL
+ * Helper to populate logo useMedia and virtual logo URL
  */
 const populateBrandMedia = async (brand: any) => {
-  let useMedia: any = null;
-  if (brand.useMediaId) {
-    const um = await db.orm.public.UseMedia.where({ id: brand.useMediaId }).first();
+  let logoMedia: any = null;
+  const targetId = brand.logoId ?? brand.useMediaId;
+  if (targetId) {
+    const um = await db.orm.public.UseMedia.where({ id: targetId }).first();
     if (um) {
       const m = await db.orm.public.Media.where({ id: um.mediaId }).first();
-      useMedia = { ...um, media: m };
+      logoMedia = { ...um, media: m };
     }
   }
   return {
     ...brand,
-    useMedia,
-    logo: useMedia?.media?.url ?? null,
+    logoId: brand.logoId ?? targetId ?? null,
+    useMedia: logoMedia,
+    logo: logoMedia?.media?.url ?? null,
   };
 };
 
@@ -51,6 +53,7 @@ export const getBrandBySlug = async (slug: string) => {
  */
 export const createBrand = async (payload: {
   name: string;
+  logoId?: number | null;
   useMediaId?: number | null;
   description?: string;
   website?: string;
@@ -65,7 +68,7 @@ export const createBrand = async (payload: {
   const brand = await db.orm.public.Brand.create({
     name: payload.name,
     slug,
-    useMediaId: payload.useMediaId ?? null,
+    logoId: payload.logoId ?? payload.useMediaId ?? null,
     description: payload.description ?? null,
     website: payload.website ?? null,
     isActive: payload.isActive ?? true,
@@ -81,6 +84,7 @@ export const updateBrand = async (
   id: number,
   payload: {
     name?: string;
+    logoId?: number | null;
     useMediaId?: number | null;
     description?: string;
     website?: string;
@@ -97,8 +101,8 @@ export const updateBrand = async (
     updateData.name = payload.name;
     updateData.slug = slugify(payload.name);
   }
-  if (payload.useMediaId !== undefined) {
-    updateData.useMediaId = payload.useMediaId;
+  if (payload.logoId !== undefined || payload.useMediaId !== undefined) {
+    updateData.logoId = payload.logoId !== undefined ? payload.logoId : payload.useMediaId;
   }
   if (payload.description !== undefined) updateData.description = payload.description;
   if (payload.website !== undefined) updateData.website = payload.website;

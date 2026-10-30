@@ -1,4 +1,4 @@
-﻿import { db } from "../../config/db.ts";
+import { db } from "../../config/db.ts";
 import { AppError } from "../../errors/AppError.ts";
 import { slugify } from "../../utils/slugify.ts";
 
@@ -6,18 +6,20 @@ import { slugify } from "../../utils/slugify.ts";
  * Helper to populate useMedia and virtual image URL
  */
 const populateCategoryMedia = async (cat: any) => {
-  let useMedia: any = null;
-  if (cat.useMediaId) {
-    const um = await db.orm.public.UseMedia.where({ id: cat.useMediaId }).first();
+  let imageMedia: any = null;
+  const targetId = cat.imageId ?? cat.useMediaId;
+  if (targetId) {
+    const um = await db.orm.public.UseMedia.where({ id: targetId }).first();
     if (um) {
       const m = await db.orm.public.Media.where({ id: um.mediaId }).first();
-      useMedia = { ...um, media: m };
+      imageMedia = { ...um, media: m };
     }
   }
   return {
     ...cat,
-    useMedia,
-    image: useMedia?.media?.url ?? null,
+    imageId: cat.imageId ?? targetId ?? null,
+    useMedia: imageMedia,
+    image: imageMedia?.media?.url ?? null,
   };
 };
 
@@ -112,6 +114,7 @@ export const getCategoryBySlug = async (slug: string) => {
 export const createCategory = async (payload: {
   name: string;
   description?: string;
+  imageId?: number | null;
   useMediaId?: number | null;
   icon?: string;
   parentId?: number | null;
@@ -135,7 +138,7 @@ export const createCategory = async (payload: {
     name: payload.name,
     slug,
     description: payload.description ?? null,
-    useMediaId: payload.useMediaId ?? null,
+    imageId: payload.imageId ?? payload.useMediaId ?? null,
     icon: payload.icon ?? null,
     parentId: payload.parentId ?? null,
     displayOrder: payload.displayOrder ?? 0,
@@ -153,6 +156,7 @@ export const updateCategory = async (
   payload: {
     name?: string;
     description?: string;
+    imageId?: number | null;
     useMediaId?: number | null;
     icon?: string;
     parentId?: number | null;
@@ -171,8 +175,8 @@ export const updateCategory = async (
     updateData.slug = slugify(payload.name);
   }
   if (payload.description !== undefined) updateData.description = payload.description;
-  if (payload.useMediaId !== undefined) {
-    updateData.useMediaId = payload.useMediaId;
+  if (payload.imageId !== undefined || payload.useMediaId !== undefined) {
+    updateData.imageId = payload.imageId !== undefined ? payload.imageId : payload.useMediaId;
   }
   if (payload.icon !== undefined) updateData.icon = payload.icon;
   if (payload.displayOrder !== undefined) updateData.displayOrder = payload.displayOrder;

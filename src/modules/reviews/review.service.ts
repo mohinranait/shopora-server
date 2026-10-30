@@ -86,8 +86,9 @@ export const getProductReviews = async (productId: number) => {
     reviews.map(async (rev) => {
       const user = await db.orm.public.User.where({ id: rev.userId }).first();
       let userAvatar: string | null = null;
-      if (user?.avatarUseMediaId) {
-        const um = await db.orm.public.UseMedia.where({ id: user.avatarUseMediaId }).first();
+      const uAvatarId = (user as any)?.avatarId ?? (user as any)?.avatarUseMediaId;
+      if (uAvatarId) {
+        const um = await db.orm.public.UseMedia.where({ id: uAvatarId }).first();
         if (um) {
           const m = await db.orm.public.Media.where({ id: um.mediaId }).first();
           userAvatar = m?.url ?? null;
@@ -100,7 +101,8 @@ export const getProductReviews = async (productId: number) => {
               id: user.id,
               name: user.name,
               avatar: userAvatar,
-              avatarUseMediaId: user.avatarUseMediaId,
+              avatarId: uAvatarId ?? null,
+              avatarUseMediaId: uAvatarId ?? null,
             }
           : null,
       };

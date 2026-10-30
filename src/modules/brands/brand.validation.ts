@@ -1,8 +1,9 @@
-﻿import { z } from "zod";
+import { z } from "zod";
 
 export const createBrandSchema = z.object({
   body: z.object({
     name: z.string().min(2, "Brand name must be at least 2 characters"),
+    logoId: z.number().int().positive().nullable().optional(),
     useMediaId: z.number().int().positive().nullable().optional(),
     description: z.string().optional(),
     website: z.string().url().optional().or(z.literal("")),
@@ -13,6 +14,7 @@ export const createBrandSchema = z.object({
 export const updateBrandSchema = z.object({
   body: z.object({
     name: z.string().min(2).optional(),
+    logoId: z.number().int().positive().nullable().optional(),
     useMediaId: z.number().int().positive().nullable().optional(),
     description: z.string().optional(),
     website: z.string().url().optional().or(z.literal("")),

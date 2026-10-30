@@ -47,7 +47,7 @@ export const getAdminPlatformAnalytics = async () => {
     .limit(5)
     .all();
 
-  const prodUseMediaIds = [...new Set(topProducts.map((p) => p.mainImageUseMediaId).filter((id): id is number => typeof id === "number"))];
+  const prodUseMediaIds = [...new Set(topProducts.map((p: any) => p.mainImageId ?? p.mainImageUseMediaId).filter((id): id is number => typeof id === "number"))];
   const useMedias = prodUseMediaIds.length > 0 ? await db.orm.public.UseMedia.where((um) => um.id.in(prodUseMediaIds)).all() : [];
   const rawMediaIds = [...new Set(useMedias.map((um) => um.mediaId))];
   const medias = rawMediaIds.length > 0 ? await db.orm.public.Media.where((m) => m.id.in(rawMediaIds)).all() : [];
@@ -79,17 +79,21 @@ export const getAdminPlatformAnalytics = async () => {
       total: totalProducts.count,
       published: publishedProducts.count,
     },
-    topSellingProducts: topProducts.map((p) => ({
-      id: p.id,
-      name: p.name,
-      slug: p.slug,
-      mainImageUseMediaId: p.mainImageUseMediaId,
-      mainImage: (p.mainImageUseMediaId ? useMediaMap.get(p.mainImageUseMediaId) : null) ?? "",
-      basePrice: p.basePrice,
-      totalSold: p.totalSold,
-      stock: p.stock,
-      isPlatformOwned: p.isPlatformOwned,
-    })),
+    topSellingProducts: topProducts.map((p: any) => {
+      const mId = p.mainImageId ?? p.mainImageUseMediaId;
+      return {
+        id: p.id,
+        name: p.name,
+        slug: p.slug,
+        mainImageId: mId ?? null,
+        mainImageUseMediaId: mId ?? null,
+        mainImage: (mId ? useMediaMap.get(mId) : null) ?? "",
+        basePrice: p.basePrice,
+        totalSold: p.totalSold,
+        stock: p.stock,
+        isPlatformOwned: p.isPlatformOwned,
+      };
+    }),
     recentOrders,
   };
 };

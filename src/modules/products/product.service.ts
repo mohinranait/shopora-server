@@ -224,7 +224,7 @@ export const getAllProducts = async (filters: IProductFilterOptions) => {
   const categoryIds = uniq(products.map((p) => p.categoryId));
   const brandIds = uniq(products.map((p) => p.brandId));
   const sellerIds = uniq(products.map((p) => p.sellerId));
-  const useMediaIds = uniq(products.map((p) => p.mainImageUseMediaId));
+  const useMediaIds = uniq(products.map((p: any) => p.mainImageId ?? p.mainImageUseMediaId));
 
   const [categories, brands, sellers, useMedias] = await Promise.all([
     categoryIds.length
@@ -235,7 +235,7 @@ export const getAllProducts = async (filters: IProductFilterOptions) => {
       : [],
     sellerIds.length
       ? db.orm.public.SellerProfile.where((s) => s.id.in(sellerIds))
-          .select("id", "storeName", "storeSlug", "logoUseMediaId")
+          .select("id", "storeName", "storeSlug", "logoId")
           .all()
       : [],
     useMediaIds.length ? db.orm.public.UseMedia.where((u) => u.id.in(useMediaIds)).all() : [],
@@ -254,15 +254,17 @@ export const getAllProducts = async (filters: IProductFilterOptions) => {
     useMedias.map((u) => [u.id, { ...u, media: mediaMap.get(u.mediaId) ?? null }])
   );
 
-  const populatedProducts = products.map((prod) => {
+  const populatedProducts = products.map((prod: any) => {
     // Public listings don't need the long description or internal cost price
     const { description, costPrice, ...rest } = prod;
     const base = isPublic ? rest : prod;
-    const mainMedia = prod.mainImageUseMediaId
-      ? useMediaMap.get(prod.mainImageUseMediaId) ?? null
+    const targetMainId = prod.mainImageId ?? prod.mainImageUseMediaId;
+    const mainMedia = targetMainId
+      ? useMediaMap.get(targetMainId) ?? null
       : null;
     return {
       ...base,
+      mainImageId: prod.mainImageId ?? targetMainId ?? null,
       mainImageUseMedia: mainMedia,
       mainImage: mainMedia?.media?.url ?? "",
       category: categoryMap.get(prod.categoryId) ?? null,
@@ -305,7 +307,7 @@ export const getProductFilters = async (filters: IProductFilterOptions) => {
       .orderBy((c) => c.displayOrder.asc())
       .select("id", "name", "slug", "parentId")
       .all(),
-    db.orm.public.Brand.where({ isActive: true }).select("id", "name", "slug", "useMediaId").all(),
+    db.orm.public.Brand.where({ isActive: true }).select("id", "name", "slug", "logoId").all(),
   ]);
 
   // Category tree with counts rolled up into parents
@@ -374,8 +376,9 @@ export const populateProductDetails = async (product: any, requestingUser?: any)
     ? await db.orm.public.SellerProfile.where({ id: product.sellerId }).first()
     : null;
   let sellerLogo: string | null = null;
-  if (seller?.logoUseMediaId) {
-    const um = await db.orm.public.UseMedia.where({ id: seller.logoUseMediaId }).first();
+  const sellerLogoId = (seller as any)?.logoId ?? (seller as any)?.logoUseMediaId;
+  if (sellerLogoId) {
+    const um = await db.orm.public.UseMedia.where({ id: sellerLogoId }).first();
     if (um) {
       const m = await db.orm.public.Media.where({ id: um.mediaId }).first();
       sellerLogo = m?.url ?? null;
@@ -383,8 +386,9 @@ export const populateProductDetails = async (product: any, requestingUser?: any)
   }
 
   let mainImageUseMedia: any = null;
-  if (product.mainImageUseMediaId) {
-    const um = await db.orm.public.UseMedia.where({ id: product.mainImageUseMediaId }).first();
+  const productMainId = product.mainImageId ?? product.mainImageUseMediaId;
+  if (productMainId) {
+    const um = await db.orm.public.UseMedia.where({ id: productMainId }).first();
     if (um) {
       const m = await db.orm.public.Media.where({ id: um.mediaId }).first();
       mainImageUseMedia = { ...um, media: m };
@@ -397,10 +401,11 @@ export const populateProductDetails = async (product: any, requestingUser?: any)
     .all();
 
   const images = await Promise.all(
-    rawImages.map(async (img) => {
+    rawImages.map(async (img: any) => {
       let useMedia: any = null;
-      if (img.useMediaId) {
-        const um = await db.orm.public.UseMedia.where({ id: img.useMediaId }).first();
+      const imgTargetId = img.imageId ?? img.useMediaId;
+      if (imgTargetId) {
+        const um = await db.orm.public.UseMedia.where({ id: imgTargetId }).first();
         if (um) {
           const m = await db.orm.public.Media.where({ id: um.mediaId }).first();
           useMedia = { ...um, media: m };
@@ -408,6 +413,7 @@ export const populateProductDetails = async (product: any, requestingUser?: any)
       }
       return {
         ...img,
+        imageId: img.imageId ?? imgTargetId ?? null,
         useMedia,
         url: useMedia?.media?.url ?? "",
       };
@@ -467,10 +473,11 @@ export const populateProductDetails = async (product: any, requestingUser?: any)
     .all();
 
   const variants = await Promise.all(
-    rawVariants.map(async (v) => {
+    rawVariants.map(async (v: any) => {
       let useMedia: any = null;
-      if (v.useMediaId) {
-        const um = await db.orm.public.UseMedia.where({ id: v.useMediaId }).first();
+      const vTargetId = v.imageId ?? v.useMediaId;
+      if (vTargetId) {
+        const um = await db.orm.public.UseMedia.where({ id: vTargetId }).first();
         if (um) {
           const m = await db.orm.public.Media.where({ id: um.mediaId }).first();
           useMedia = { ...um, media: m };
@@ -500,6 +507,7 @@ export const populateProductDetails = async (product: any, requestingUser?: any)
 
       return {
         ...v,
+        imageId: v.imageId ?? vTargetId ?? null,
         useMedia,
         image: useMedia?.media?.url ?? null,
         attributeValues,
@@ -517,6 +525,7 @@ export const populateProductDetails = async (product: any, requestingUser?: any)
 
   return {
     ...product,
+    mainImageId: product.mainImageId ?? productMainId ?? null,
     mainImageUseMedia,
     mainImage: mainImageUseMedia?.media?.url ?? "",
     category,
@@ -640,7 +649,7 @@ export const createProduct = async (
       costPrice: payload.costPrice ?? null,
       stock: calculatedStock,
       lowStockThreshold: payload.lowStockThreshold || 5,
-      mainImageUseMediaId: payload.mainImageUseMediaId ?? null,
+      mainImageId: payload.mainImageId ?? payload.mainImageUseMediaId ?? null,
       tags: payload.tags || [],
       warranty: payload.warranty ?? null,
       weightKg: payload.weightKg ?? null,
@@ -658,13 +667,14 @@ export const createProduct = async (
     // 2. Insert gallery images if provided
     if (Array.isArray(payload.images) && payload.images.length > 0) {
       for (const img of payload.images) {
-        if (!img.useMediaId) continue;
+        const targetImgId = img.imageId ?? img.useMediaId;
+        if (!targetImgId) continue;
         await tx.orm.public.ProductImage.create({
           productId: newProduct.id,
           altText: img.altText ?? null,
           displayOrder: img.displayOrder || 0,
           isPrimary: img.isPrimary || false,
-          useMediaId: img.useMediaId,
+          imageId: targetImgId,
         });
       }
     }
@@ -704,6 +714,7 @@ export const createProduct = async (
       for (let i = 0; i < payload.variants.length; i++) {
         const v = payload.variants[i];
         const vSku = v.sku || `${newProduct.sku}-VAR${i + 1}`;
+        const targetVarImgId = v.imageId ?? v.useMediaId ?? null;
 
         const variant = await tx.orm.public.ProductVariant.create({
           productId: newProduct.id,
@@ -714,7 +725,7 @@ export const createProduct = async (
           costPrice: v.costPrice ?? null,
           stock: v.stock || 0,
           lowStockThreshold: v.lowStockThreshold || 5,
-          useMediaId: v.useMediaId ?? null,
+          imageId: targetVarImgId,
           attributes: v.attributes || {},
           barcode: v.barcode ?? null,
           weightKg: v.weightKg ?? null,
@@ -777,8 +788,8 @@ export const updateProduct = async (
     if (payload.comparePrice !== undefined) updateData.comparePrice = payload.comparePrice;
     if (payload.costPrice !== undefined) updateData.costPrice = payload.costPrice;
     if (payload.lowStockThreshold !== undefined) updateData.lowStockThreshold = payload.lowStockThreshold;
-    if (payload.mainImageUseMediaId !== undefined) {
-      updateData.mainImageUseMediaId = payload.mainImageUseMediaId;
+    if (payload.mainImageId !== undefined || payload.mainImageUseMediaId !== undefined) {
+      updateData.mainImageId = payload.mainImageId !== undefined ? payload.mainImageId : payload.mainImageUseMediaId;
     }
     if (payload.status !== undefined) updateData.status = payload.status;
     if (payload.productType !== undefined) updateData.productType = payload.productType;
@@ -799,13 +810,14 @@ export const updateProduct = async (
     if (Array.isArray(payload.images)) {
       await tx.orm.public.ProductImage.where({ productId: id }).delete();
       for (const img of payload.images) {
-        if (!img.useMediaId) continue;
+        const targetImgId = img.imageId ?? img.useMediaId;
+        if (!targetImgId) continue;
         await tx.orm.public.ProductImage.create({
           productId: id,
           altText: img.altText ?? null,
           displayOrder: img.displayOrder || 0,
           isPrimary: img.isPrimary || false,
-          useMediaId: img.useMediaId,
+          imageId: targetImgId,
         });
       }
     }
@@ -861,7 +873,7 @@ export const updateProduct = async (
 
       // Upsert/create variants
       for (const v of payload.variants) {
-        const useMediaId = v.useMediaId ?? null;
+        const imageId = v.imageId !== undefined ? v.imageId : (v.useMediaId ?? null);
 
         let variantId = v.id;
         if (variantId) {
@@ -872,7 +884,7 @@ export const updateProduct = async (
             costPrice: v.costPrice ?? null,
             stock: v.stock || 0,
             lowStockThreshold: v.lowStockThreshold !== undefined ? v.lowStockThreshold : 5,
-            useMediaId,
+            imageId,
             attributes: v.attributes || {},
             barcode: v.barcode ?? null,
             weightKg: v.weightKg ?? null,
@@ -891,7 +903,7 @@ export const updateProduct = async (
             costPrice: v.costPrice ?? null,
             stock: v.stock || 0,
             lowStockThreshold: v.lowStockThreshold || 5,
-            useMediaId,
+            imageId,
             attributes: v.attributes || {},
             barcode: v.barcode ?? null,
             weightKg: v.weightKg ?? null,

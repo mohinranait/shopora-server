@@ -86,8 +86,8 @@ export const priceOrder = async (items: OrderItemInput[], couponCode?: string) =
 
   const allUseMediaIds = [
     ...new Set([
-      ...products.map((p) => p.mainImageUseMediaId),
-      ...variants.map((v) => v.useMediaId),
+      ...products.map((p: any) => p.mainImageId ?? p.mainImageUseMediaId),
+      ...variants.map((v: any) => v.imageId ?? v.useMediaId),
     ].filter((id): id is number => typeof id === "number")),
   ];
   const useMedias = allUseMediaIds.length ? await db.orm.public.UseMedia.where((um) => um.id.in(allUseMediaIds)).all() : [];
@@ -145,8 +145,10 @@ export const priceOrder = async (items: OrderItemInput[], couponCode?: string) =
       continue;
     }
 
-    const variantImageUrl = selectedVariant?.useMediaId ? useMediaUrlMap.get(selectedVariant.useMediaId) : null;
-    const productImageUrl = product.mainImageUseMediaId ? useMediaUrlMap.get(product.mainImageUseMediaId) : null;
+    const vImgId = selectedVariant?.imageId ?? selectedVariant?.useMediaId;
+    const pImgId = (product as any)?.mainImageId ?? (product as any)?.mainImageUseMediaId;
+    const variantImageUrl = vImgId ? useMediaUrlMap.get(vImgId) : null;
+    const productImageUrl = pImgId ? useMediaUrlMap.get(pImgId) : null;
 
     lines.push({
       product,

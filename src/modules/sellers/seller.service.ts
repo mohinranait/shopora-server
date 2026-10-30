@@ -25,8 +25,9 @@ export const getStoreBySlug = async (storeSlug: string) => {
     .all();
 
   let logoUseMedia: any = null;
-  if (seller.logoUseMediaId) {
-    const um = await db.orm.public.UseMedia.where({ id: seller.logoUseMediaId }).first();
+  const sellerLogoId = seller.logoId;
+  if (sellerLogoId) {
+    const um = await db.orm.public.UseMedia.where({ id: sellerLogoId }).first();
     if (um) {
       const m = await db.orm.public.Media.where({ id: um.mediaId }).first();
       logoUseMedia = { ...um, media: m };
@@ -34,8 +35,9 @@ export const getStoreBySlug = async (storeSlug: string) => {
   }
 
   let bannerUseMedia: any = null;
-  if (seller.bannerUseMediaId) {
-    const um = await db.orm.public.UseMedia.where({ id: seller.bannerUseMediaId }).first();
+  const sellerBannerId = seller.bannerId;
+  if (sellerBannerId) {
+    const um = await db.orm.public.UseMedia.where({ id: sellerBannerId }).first();
     if (um) {
       const m = await db.orm.public.Media.where({ id: um.mediaId }).first();
       bannerUseMedia = { ...um, media: m };
@@ -71,10 +73,10 @@ export interface IPublicStoreFilters {
 /**
  * Resolve logo/banner UseMedia -> Media urls for a batch of sellers in two queries
  */
-const resolveStoreMedia = async (sellers: { logoUseMediaId: number | null; bannerUseMediaId: number | null }[]) => {
+const resolveStoreMedia = async (sellers: any[]) => {
   const useMediaIds = [
     ...new Set(
-      sellers.flatMap((s) => [s.logoUseMediaId, s.bannerUseMediaId]).filter((id): id is number => typeof id === "number")
+      sellers.flatMap((s) => [s.logoId ?? s.logoUseMediaId, s.bannerId ?? s.bannerUseMediaId]).filter((id): id is number => typeof id === "number")
     ),
   ];
   if (useMediaIds.length === 0) return new Map<number, string>();
@@ -120,21 +122,27 @@ const toPublicStore = (
   seller: any,
   mediaMap: Map<number, string>,
   stats?: { productCount: number; totalSold: number; reviewCount: number; rating: number }
-) => ({
-  id: seller.id,
-  storeName: seller.storeName,
-  storeSlug: seller.storeSlug,
-  storeLogo: (seller.logoUseMediaId && mediaMap.get(seller.logoUseMediaId)) || null,
-  storeBanner: (seller.bannerUseMediaId && mediaMap.get(seller.bannerUseMediaId)) || null,
-  storeDescription: seller.storeDescription ?? null,
-  businessAddress: seller.businessAddress ?? null,
-  isVerified: Boolean(seller.isVerified),
-  createdAt: seller.createdAt,
-  productCount: stats?.productCount ?? 0,
-  totalSold: stats?.totalSold ?? 0,
-  reviewCount: stats?.reviewCount ?? 0,
-  rating: stats?.rating ?? 0,
-});
+) => {
+  const targetLogoId = seller.logoId ?? seller.logoUseMediaId;
+  const targetBannerId = seller.bannerId ?? seller.bannerUseMediaId;
+  return {
+    id: seller.id,
+    storeName: seller.storeName,
+    storeSlug: seller.storeSlug,
+    logoId: targetLogoId ?? null,
+    bannerId: targetBannerId ?? null,
+    storeLogo: (targetLogoId && mediaMap.get(targetLogoId)) || null,
+    storeBanner: (targetBannerId && mediaMap.get(targetBannerId)) || null,
+    storeDescription: seller.storeDescription ?? null,
+    businessAddress: seller.businessAddress ?? null,
+    isVerified: Boolean(seller.isVerified),
+    createdAt: seller.createdAt,
+    productCount: stats?.productCount ?? 0,
+    totalSold: stats?.totalSold ?? 0,
+    reviewCount: stats?.reviewCount ?? 0,
+    rating: stats?.rating ?? 0,
+  };
+};
 
 const PUBLIC_STORE_FIELDS = [
   "id",
@@ -144,8 +152,8 @@ const PUBLIC_STORE_FIELDS = [
   "businessAddress",
   "isVerified",
   "createdAt",
-  "logoUseMediaId",
-  "bannerUseMediaId",
+  "logoId",
+  "bannerId",
 ] as const;
 
 /**
@@ -286,11 +294,11 @@ export const updateSellerProfile = async (userId: number, payload: any) => {
     updateData.storeName = payload.storeName;
     updateData.storeSlug = slugify(payload.storeName);
   }
-  if (payload.logoUseMediaId !== undefined) {
-    updateData.logoUseMediaId = payload.logoUseMediaId;
+  if (payload.logoId !== undefined || payload.logoUseMediaId !== undefined) {
+    updateData.logoId = payload.logoId !== undefined ? payload.logoId : payload.logoUseMediaId;
   }
-  if (payload.bannerUseMediaId !== undefined) {
-    updateData.bannerUseMediaId = payload.bannerUseMediaId;
+  if (payload.bannerId !== undefined || payload.bannerUseMediaId !== undefined) {
+    updateData.bannerId = payload.bannerId !== undefined ? payload.bannerId : payload.bannerUseMediaId;
   }
   if (payload.storeDescription !== undefined) updateData.storeDescription = payload.storeDescription;
   if (payload.phone !== undefined) updateData.phone = payload.phone;
@@ -324,8 +332,9 @@ export const adminGetAllSellers = async (status?: string) => {
         .aggregate((a) => ({ count: a.count() }));
 
       let logoUseMedia: any = null;
-      if (seller.logoUseMediaId) {
-        const um = await db.orm.public.UseMedia.where({ id: seller.logoUseMediaId }).first();
+      const targetLogoId = seller.logoId;
+      if (targetLogoId) {
+        const um = await db.orm.public.UseMedia.where({ id: targetLogoId }).first();
         if (um) {
           const m = await db.orm.public.Media.where({ id: um.mediaId }).first();
           logoUseMedia = { ...um, media: m };
@@ -333,8 +342,9 @@ export const adminGetAllSellers = async (status?: string) => {
       }
 
       let bannerUseMedia: any = null;
-      if (seller.bannerUseMediaId) {
-        const um = await db.orm.public.UseMedia.where({ id: seller.bannerUseMediaId }).first();
+      const targetBannerId = seller.bannerId;
+      if (targetBannerId) {
+        const um = await db.orm.public.UseMedia.where({ id: targetBannerId }).first();
         if (um) {
           const m = await db.orm.public.Media.where({ id: um.mediaId }).first();
           bannerUseMedia = { ...um, media: m };
@@ -343,6 +353,8 @@ export const adminGetAllSellers = async (status?: string) => {
 
       return {
         ...seller,
+        logoId: targetLogoId ?? null,
+        bannerId: targetBannerId ?? null,
         logoUseMedia,
         bannerUseMedia,
         storeLogo: logoUseMedia?.media?.url ?? null,
@@ -565,27 +577,30 @@ export const adminGetSellerDetails = async (sellerId: number) => {
     },
     recentProducts: await (async () => {
       const recentList = products.slice(0, 8);
-      const prodMediaIds = [...new Set(recentList.map((p) => p.mainImageUseMediaId).filter((id): id is number => typeof id === "number"))];
+      const prodMediaIds = [...new Set(recentList.map((p: any) => p.mainImageId ?? p.mainImageUseMediaId).filter((id): id is number => typeof id === "number"))];
       const prodUseMedias = prodMediaIds.length > 0 ? await db.orm.public.UseMedia.where((um) => um.id.in(prodMediaIds)).all() : [];
       const rawMedIds = [...new Set(prodUseMedias.map((um) => um.mediaId))];
       const rawMeds = rawMedIds.length > 0 ? await db.orm.public.Media.where((m) => m.id.in(rawMedIds)).all() : [];
       const rawMedMap = new Map(rawMeds.map((m) => [m.id, m.url]));
       const useMediaUrlMap = new Map(prodUseMedias.map((um) => [um.id, rawMedMap.get(um.mediaId) ?? ""]));
 
-      return recentList.map((p) => ({
-        id: p.id,
-        name: p.name,
-        slug: p.slug,
-        sku: p.sku,
-        mainImageUseMediaId: p.mainImageUseMediaId,
-        mainImage: (p.mainImageUseMediaId ? useMediaUrlMap.get(p.mainImageUseMediaId) : null) ?? null,
-        basePrice: p.basePrice,
-        stock: p.stock,
-        status: p.status,
-        approvalStatus: p.approvalStatus,
-        ratingAverage: p.ratingAverage,
-        createdAt: p.createdAt,
-      }));
+      return recentList.map((p: any) => {
+        const mId = p.mainImageId ?? p.mainImageUseMediaId;
+        return {
+          id: p.id,
+          name: p.name,
+          slug: p.slug,
+          sku: p.sku,
+          mainImageId: mId ?? null,
+          mainImage: (mId ? useMediaUrlMap.get(mId) : null) ?? null,
+          basePrice: p.basePrice,
+          stock: p.stock,
+          status: p.status,
+          approvalStatus: p.approvalStatus,
+          ratingAverage: p.ratingAverage,
+          createdAt: p.createdAt,
+        };
+      });
     })(),
     recentOrders,
   };

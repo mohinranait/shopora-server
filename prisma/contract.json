@@ -582,6 +582,13 @@
                   "kind": "scalar"
                 }
               },
+              "imageId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
               "isActive": {
                 "nullable": false,
                 "type": {
@@ -596,7 +603,7 @@
                   "kind": "scalar"
                 }
               },
-              "mobileUseMediaId": {
+              "mobileImageId": {
                 "nullable": true,
                 "type": {
                   "codecId": "pg/int4@1",
@@ -637,22 +644,15 @@
                   "codecId": "pg/timestamptz-string@1",
                   "kind": "scalar"
                 }
-              },
-              "useMediaId": {
-                "nullable": true,
-                "type": {
-                  "codecId": "pg/int4@1",
-                  "kind": "scalar"
-                }
               }
             },
             "relations": {
-              "mobileUseMedia": {
+              "image": {
                 "cardinality": "N:1",
                 "nullable": true,
                 "on": {
                   "localFields": [
-                    "mobileUseMediaId"
+                    "imageId"
                   ],
                   "targetFields": [
                     "id"
@@ -663,12 +663,12 @@
                   "namespace": "public"
                 }
               },
-              "useMedia": {
+              "mobileImage": {
                 "cardinality": "N:1",
                 "nullable": true,
                 "on": {
                   "localFields": [
-                    "useMediaId"
+                    "mobileImageId"
                   ],
                   "targetFields": [
                     "id"
@@ -694,14 +694,17 @@
                 "id": {
                   "column": "id"
                 },
+                "imageId": {
+                  "column": "imageId"
+                },
                 "isActive": {
                   "column": "isActive"
                 },
                 "linkUrl": {
                   "column": "linkUrl"
                 },
-                "mobileUseMediaId": {
-                  "column": "mobileUseMediaId"
+                "mobileImageId": {
+                  "column": "mobileImageId"
                 },
                 "position": {
                   "column": "position"
@@ -717,9 +720,6 @@
                 },
                 "updatedAt": {
                   "column": "updatedAt"
-                },
-                "useMediaId": {
-                  "column": "useMediaId"
                 }
               },
               "namespaceId": "public",
@@ -756,6 +756,13 @@
                   "kind": "scalar"
                 }
               },
+              "logoId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
               "name": {
                 "nullable": false,
                 "type": {
@@ -777,13 +784,6 @@
                   "kind": "scalar"
                 }
               },
-              "useMediaId": {
-                "nullable": true,
-                "type": {
-                  "codecId": "pg/int4@1",
-                  "kind": "scalar"
-                }
-              },
               "website": {
                 "nullable": true,
                 "type": {
@@ -793,6 +793,22 @@
               }
             },
             "relations": {
+              "logo": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "logoId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "UseMedia",
+                  "namespace": "public"
+                }
+              },
               "products": {
                 "cardinality": "1:N",
                 "on": {
@@ -805,22 +821,6 @@
                 },
                 "to": {
                   "model": "Product",
-                  "namespace": "public"
-                }
-              },
-              "useMedia": {
-                "cardinality": "N:1",
-                "nullable": true,
-                "on": {
-                  "localFields": [
-                    "useMediaId"
-                  ],
-                  "targetFields": [
-                    "id"
-                  ]
-                },
-                "to": {
-                  "model": "UseMedia",
                   "namespace": "public"
                 }
               }
@@ -839,6 +839,9 @@
                 "isActive": {
                   "column": "isActive"
                 },
+                "logoId": {
+                  "column": "logoId"
+                },
                 "name": {
                   "column": "name"
                 },
@@ -847,9 +850,6 @@
                 },
                 "updatedAt": {
                   "column": "updatedAt"
-                },
-                "useMediaId": {
-                  "column": "useMediaId"
                 },
                 "website": {
                   "column": "website"
@@ -1036,6 +1036,13 @@
                   "kind": "scalar"
                 }
               },
+              "imageId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
               "isActive": {
                 "nullable": false,
                 "type": {
@@ -1070,13 +1077,6 @@
                   "codecId": "pg/timestamptz-string@1",
                   "kind": "scalar"
                 }
-              },
-              "useMediaId": {
-                "nullable": true,
-                "type": {
-                  "codecId": "pg/int4@1",
-                  "kind": "scalar"
-                }
               }
             },
             "relations": {
@@ -1092,6 +1092,22 @@
                 },
                 "to": {
                   "model": "Category",
+                  "namespace": "public"
+                }
+              },
+              "image": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "imageId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "UseMedia",
                   "namespace": "public"
                 }
               },
@@ -1125,22 +1141,6 @@
                   "model": "Product",
                   "namespace": "public"
                 }
-              },
-              "useMedia": {
-                "cardinality": "N:1",
-                "nullable": true,
-                "on": {
-                  "localFields": [
-                    "useMediaId"
-                  ],
-                  "targetFields": [
-                    "id"
-                  ]
-                },
-                "to": {
-                  "model": "UseMedia",
-                  "namespace": "public"
-                }
               }
             },
             "storage": {
@@ -1160,6 +1160,9 @@
                 "id": {
                   "column": "id"
                 },
+                "imageId": {
+                  "column": "imageId"
+                },
                 "isActive": {
                   "column": "isActive"
                 },
@@ -1174,9 +1177,6 @@
                 },
                 "updatedAt": {
                   "column": "updatedAt"
-                },
-                "useMediaId": {
-                  "column": "useMediaId"
                 }
               },
               "namespaceId": "public",
@@ -2370,7 +2370,7 @@
                   "kind": "scalar"
                 }
               },
-              "mainImageUseMediaId": {
+              "mainImageId": {
                 "nullable": true,
                 "type": {
                   "codecId": "pg/int4@1",
@@ -2591,12 +2591,12 @@
                   "namespace": "public"
                 }
               },
-              "mainImageUseMedia": {
+              "mainImage": {
                 "cardinality": "N:1",
                 "nullable": true,
                 "on": {
                   "localFields": [
-                    "mainImageUseMediaId"
+                    "mainImageId"
                   ],
                   "targetFields": [
                     "id"
@@ -2746,8 +2746,8 @@
                 "lowStockThreshold": {
                   "column": "lowStockThreshold"
                 },
-                "mainImageUseMediaId": {
-                  "column": "mainImageUseMediaId"
+                "mainImageId": {
+                  "column": "mainImageId"
                 },
                 "metaDescription": {
                   "column": "metaDescription"
@@ -3050,6 +3050,13 @@
                   "kind": "scalar"
                 }
               },
+              "imageId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
               "isPrimary": {
                 "nullable": false,
                 "type": {
@@ -3063,16 +3070,25 @@
                   "codecId": "pg/int4@1",
                   "kind": "scalar"
                 }
-              },
-              "useMediaId": {
-                "nullable": true,
-                "type": {
-                  "codecId": "pg/int4@1",
-                  "kind": "scalar"
-                }
               }
             },
             "relations": {
+              "image": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "imageId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "UseMedia",
+                  "namespace": "public"
+                }
+              },
               "product": {
                 "cardinality": "N:1",
                 "nullable": false,
@@ -3086,22 +3102,6 @@
                 },
                 "to": {
                   "model": "Product",
-                  "namespace": "public"
-                }
-              },
-              "useMedia": {
-                "cardinality": "N:1",
-                "nullable": true,
-                "on": {
-                  "localFields": [
-                    "useMediaId"
-                  ],
-                  "targetFields": [
-                    "id"
-                  ]
-                },
-                "to": {
-                  "model": "UseMedia",
                   "namespace": "public"
                 }
               }
@@ -3120,14 +3120,14 @@
                 "id": {
                   "column": "id"
                 },
+                "imageId": {
+                  "column": "imageId"
+                },
                 "isPrimary": {
                   "column": "isPrimary"
                 },
                 "productId": {
                   "column": "productId"
-                },
-                "useMediaId": {
-                  "column": "useMediaId"
                 }
               },
               "namespaceId": "public",
@@ -3342,6 +3342,13 @@
                   "kind": "scalar"
                 }
               },
+              "imageId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
               "isActive": {
                 "nullable": false,
                 "type": {
@@ -3405,13 +3412,6 @@
                   "kind": "scalar"
                 }
               },
-              "useMediaId": {
-                "nullable": true,
-                "type": {
-                  "codecId": "pg/int4@1",
-                  "kind": "scalar"
-                }
-              },
               "weightKg": {
                 "nullable": true,
                 "type": {
@@ -3451,6 +3451,22 @@
                   "namespace": "public"
                 }
               },
+              "image": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "imageId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "UseMedia",
+                  "namespace": "public"
+                }
+              },
               "orderItems": {
                 "cardinality": "1:N",
                 "on": {
@@ -3481,22 +3497,6 @@
                   "model": "Product",
                   "namespace": "public"
                 }
-              },
-              "useMedia": {
-                "cardinality": "N:1",
-                "nullable": true,
-                "on": {
-                  "localFields": [
-                    "useMediaId"
-                  ],
-                  "targetFields": [
-                    "id"
-                  ]
-                },
-                "to": {
-                  "model": "UseMedia",
-                  "namespace": "public"
-                }
               }
             },
             "storage": {
@@ -3521,6 +3521,9 @@
                 },
                 "id": {
                   "column": "id"
+                },
+                "imageId": {
+                  "column": "imageId"
                 },
                 "isActive": {
                   "column": "isActive"
@@ -3548,9 +3551,6 @@
                 },
                 "updatedAt": {
                   "column": "updatedAt"
-                },
-                "useMediaId": {
-                  "column": "useMediaId"
                 },
                 "weightKg": {
                   "column": "weightKg"
@@ -3876,7 +3876,7 @@
                   "kind": "scalar"
                 }
               },
-              "bannerUseMediaId": {
+              "bannerId": {
                 "nullable": true,
                 "type": {
                   "codecId": "pg/int4@1",
@@ -3925,7 +3925,7 @@
                   "kind": "scalar"
                 }
               },
-              "logoUseMediaId": {
+              "logoId": {
                 "nullable": true,
                 "type": {
                   "codecId": "pg/int4@1",
@@ -4011,12 +4011,12 @@
               }
             },
             "relations": {
-              "bannerUseMedia": {
+              "banner": {
                 "cardinality": "N:1",
                 "nullable": true,
                 "on": {
                   "localFields": [
-                    "bannerUseMediaId"
+                    "bannerId"
                   ],
                   "targetFields": [
                     "id"
@@ -4027,12 +4027,12 @@
                   "namespace": "public"
                 }
               },
-              "logoUseMedia": {
+              "logo": {
                 "cardinality": "N:1",
                 "nullable": true,
                 "on": {
                   "localFields": [
-                    "logoUseMediaId"
+                    "logoId"
                   ],
                   "targetFields": [
                     "id"
@@ -4162,8 +4162,8 @@
                 "bankRouting": {
                   "column": "bankRouting"
                 },
-                "bannerUseMediaId": {
-                  "column": "bannerUseMediaId"
+                "bannerId": {
+                  "column": "bannerId"
                 },
                 "bkashOrNagad": {
                   "column": "bkashOrNagad"
@@ -4183,8 +4183,8 @@
                 "isVerified": {
                   "column": "isVerified"
                 },
-                "logoUseMediaId": {
-                  "column": "logoUseMediaId"
+                "logoId": {
+                  "column": "logoId"
                 },
                 "nidOrTradeLicense": {
                   "column": "nidOrTradeLicense"
@@ -4422,6 +4422,13 @@
                   "kind": "scalar"
                 }
               },
+              "imageId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
               "isActive": {
                 "nullable": false,
                 "type": {
@@ -4436,7 +4443,7 @@
                   "kind": "scalar"
                 }
               },
-              "mobileUseMediaId": {
+              "mobileImageId": {
                 "nullable": true,
                 "type": {
                   "codecId": "pg/int4@1",
@@ -4484,22 +4491,15 @@
                   "codecId": "pg/timestamptz-string@1",
                   "kind": "scalar"
                 }
-              },
-              "useMediaId": {
-                "nullable": true,
-                "type": {
-                  "codecId": "pg/int4@1",
-                  "kind": "scalar"
-                }
               }
             },
             "relations": {
-              "mobileUseMedia": {
+              "image": {
                 "cardinality": "N:1",
                 "nullable": true,
                 "on": {
                   "localFields": [
-                    "mobileUseMediaId"
+                    "imageId"
                   ],
                   "targetFields": [
                     "id"
@@ -4510,12 +4510,12 @@
                   "namespace": "public"
                 }
               },
-              "useMedia": {
+              "mobileImage": {
                 "cardinality": "N:1",
                 "nullable": true,
                 "on": {
                   "localFields": [
-                    "useMediaId"
+                    "mobileImageId"
                   ],
                   "targetFields": [
                     "id"
@@ -4556,14 +4556,17 @@
                 "id": {
                   "column": "id"
                 },
+                "imageId": {
+                  "column": "imageId"
+                },
                 "isActive": {
                   "column": "isActive"
                 },
                 "linkUrl": {
                   "column": "linkUrl"
                 },
-                "mobileUseMediaId": {
-                  "column": "mobileUseMediaId"
+                "mobileImageId": {
+                  "column": "mobileImageId"
                 },
                 "startDate": {
                   "column": "startDate"
@@ -4582,9 +4585,6 @@
                 },
                 "updatedAt": {
                   "column": "updatedAt"
-                },
-                "useMediaId": {
-                  "column": "useMediaId"
                 }
               },
               "namespaceId": "public",
@@ -4897,7 +4897,7 @@
                     "id"
                   ],
                   "targetFields": [
-                    "useMediaId"
+                    "imageId"
                   ]
                 },
                 "to": {
@@ -4912,7 +4912,7 @@
                     "id"
                   ],
                   "targetFields": [
-                    "mobileUseMediaId"
+                    "mobileImageId"
                   ]
                 },
                 "to": {
@@ -4927,7 +4927,7 @@
                     "id"
                   ],
                   "targetFields": [
-                    "useMediaId"
+                    "logoId"
                   ]
                 },
                 "to": {
@@ -4942,7 +4942,7 @@
                     "id"
                   ],
                   "targetFields": [
-                    "useMediaId"
+                    "imageId"
                   ]
                 },
                 "to": {
@@ -4973,7 +4973,7 @@
                     "id"
                   ],
                   "targetFields": [
-                    "useMediaId"
+                    "imageId"
                   ]
                 },
                 "to": {
@@ -4988,7 +4988,7 @@
                     "id"
                   ],
                   "targetFields": [
-                    "useMediaId"
+                    "imageId"
                   ]
                 },
                 "to": {
@@ -5003,7 +5003,7 @@
                     "id"
                   ],
                   "targetFields": [
-                    "mainImageUseMediaId"
+                    "mainImageId"
                   ]
                 },
                 "to": {
@@ -5034,7 +5034,7 @@
                     "id"
                   ],
                   "targetFields": [
-                    "bannerUseMediaId"
+                    "bannerId"
                   ]
                 },
                 "to": {
@@ -5049,7 +5049,7 @@
                     "id"
                   ],
                   "targetFields": [
-                    "logoUseMediaId"
+                    "logoId"
                   ]
                 },
                 "to": {
@@ -5064,7 +5064,7 @@
                     "id"
                   ],
                   "targetFields": [
-                    "useMediaId"
+                    "imageId"
                   ]
                 },
                 "to": {
@@ -5079,7 +5079,7 @@
                     "id"
                   ],
                   "targetFields": [
-                    "mobileUseMediaId"
+                    "mobileImageId"
                   ]
                 },
                 "to": {
@@ -5110,7 +5110,7 @@
                     "id"
                   ],
                   "targetFields": [
-                    "avatarUseMediaId"
+                    "avatarId"
                   ]
                 },
                 "to": {
@@ -5152,7 +5152,7 @@
           },
           "User": {
             "fields": {
-              "avatarUseMediaId": {
+              "avatarId": {
                 "nullable": true,
                 "type": {
                   "codecId": "pg/int4@1",
@@ -5246,12 +5246,12 @@
                   "namespace": "public"
                 }
               },
-              "avatarUseMedia": {
+              "avatar": {
                 "cardinality": "N:1",
                 "nullable": true,
                 "on": {
                   "localFields": [
-                    "avatarUseMediaId"
+                    "avatarId"
                   ],
                   "targetFields": [
                     "id"
@@ -5401,8 +5401,8 @@
             },
             "storage": {
               "fields": {
-                "avatarUseMediaId": {
-                  "column": "avatarUseMediaId"
+                "avatarId": {
+                  "column": "avatarId"
                 },
                 "createdAt": {
                   "column": "createdAt"
@@ -6034,6 +6034,11 @@
                   },
                   "nullable": false
                 },
+                "imageId": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": true
+                },
                 "isActive": {
                   "codecId": "pg/bool@1",
                   "dataType": "pg/bool",
@@ -6048,7 +6053,7 @@
                   "dataType": "pg/text",
                   "nullable": true
                 },
-                "mobileUseMediaId": {
+                "mobileImageId": {
                   "codecId": "pg/int4@1",
                   "dataType": "pg/int4",
                   "nullable": true
@@ -6081,22 +6086,17 @@
                   "codecId": "pg/timestamptz-string@1",
                   "dataType": "pg/timestamptz",
                   "nullable": false
-                },
-                "useMediaId": {
-                  "codecId": "pg/int4@1",
-                  "dataType": "pg/int4",
-                  "nullable": true
                 }
               },
               "foreignKeys": [
                 {
                   "index": {
-                    "name": "Banner_useMediaId_idx_4c723887"
+                    "name": "Banner_imageId_idx_9d3c09ba"
                   },
                   "onDelete": "setNull",
                   "source": {
                     "columns": [
-                      "useMediaId"
+                      "imageId"
                     ],
                     "namespaceId": "public",
                     "tableName": "Banner"
@@ -6111,12 +6111,12 @@
                 },
                 {
                   "index": {
-                    "name": "Banner_mobileUseMediaId_idx_23c4ac31"
+                    "name": "Banner_mobileImageId_idx_47a4ac51"
                   },
                   "onDelete": "setNull",
                   "source": {
                     "columns": [
-                      "mobileUseMediaId"
+                      "mobileImageId"
                     ],
                     "namespaceId": "public",
                     "tableName": "Banner"
@@ -6133,18 +6133,18 @@
               "indexes": [
                 {
                   "columns": [
-                    "mobileUseMediaId"
+                    "imageId"
                   ],
-                  "name": "Banner_mobileUseMediaId_idx_23c4ac31",
-                  "prefix": "Banner_mobileUseMediaId_idx",
+                  "name": "Banner_imageId_idx_9d3c09ba",
+                  "prefix": "Banner_imageId_idx",
                   "unique": false
                 },
                 {
                   "columns": [
-                    "useMediaId"
+                    "mobileImageId"
                   ],
-                  "name": "Banner_useMediaId_idx_4c723887",
-                  "prefix": "Banner_useMediaId_idx",
+                  "name": "Banner_mobileImageId_idx_47a4ac51",
+                  "prefix": "Banner_mobileImageId_idx",
                   "unique": false
                 }
               ],
@@ -6189,6 +6189,11 @@
                   },
                   "nullable": false
                 },
+                "logoId": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": true
+                },
                 "name": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
@@ -6204,11 +6209,6 @@
                   "dataType": "pg/timestamptz",
                   "nullable": false
                 },
-                "useMediaId": {
-                  "codecId": "pg/int4@1",
-                  "dataType": "pg/int4",
-                  "nullable": true
-                },
                 "website": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
@@ -6218,12 +6218,12 @@
               "foreignKeys": [
                 {
                   "index": {
-                    "name": "Brand_useMediaId_idx_4c723887"
+                    "name": "Brand_logoId_idx_7e02a476"
                   },
                   "onDelete": "setNull",
                   "source": {
                     "columns": [
-                      "useMediaId"
+                      "logoId"
                     ],
                     "namespaceId": "public",
                     "tableName": "Brand"
@@ -6240,10 +6240,10 @@
               "indexes": [
                 {
                   "columns": [
-                    "useMediaId"
+                    "logoId"
                   ],
-                  "name": "Brand_useMediaId_idx_4c723887",
-                  "prefix": "Brand_useMediaId_idx",
+                  "name": "Brand_logoId_idx_7e02a476",
+                  "prefix": "Brand_logoId_idx",
                   "unique": false
                 }
               ],
@@ -6449,6 +6449,11 @@
                   },
                   "nullable": false
                 },
+                "imageId": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": true
+                },
                 "isActive": {
                   "codecId": "pg/bool@1",
                   "dataType": "pg/bool",
@@ -6477,22 +6482,17 @@
                   "codecId": "pg/timestamptz-string@1",
                   "dataType": "pg/timestamptz",
                   "nullable": false
-                },
-                "useMediaId": {
-                  "codecId": "pg/int4@1",
-                  "dataType": "pg/int4",
-                  "nullable": true
                 }
               },
               "foreignKeys": [
                 {
                   "index": {
-                    "name": "Category_useMediaId_idx_4c723887"
+                    "name": "Category_imageId_idx_9d3c09ba"
                   },
                   "onDelete": "setNull",
                   "source": {
                     "columns": [
-                      "useMediaId"
+                      "imageId"
                     ],
                     "namespaceId": "public",
                     "tableName": "Category"
@@ -6529,18 +6529,18 @@
               "indexes": [
                 {
                   "columns": [
-                    "parentId"
+                    "imageId"
                   ],
-                  "name": "Category_parentId_idx_6a68f597",
-                  "prefix": "Category_parentId_idx",
+                  "name": "Category_imageId_idx_9d3c09ba",
+                  "prefix": "Category_imageId_idx",
                   "unique": false
                 },
                 {
                   "columns": [
-                    "useMediaId"
+                    "parentId"
                   ],
-                  "name": "Category_useMediaId_idx_4c723887",
-                  "prefix": "Category_useMediaId_idx",
+                  "name": "Category_parentId_idx_6a68f597",
+                  "prefix": "Category_parentId_idx",
                   "unique": false
                 }
               ],
@@ -7516,7 +7516,7 @@
                   },
                   "nullable": false
                 },
-                "mainImageUseMediaId": {
+                "mainImageId": {
                   "codecId": "pg/int4@1",
                   "dataType": "pg/int4",
                   "nullable": true
@@ -7721,12 +7721,12 @@
                 },
                 {
                   "index": {
-                    "name": "Product_mainImageUseMediaId_idx_2de260da"
+                    "name": "Product_mainImageId_idx_721b5ded"
                   },
                   "onDelete": "setNull",
                   "source": {
                     "columns": [
-                      "mainImageUseMediaId"
+                      "mainImageId"
                     ],
                     "namespaceId": "public",
                     "tableName": "Product"
@@ -7759,10 +7759,10 @@
                 },
                 {
                   "columns": [
-                    "mainImageUseMediaId"
+                    "mainImageId"
                   ],
-                  "name": "Product_mainImageUseMediaId_idx_2de260da",
-                  "prefix": "Product_mainImageUseMediaId_idx",
+                  "name": "Product_mainImageId_idx_721b5ded",
+                  "prefix": "Product_mainImageId_idx",
                   "unique": false
                 },
                 {
@@ -8036,6 +8036,11 @@
                   },
                   "nullable": false
                 },
+                "imageId": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": true
+                },
                 "isPrimary": {
                   "codecId": "pg/bool@1",
                   "dataType": "pg/bool",
@@ -8049,11 +8054,6 @@
                   "codecId": "pg/int4@1",
                   "dataType": "pg/int4",
                   "nullable": false
-                },
-                "useMediaId": {
-                  "codecId": "pg/int4@1",
-                  "dataType": "pg/int4",
-                  "nullable": true
                 }
               },
               "foreignKeys": [
@@ -8079,12 +8079,12 @@
                 },
                 {
                   "index": {
-                    "name": "ProductImage_useMediaId_idx_4c723887"
+                    "name": "ProductImage_imageId_idx_9d3c09ba"
                   },
                   "onDelete": "cascade",
                   "source": {
                     "columns": [
-                      "useMediaId"
+                      "imageId"
                     ],
                     "namespaceId": "public",
                     "tableName": "ProductImage"
@@ -8101,18 +8101,18 @@
               "indexes": [
                 {
                   "columns": [
-                    "productId"
+                    "imageId"
                   ],
-                  "name": "ProductImage_productId_idx_5858600a",
-                  "prefix": "ProductImage_productId_idx",
+                  "name": "ProductImage_imageId_idx_9d3c09ba",
+                  "prefix": "ProductImage_imageId_idx",
                   "unique": false
                 },
                 {
                   "columns": [
-                    "useMediaId"
+                    "productId"
                   ],
-                  "name": "ProductImage_useMediaId_idx_4c723887",
-                  "prefix": "ProductImage_useMediaId_idx",
+                  "name": "ProductImage_productId_idx_5858600a",
+                  "prefix": "ProductImage_productId_idx",
                   "unique": false
                 }
               ],
@@ -8319,6 +8319,11 @@
                   },
                   "nullable": false
                 },
+                "imageId": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": true
+                },
                 "isActive": {
                   "codecId": "pg/bool@1",
                   "dataType": "pg/bool",
@@ -8380,11 +8385,6 @@
                   "dataType": "pg/timestamptz",
                   "nullable": false
                 },
-                "useMediaId": {
-                  "codecId": "pg/int4@1",
-                  "dataType": "pg/int4",
-                  "nullable": true
-                },
                 "weightKg": {
                   "codecId": "pg/float8@1",
                   "dataType": "pg/float8",
@@ -8414,12 +8414,12 @@
                 },
                 {
                   "index": {
-                    "name": "ProductVariant_useMediaId_idx_4c723887"
+                    "name": "ProductVariant_imageId_idx_9d3c09ba"
                   },
                   "onDelete": "setNull",
                   "source": {
                     "columns": [
-                      "useMediaId"
+                      "imageId"
                     ],
                     "namespaceId": "public",
                     "tableName": "ProductVariant"
@@ -8436,18 +8436,18 @@
               "indexes": [
                 {
                   "columns": [
-                    "productId"
+                    "imageId"
                   ],
-                  "name": "ProductVariant_productId_idx_5858600a",
-                  "prefix": "ProductVariant_productId_idx",
+                  "name": "ProductVariant_imageId_idx_9d3c09ba",
+                  "prefix": "ProductVariant_imageId_idx",
                   "unique": false
                 },
                 {
                   "columns": [
-                    "useMediaId"
+                    "productId"
                   ],
-                  "name": "ProductVariant_useMediaId_idx_4c723887",
-                  "prefix": "ProductVariant_useMediaId_idx",
+                  "name": "ProductVariant_productId_idx_5858600a",
+                  "prefix": "ProductVariant_productId_idx",
                   "unique": false
                 }
               ],
@@ -8792,7 +8792,7 @@
                   "dataType": "pg/text",
                   "nullable": true
                 },
-                "bannerUseMediaId": {
+                "bannerId": {
                   "codecId": "pg/int4@1",
                   "dataType": "pg/int4",
                   "nullable": true
@@ -8839,7 +8839,7 @@
                   },
                   "nullable": false
                 },
-                "logoUseMediaId": {
+                "logoId": {
                   "codecId": "pg/int4@1",
                   "dataType": "pg/int4",
                   "nullable": true
@@ -8929,12 +8929,12 @@
                 },
                 {
                   "index": {
-                    "name": "SellerProfile_logoUseMediaId_idx_919bbe77"
+                    "name": "SellerProfile_logoId_idx_7e02a476"
                   },
                   "onDelete": "setNull",
                   "source": {
                     "columns": [
-                      "logoUseMediaId"
+                      "logoId"
                     ],
                     "namespaceId": "public",
                     "tableName": "SellerProfile"
@@ -8949,12 +8949,12 @@
                 },
                 {
                   "index": {
-                    "name": "SellerProfile_bannerUseMediaId_idx_c90ffc89"
+                    "name": "SellerProfile_bannerId_idx_823e3c86"
                   },
                   "onDelete": "setNull",
                   "source": {
                     "columns": [
-                      "bannerUseMediaId"
+                      "bannerId"
                     ],
                     "namespaceId": "public",
                     "tableName": "SellerProfile"
@@ -8971,18 +8971,18 @@
               "indexes": [
                 {
                   "columns": [
-                    "bannerUseMediaId"
+                    "bannerId"
                   ],
-                  "name": "SellerProfile_bannerUseMediaId_idx_c90ffc89",
-                  "prefix": "SellerProfile_bannerUseMediaId_idx",
+                  "name": "SellerProfile_bannerId_idx_823e3c86",
+                  "prefix": "SellerProfile_bannerId_idx",
                   "unique": false
                 },
                 {
                   "columns": [
-                    "logoUseMediaId"
+                    "logoId"
                   ],
-                  "name": "SellerProfile_logoUseMediaId_idx_919bbe77",
-                  "prefix": "SellerProfile_logoUseMediaId_idx",
+                  "name": "SellerProfile_logoId_idx_7e02a476",
+                  "prefix": "SellerProfile_logoId_idx",
                   "unique": false
                 }
               ],
@@ -9186,6 +9186,11 @@
                   },
                   "nullable": false
                 },
+                "imageId": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": true
+                },
                 "isActive": {
                   "codecId": "pg/bool@1",
                   "dataType": "pg/bool",
@@ -9200,7 +9205,7 @@
                   "dataType": "pg/text",
                   "nullable": true
                 },
-                "mobileUseMediaId": {
+                "mobileImageId": {
                   "codecId": "pg/int4@1",
                   "dataType": "pg/int4",
                   "nullable": true
@@ -9242,22 +9247,17 @@
                   "codecId": "pg/timestamptz-string@1",
                   "dataType": "pg/timestamptz",
                   "nullable": false
-                },
-                "useMediaId": {
-                  "codecId": "pg/int4@1",
-                  "dataType": "pg/int4",
-                  "nullable": true
                 }
               },
               "foreignKeys": [
                 {
                   "index": {
-                    "name": "Slider_useMediaId_idx_4c723887"
+                    "name": "Slider_imageId_idx_9d3c09ba"
                   },
                   "onDelete": "setNull",
                   "source": {
                     "columns": [
-                      "useMediaId"
+                      "imageId"
                     ],
                     "namespaceId": "public",
                     "tableName": "Slider"
@@ -9272,12 +9272,12 @@
                 },
                 {
                   "index": {
-                    "name": "Slider_mobileUseMediaId_idx_23c4ac31"
+                    "name": "Slider_mobileImageId_idx_47a4ac51"
                   },
                   "onDelete": "setNull",
                   "source": {
                     "columns": [
-                      "mobileUseMediaId"
+                      "mobileImageId"
                     ],
                     "namespaceId": "public",
                     "tableName": "Slider"
@@ -9294,18 +9294,18 @@
               "indexes": [
                 {
                   "columns": [
-                    "mobileUseMediaId"
+                    "imageId"
                   ],
-                  "name": "Slider_mobileUseMediaId_idx_23c4ac31",
-                  "prefix": "Slider_mobileUseMediaId_idx",
+                  "name": "Slider_imageId_idx_9d3c09ba",
+                  "prefix": "Slider_imageId_idx",
                   "unique": false
                 },
                 {
                   "columns": [
-                    "useMediaId"
+                    "mobileImageId"
                   ],
-                  "name": "Slider_useMediaId_idx_4c723887",
-                  "prefix": "Slider_useMediaId_idx",
+                  "name": "Slider_mobileImageId_idx_47a4ac51",
+                  "prefix": "Slider_mobileImageId_idx",
                   "unique": false
                 }
               ],
@@ -9670,7 +9670,7 @@
             },
             "User": {
               "columns": {
-                "avatarUseMediaId": {
+                "avatarId": {
                   "codecId": "pg/int4@1",
                   "dataType": "pg/int4",
                   "nullable": true
@@ -9749,12 +9749,12 @@
               "foreignKeys": [
                 {
                   "index": {
-                    "name": "User_avatarUseMediaId_idx_99ed3bdf"
+                    "name": "User_avatarId_idx_14b51a84"
                   },
                   "onDelete": "setNull",
                   "source": {
                     "columns": [
-                      "avatarUseMediaId"
+                      "avatarId"
                     ],
                     "namespaceId": "public",
                     "tableName": "User"
@@ -9771,10 +9771,10 @@
               "indexes": [
                 {
                   "columns": [
-                    "avatarUseMediaId"
+                    "avatarId"
                   ],
-                  "name": "User_avatarUseMediaId_idx_99ed3bdf",
-                  "prefix": "User_avatarUseMediaId_idx",
+                  "name": "User_avatarId_idx_14b51a84",
+                  "prefix": "User_avatarId_idx",
                   "unique": false
                 }
               ],
@@ -10036,7 +10036,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "33999df06bd19207c520cdc03808c6acaaeb5c49e03023df62951e1a6efea249"
+    "storageHash": "43d11ba47a9efdb16c811264d33b1a39cf200615d9cd79cf4c0a69b7a109d607"
   },
   "execution": {
     "executionHash": "062293750bdc8c9c1251b37395101db3917c14302a935dbccddcf6edbe3efced",
