@@ -273,7 +273,7 @@ export const loginUser = async (payload: {
 /**
  * Get currently authenticated user profile
  */
-export const getMe = async (userId: number) => {
+export const getMe = async (userId: string) => {
   const user = await db.orm.public.User.where({ id: userId }).first();
   if (!user) {
     throw new AppError("User not found", 404);
@@ -351,7 +351,7 @@ export const refreshUserToken = async (refreshToken: string) => {
  * Change User Password
  */
 export const changePassword = async (
-  userId: number,
+  userId: string,
   payload: { oldPassword: string; newPassword: string }
 ) => {
   const user = await db.orm.public.User.where({ id: userId }).first();

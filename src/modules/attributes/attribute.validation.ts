@@ -1,4 +1,4 @@
-﻿import { z } from "zod";
+import { z } from "zod";
 
 /**
  * Validation schema for creating a global product attribute
@@ -66,8 +66,8 @@ export const generateCombinationsSchema = z.object({
     attributes: z
       .array(
         z.object({
-          attributeId: z.number().int().positive("attributeId must be positive integer"),
-          valueIds: z.array(z.number().int().positive()).min(1, "At least one valueId is required per attribute"),
+          attributeId: z.string().min(1, "attributeId is required"),
+          valueIds: z.array(z.string().min(1)).min(1, "At least one valueId is required per attribute"),
         })
       )
       .min(1, "At least one attribute is required to generate combinations"),

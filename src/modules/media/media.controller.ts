@@ -1,4 +1,4 @@
-﻿import type { Request, Response } from "express";
+import type { Request, Response } from "express";
 import { catchAsync } from "../../utils/catchAsync.ts";
 import { sendResponse } from "../../utils/sendResponse.ts";
 import { AppError } from "../../errors/AppError.ts";
@@ -92,7 +92,7 @@ export const getMyMediaLibrary = catchAsync(async (req: Request, res: Response) 
  * Get single media asset by ID
  */
 export const getMediaById = catchAsync(async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
+  const id = req.params.id as string;
   const result = await MediaService.getMediaById(id, req.user!);
 
   sendResponse(res, {
@@ -107,7 +107,7 @@ export const getMediaById = catchAsync(async (req: Request, res: Response) => {
  * Delete media asset from Cloudinary and DB
  */
 export const deleteMedia = catchAsync(async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
+  const id = req.params.id as string;
   const result = await MediaService.deleteMedia(id, req.user!);
 
   sendResponse(res, {
@@ -151,7 +151,7 @@ export const getUseMediaLibrary = catchAsync(async (req: Request, res: Response)
  * Get single UseMedia configuration
  */
 export const getUseMediaById = catchAsync(async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
+  const id = req.params.id as string;
   const result = await MediaService.getUseMediaById(id);
 
   sendResponse(res, {
@@ -166,7 +166,7 @@ export const getUseMediaById = catchAsync(async (req: Request, res: Response) =>
  * Update UseMedia alt text or description
  */
 export const updateUseMedia = catchAsync(async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
+  const id = req.params.id as string;
   const result = await MediaService.updateUseMedia(id, req.user!, req.body);
 
   sendResponse(res, {
@@ -181,7 +181,7 @@ export const updateUseMedia = catchAsync(async (req: Request, res: Response) => 
  * Delete UseMedia record
  */
 export const deleteUseMedia = catchAsync(async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
+  const id = req.params.id as string;
   const result = await MediaService.deleteUseMedia(id, req.user!);
 
   sendResponse(res, {

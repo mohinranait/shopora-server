@@ -16,16 +16,16 @@ import {
 import { ENV } from "../../config/env.ts";
 import { getAllSettings } from "../settings/settings.service.ts";
 
-type OrderItemInput = { productId: number; variantId?: number | null; quantity: number };
+type OrderItemInput = { productId: string; variantId?: string | null; quantity: number };
 
 export const SHIPPING_RULES = { freeShippingThreshold: 1500, flatFee: 70 } as const;
 
 interface IPricedLine {
   product: any;
   selectedVariant: any;
-  productId: number;
-  variantId: number | null;
-  sellerId: number | null;
+  productId: string;
+  variantId: string | null;
+  sellerId: string | null;
   isPlatformOwned: boolean;
   productName: string;
   variantTitle: string | null;
@@ -78,7 +78,7 @@ const evaluateCoupon = async (code: string, lines: IPricedLine[]) => {
  */
 export const priceOrder = async (items: OrderItemInput[], couponCode?: string) => {
   const productIds = [...new Set(items.map((i) => i.productId))];
-  const variantIds = [...new Set(items.map((i) => i.variantId).filter((id): id is number => id != null))];
+  const variantIds = [...new Set(items.map((i) => i.variantId).filter((id): id is string => typeof id === "string" && Boolean(id)))];
   const [products, variants] = await Promise.all([
     productIds.length ? db.orm.public.Product.where((p) => p.id.in(productIds)).all() : [],
     variantIds.length ? db.orm.public.ProductVariant.where((v) => v.id.in(variantIds)).all() : [],
@@ -88,7 +88,7 @@ export const priceOrder = async (items: OrderItemInput[], couponCode?: string) =
     ...new Set([
       ...products.map((p: any) => p.mainImageId ?? p.mainImageUseMediaId),
       ...variants.map((v: any) => v.imageId ?? v.useMediaId),
-    ].filter((id): id is number => typeof id === "number")),
+    ].filter((id): id is string => typeof id === "string" && Boolean(id))),
   ];
   const useMedias = allUseMediaIds.length ? await db.orm.public.UseMedia.where((um) => um.id.in(allUseMediaIds)).all() : [];
   const mediaIds = [...new Set(useMedias.map((um) => um.mediaId))];
@@ -100,7 +100,7 @@ export const priceOrder = async (items: OrderItemInput[], couponCode?: string) =
   const variantMap = new Map(variants.map((v) => [v.id, v]));
 
   const lines: IPricedLine[] = [];
-  const issues: { productId: number; variantId: number | null; message: string }[] = [];
+  const issues: { productId: string; variantId: string | null; message: string }[] = [];
 
   for (const item of items) {
     const variantId = item.variantId ?? null;
@@ -252,9 +252,9 @@ export const quoteOrder = async (items: OrderItemInput[], couponCode?: string) =
  * Checkout / Place Order with Multi-Vendor Splitting & Commission Accounting
  */
 export const createOrder = async (
-  userId: number | null,
+  userId: string | null,
   payload: {
-    items: { productId: number; variantId?: number | null; quantity: number }[];
+    items: OrderItemInput[];
     shippingAddress: any;
     billingAddress?: any;
     paymentMethod: string;
@@ -320,7 +320,7 @@ export const createOrder = async (
   // 5. Execute Order Placement in Database Transaction
   return await db.transaction(async (tx) => {
     // 5.0. Resolve or Auto-Create User linked by Phone Number
-    let resolvedUserId: number | null = userId;
+    let resolvedUserId: string | null = userId;
 
     if (!resolvedUserId) {
       // Check if user already exists with this phone number
@@ -509,7 +509,7 @@ export const createOrder = async (
 
     await notify(
       tx,
-      userId,
+      resolvedUserId,
       `Order ${orderNumber} placed`,
       `Thanks for your order! We'll let you know when it's confirmed.`,
       `/orders/${orderNumber}`
@@ -543,7 +543,7 @@ export const createOrder = async (
  * Order lifecycle helpers
  * ============================================================ */
 
-type Requester = { id: number; role: string; sellerId?: number | null } | null | undefined;
+type Requester = { id: string; role: string; sellerId?: string | null } | null | undefined;
 
 /** Forward-only fulfilment pipeline; CANCELLED / RETURNED are side exits */
 const STATUS_RANK: Record<string, number> = {
@@ -620,7 +620,7 @@ const restoreStock = async (tx: any, items: any[]) => {
   }
 };
 
-const notify = async (tx: any, userId: number | null | undefined, title: string, message: string, link: string) => {
+const notify = async (tx: any, userId: string | null | undefined, title: string, message: string, link: string) => {
   if (!userId) return;
   await tx.orm.public.Notification.create({ userId, title, message, type: "ORDER", link });
 };
@@ -690,7 +690,7 @@ const applySubOrderStatus = async (
 /**
  * Recompute the parent order's status (and COD payment) after sub-order changes
  */
-const syncParentOrder = async (tx: any, orderId: number) => {
+const syncParentOrder = async (tx: any, orderId: string) => {
   const order = await tx.orm.public.Order.where({ id: orderId }).first();
   const subOrders = await tx.orm.public.SubOrder.where({ orderId }).all();
   const orderStatus = deriveOrderStatus(subOrders.map((s: any) => s.status));
@@ -751,9 +751,9 @@ const hydrateOrders = async (orders: any[], { withCustomer = false } = {}) => {
     db.orm.public.SubOrder.where((s) => s.orderId.in(orderIds)).all(),
   ]);
 
-  const sellerIds = [...new Set(subOrders.map((s) => s.sellerId).filter((id): id is number => id != null))];
+  const sellerIds = [...new Set(subOrders.map((s) => s.sellerId).filter((id): id is string => typeof id === "string" && Boolean(id)))];
   const userIds = withCustomer
-    ? [...new Set(orders.map((o) => o.userId).filter((id): id is number => id != null))]
+    ? [...new Set(orders.map((o) => o.userId).filter((id): id is string => typeof id === "string" && Boolean(id)))]
     : [];
   const productIds = [...new Set(items.map((i) => i.productId))];
 
@@ -774,7 +774,7 @@ const hydrateOrders = async (orders: any[], { withCustomer = false } = {}) => {
       .map((i) => ({ ...i, productSlug: slugMap.get(i.productId) ?? null }));
     const orderSubOrders = subOrders
       .filter((s) => s.orderId === order.id)
-      .sort((x, y) => x.id - y.id)
+      .sort((x, y) => x.id.localeCompare(y.id))
       .map((s) => ({
         ...s,
         store: s.sellerId ? sellerMap.get(s.sellerId) ?? null : null,
@@ -798,11 +798,11 @@ const hydrateOrders = async (orders: any[], { withCustomer = false } = {}) => {
 const normalizePhone = (p?: string | null) => (p ?? "").replace(/\D/g, "").replace(/^88/, "");
 
 const findOrder = async (identifier: string | number) => {
-  const asNumber = Number(identifier);
-  const order =
-    typeof identifier === "number" || (!Number.isNaN(asNumber) && String(identifier).trim() !== "")
-      ? await db.orm.public.Order.where({ id: asNumber }).first()
-      : await db.orm.public.Order.where({ orderNumber: String(identifier) }).first();
+  const str = String(identifier).trim();
+  let order = await db.orm.public.Order.where({ id: str }).first();
+  if (!order) {
+    order = await db.orm.public.Order.where({ orderNumber: str }).first();
+  }
   if (!order) throw new AppError("Order not found", 404);
   return order;
 };
@@ -835,7 +835,7 @@ const assertOrderAccess = async (order: any, requester: Requester, guestPhone?: 
  * Get Customer Orders (paginated, optional status filter)
  */
 export const getCustomerOrders = async (
-  userId: number,
+  userId: string,
   filters: { status?: string; page?: number; limit?: number } = {}
 ) => {
   const page = Math.max(1, Number(filters.page) || 1);
@@ -922,7 +922,7 @@ export const cancelOrderByCustomer = async (
     await syncParentOrder(tx, order.id);
   });
 
-  return getOrderDetails(order.id, { id: -1, role: USER_ROLES.ADMIN });
+  return getOrderDetails(order.id, { id: "system", role: USER_ROLES.ADMIN });
 };
 
 /* ============================================================
@@ -932,7 +932,7 @@ export const cancelOrderByCustomer = async (
 /**
  * Seller: Get their SubOrders list
  */
-export const getSellerSubOrders = async (userId: number, status?: string) => {
+export const getSellerSubOrders = async (userId: string, status?: string) => {
   const seller = await db.orm.public.SellerProfile.where({ userId }).first();
   if (!seller) {
     throw new AppError("Seller profile not found", 404);
@@ -976,8 +976,8 @@ export const getSellerSubOrders = async (userId: number, status?: string) => {
  * parent order + COD payment kept in sync)
  */
 export const updateSubOrderStatus = async (
-  subOrderId: number,
-  requestingUser: { id: number; role: string; sellerId?: number | null },
+  subOrderId: string,
+  requestingUser: { id: string; role: string; sellerId?: string | null },
   payload: { status: string; trackingNumber?: string; courierName?: string }
 ) => {
   const subOrder = await db.orm.public.SubOrder.where({ id: subOrderId }).first();
@@ -1013,8 +1013,8 @@ export const updateSubOrderStatus = async (
  * Admin: move every active shipment of an order to a status in one go
  */
 export const adminUpdateOrderStatus = async (
-  orderId: number,
-  admin: { id: number; role: string },
+  orderId: string,
+  admin: { id: string; role: string },
   payload: { status: string; reason?: string }
 ) => {
   const order = await findOrder(orderId);
@@ -1116,7 +1116,7 @@ export const adminGetAllOrders = async (filters: {
  * Admin: Update Payment Status (e.g. mark COD as PAID or refund)
  */
 export const updatePaymentStatus = async (
-  orderId: number,
+  orderId: string,
   payload: { paymentStatus: string; transactionId?: string }
 ) => {
   const order = await db.orm.public.Order.where({ id: orderId }).first();

@@ -4,7 +4,7 @@ import { AppError } from "../../errors/AppError.ts";
 /**
  * Toggle product in Wishlist (Add if not present, remove if already present)
  */
-export const toggleWishlistItem = async (userId: number, productId: number) => {
+export const toggleWishlistItem = async (userId: string, productId: string) => {
   const product = await db.orm.public.Product.where({ id: productId }).first();
   if (!product) {
     throw new AppError("Product not found", 404);
@@ -31,7 +31,7 @@ export const toggleWishlistItem = async (userId: number, productId: number) => {
 /**
  * Get all Wishlist items for a user
  */
-export const getUserWishlist = async (userId: number) => {
+export const getUserWishlist = async (userId: string) => {
   const items = await db.orm.public.WishlistItem
     .where({ userId })
     .orderBy((w) => w.createdAt.desc())
@@ -81,7 +81,7 @@ export const getUserWishlist = async (userId: number) => {
 /**
  * Remove specific item from Wishlist
  */
-export const removeWishlistItem = async (userId: number, productId: number) => {
+export const removeWishlistItem = async (userId: string, productId: string) => {
   const item = await db.orm.public.WishlistItem
     .where({ userId })
     .where({ productId })
@@ -98,7 +98,7 @@ export const removeWishlistItem = async (userId: number, productId: number) => {
 /**
  * Clear all items from user's Wishlist
  */
-export const clearWishlist = async (userId: number) => {
+export const clearWishlist = async (userId: string) => {
   const items = await db.orm.public.WishlistItem.where({ userId }).all();
   for (const item of items) {
     await db.orm.public.WishlistItem.where({ id: item.id }).delete();

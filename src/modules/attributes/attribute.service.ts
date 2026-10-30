@@ -1,4 +1,4 @@
-﻿import { db } from "../../config/db.ts";
+import { db } from "../../config/db.ts";
 import { AppError } from "../../errors/AppError.ts";
 import { slugify } from "../../utils/slugify.ts";
 
@@ -78,7 +78,7 @@ export const getAllAttributes = async (includeInactive = false) => {
 /**
  * Get single attribute with its values by ID
  */
-export const getAttributeById = async (id: number) => {
+export const getAttributeById = async (id: string) => {
   const attribute = await db.orm.public.Attribute.where({ id }).first();
   if (!attribute) {
     throw new AppError("Attribute not found", 404);
@@ -99,7 +99,7 @@ export const getAttributeById = async (id: number) => {
  * Update an existing attribute
  */
 export const updateAttribute = async (
-  id: number,
+  id: string,
   payload: {
     name?: string;
     type?: string;
@@ -138,7 +138,7 @@ export const updateAttribute = async (
 /**
  * Delete an attribute and its associated values
  */
-export const deleteAttribute = async (id: number) => {
+export const deleteAttribute = async (id: string) => {
   const existing = await db.orm.public.Attribute.where({ id }).first();
   if (!existing) {
     throw new AppError("Attribute not found", 404);
@@ -152,7 +152,7 @@ export const deleteAttribute = async (id: number) => {
  * Add a new value to an attribute
  */
 export const createAttributeValue = async (
-  attributeId: number,
+  attributeId: string,
   payload: { value: string; colorCode?: string; displayOrder?: number }
 ) => {
   const attribute = await db.orm.public.Attribute.where({ id: attributeId }).first();
@@ -172,7 +172,7 @@ export const createAttributeValue = async (
  * Update an attribute value
  */
 export const updateAttributeValue = async (
-  valueId: number,
+  valueId: string,
   payload: { value?: string; colorCode?: string; displayOrder?: number }
 ) => {
   const existing = await db.orm.public.AttributeValue.where({ id: valueId }).first();
@@ -191,7 +191,7 @@ export const updateAttributeValue = async (
 /**
  * Delete an attribute value
  */
-export const deleteAttributeValue = async (valueId: number) => {
+export const deleteAttributeValue = async (valueId: string) => {
   const existing = await db.orm.public.AttributeValue.where({ id: valueId }).first();
   if (!existing) {
     throw new AppError("Attribute value not found", 404);
@@ -206,7 +206,7 @@ export const deleteAttributeValue = async (valueId: number) => {
  * Generates all multiplication rows when merchant selects attributes and clicks "Generate"
  */
 export const generateVariantCombinations = async (payload: {
-  attributes: Array<{ attributeId: number; valueIds: number[] }>;
+  attributes: Array<{ attributeId: string; valueIds: string[] }>;
 }) => {
   if (!payload.attributes || payload.attributes.length === 0) {
     throw new AppError("At least one attribute is required to generate combinations", 400);

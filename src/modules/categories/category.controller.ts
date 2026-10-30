@@ -1,4 +1,4 @@
-﻿import type { Request, Response } from "express";
+import type { Request, Response } from "express";
 import { catchAsync } from "../../utils/catchAsync.ts";
 import { sendResponse } from "../../utils/sendResponse.ts";
 import { CategoryService } from "./category.service.ts";
@@ -46,7 +46,7 @@ export const createCategory = catchAsync(async (req: Request, res: Response) => 
 });
 
 export const updateCategory = catchAsync(async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
+  const id = req.params.id as string;
   const result = await CategoryService.updateCategory(id, req.body);
   sendResponse(res, {
     statusCode: 200,
@@ -57,7 +57,7 @@ export const updateCategory = catchAsync(async (req: Request, res: Response) => 
 });
 
 export const deleteCategory = catchAsync(async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
+  const id = req.params.id as string;
   const result = await CategoryService.deleteCategory(id);
   sendResponse(res, {
     statusCode: 200,

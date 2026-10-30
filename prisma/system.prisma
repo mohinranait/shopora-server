@@ -1,6 +1,6 @@
 // use prisma-8
 model Coupon {
-  id                Int                        @id @default(autoincrement())
+  id                String                     @id @default(uuid())
   code              String                     @unique
   discountType      String // "PERCENTAGE" | "FIXED"
   discountValue     Float
@@ -11,19 +11,19 @@ model Coupon {
   startDate         TimestamptzString?
   endDate           TimestamptzString?
   isActive          Boolean                    @default(true)
-  sellerId          Int? // NULL = Platform-wide; or specific SellerProfile id
+  sellerId          String? // NULL = Platform-wide; or specific SellerProfile id
   createdAt         TimestamptzString          @default(now())
   updatedAt         temporal.updatedAtString()
 }
 
 model Banner {
-  id            Int                        @id @default(autoincrement())
+  id            String                     @id @default(uuid())
   title         String
   subtitle      String?
   linkUrl       String?
-  imageId       Int?
+  imageId       String?
   image         UseMedia?                  @relation("BannerDesktopImage", fields: [imageId], references: [id], onDelete: SetNull)
-  mobileImageId Int?
+  mobileImageId String?
   mobileImage   UseMedia?                  @relation("BannerMobileImage", fields: [mobileImageId], references: [id], onDelete: SetNull)
   position      String                     @default("HERO_SLIDER") // "HERO_SLIDER" | "PROMO_GRID" | "MIDDLE_STRIP" | "POPUP"
   displayOrder  Int                        @default(0)
@@ -35,7 +35,7 @@ model Banner {
 }
 
 model Slider {
-  id            Int                        @id @default(autoincrement())
+  id            String                     @id @default(uuid())
   title         String?
   subtitle      String?
   description   String?
@@ -48,9 +48,9 @@ model Slider {
   textColor     String?                    @default("LIGHT") // "LIGHT" | "DARK"
   displayOrder  Int                        @default(0)
   isActive      Boolean                    @default(true)
-  imageId       Int?
+  imageId       String?
   image         UseMedia?                  @relation("SliderDesktopImage", fields: [imageId], references: [id], onDelete: SetNull)
-  mobileImageId Int?
+  mobileImageId String?
   mobileImage   UseMedia?                  @relation("SliderMobileImage", fields: [mobileImageId], references: [id], onDelete: SetNull)
   startDate     TimestamptzString?
   endDate       TimestamptzString?
@@ -59,7 +59,7 @@ model Slider {
 }
 
 model WebsiteSetting {
-  id          Int                        @id @default(autoincrement())
+  id          String                     @id @default(uuid())
   key         String                     @unique
   value       Json
   group       String                     @default("GENERAL") // "GENERAL" | "COMMISSION" | "SHIPPING" | "SEO" | "PAYMENT"
@@ -68,8 +68,8 @@ model WebsiteSetting {
 }
 
 model Notification {
-  id        Int               @id @default(autoincrement())
-  userId    Int
+  id        String            @id @default(uuid())
+  userId    String
   user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   title     String
   message   String

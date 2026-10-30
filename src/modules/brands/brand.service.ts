@@ -53,8 +53,8 @@ export const getBrandBySlug = async (slug: string) => {
  */
 export const createBrand = async (payload: {
   name: string;
-  logoId?: number | null;
-  useMediaId?: number | null;
+  logoId?: string | null;
+  useMediaId?: string | null;
   description?: string;
   website?: string;
   isActive?: boolean;
@@ -81,11 +81,11 @@ export const createBrand = async (payload: {
  * Update an existing brand
  */
 export const updateBrand = async (
-  id: number,
+  id: string,
   payload: {
     name?: string;
-    logoId?: number | null;
-    useMediaId?: number | null;
+    logoId?: string | null;
+    useMediaId?: string | null;
     description?: string;
     website?: string;
     isActive?: boolean;
@@ -115,7 +115,7 @@ export const updateBrand = async (
 /**
  * Delete a brand
  */
-export const deleteBrand = async (id: number) => {
+export const deleteBrand = async (id: string) => {
   const existing = await db.orm.public.Brand.where({ id }).first();
   if (!existing) {
     throw new AppError("Brand not found", 404);

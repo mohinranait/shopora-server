@@ -1,4 +1,4 @@
-﻿import type { Request, Response } from "express";
+import type { Request, Response } from "express";
 import { catchAsync } from "../../utils/catchAsync.ts";
 import { sendResponse } from "../../utils/sendResponse.ts";
 import { CartService } from "./cart.service.ts";
@@ -34,7 +34,7 @@ export const addToCart = catchAsync(async (req: Request, res: Response) => {
 export const updateCartItemQuantity = catchAsync(async (req: Request, res: Response) => {
   const userId = req.user ? req.user.id : null;
   const sessionId = req.headers["x-session-id"] as string | undefined;
-  const itemId = Number(req.params.id);
+  const itemId = req.params.id as string;
 
   const result = await CartService.updateCartItemQuantity(
     itemId,
@@ -54,7 +54,7 @@ export const updateCartItemQuantity = catchAsync(async (req: Request, res: Respo
 export const removeCartItem = catchAsync(async (req: Request, res: Response) => {
   const userId = req.user ? req.user.id : null;
   const sessionId = req.headers["x-session-id"] as string | undefined;
-  const itemId = Number(req.params.id);
+  const itemId = req.params.id as string;
 
   await CartService.removeCartItem(itemId, userId, sessionId);
 

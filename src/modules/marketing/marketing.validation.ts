@@ -11,7 +11,7 @@ export const createCouponSchema = z.object({
     startDate: z.string().optional(),
     endDate: z.string().optional(),
     isActive: z.boolean().default(true).optional(),
-    sellerId: z.number().int().positive().nullable().optional(),
+    sellerId: z.string().nullable().optional(),
   }),
 });
 
@@ -26,10 +26,10 @@ export const createBannerSchema = z.object({
   body: z.object({
     title: z.string().min(2, "Title is required"),
     subtitle: z.string().optional(),
-    imageId: z.number().int().positive().nullable().optional(),
-    useMediaId: z.number().int().positive().nullable().optional(),
-    mobileImageId: z.number().int().positive().nullable().optional(),
-    mobileUseMediaId: z.number().int().positive().nullable().optional(),
+    imageId: z.string().nullable().optional(),
+    useMediaId: z.string().nullable().optional(),
+    mobileImageId: z.string().nullable().optional(),
+    mobileUseMediaId: z.string().nullable().optional(),
     linkUrl: z.string().optional(),
     position: z.enum(["HERO_SLIDER", "PROMO_GRID", "MIDDLE_STRIP", "POPUP"]).default("HERO_SLIDER"),
     displayOrder: z.number().int().default(0).optional(),

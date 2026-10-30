@@ -1,4 +1,4 @@
-﻿import type { Request, Response } from "express";
+import type { Request, Response } from "express";
 import { catchAsync } from "../../utils/catchAsync.ts";
 import { sendResponse } from "../../utils/sendResponse.ts";
 import { SellerService } from "./seller.service.ts";
@@ -75,7 +75,7 @@ export const adminGetAllSellers = catchAsync(async (req: Request, res: Response)
 });
 
 export const adminReviewSellerApplication = catchAsync(async (req: Request, res: Response) => {
-  const sellerId = Number(req.params.id);
+  const sellerId = req.params.id as string;
   const result = await SellerService.adminReviewSellerApplication(sellerId, req.body);
   sendResponse(res, {
     statusCode: 200,
@@ -86,7 +86,7 @@ export const adminReviewSellerApplication = catchAsync(async (req: Request, res:
 });
 
 export const adminGetSellerDetails = catchAsync(async (req: Request, res: Response) => {
-  const sellerId = Number(req.params.id);
+  const sellerId = req.params.id as string;
   const result = await SellerService.adminGetSellerDetails(sellerId);
   sendResponse(res, {
     statusCode: 200,
@@ -97,7 +97,7 @@ export const adminGetSellerDetails = catchAsync(async (req: Request, res: Respon
 });
 
 export const adminSendSellerNotice = catchAsync(async (req: Request, res: Response) => {
-  const sellerId = Number(req.params.id);
+  const sellerId = req.params.id as string;
   const { title, message } = req.body;
   const result = await SellerService.adminSendSellerNotice(sellerId, title, message);
   sendResponse(res, {

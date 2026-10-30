@@ -1,4 +1,4 @@
-﻿import { db } from "../../config/db.ts";
+import { db } from "../../config/db.ts";
 import { AppError } from "../../errors/AppError.ts";
 import { USER_ROLES } from "../../constants/index.ts";
 
@@ -12,7 +12,7 @@ export type NotificationType =
   | "SYSTEM";
 
 export interface ICreateNotificationPayload {
-  userId: number;
+  userId: string;
   title: string;
   message: string;
   type?: NotificationType | string;
@@ -30,7 +30,7 @@ export interface INotificationQuery {
  * Fetch paginated notifications for a specific user
  */
 export const getUserNotifications = async (
-  userId: number,
+  userId: string,
   query: INotificationQuery = {}
 ) => {
   const page = Math.max(1, Number(query.page) || 1);
@@ -71,7 +71,7 @@ export const getUserNotifications = async (
 /**
  * Fast endpoint to get unread notifications count for header badges
  */
-export const getUnreadCount = async (userId: number) => {
+export const getUnreadCount = async (userId: string) => {
   const unread = await db.orm.public.Notification
     .where({ userId, isRead: false })
     .all();
@@ -84,7 +84,7 @@ export const getUnreadCount = async (userId: number) => {
 /**
  * Mark a single notification as read
  */
-export const markAsRead = async (userId: number, notificationId: number) => {
+export const markAsRead = async (userId: string, notificationId: string) => {
   const notif = await db.orm.public.Notification
     .where({ id: notificationId, userId })
     .first();
@@ -108,7 +108,7 @@ export const markAsRead = async (userId: number, notificationId: number) => {
 /**
  * Mark all unread notifications as read for a user
  */
-export const markAllAsRead = async (userId: number) => {
+export const markAllAsRead = async (userId: string) => {
   const unread = await db.orm.public.Notification
     .where({ userId, isRead: false })
     .all();
@@ -127,7 +127,7 @@ export const markAllAsRead = async (userId: number) => {
 /**
  * Delete a single notification
  */
-export const deleteNotification = async (userId: number, notificationId: number) => {
+export const deleteNotification = async (userId: string, notificationId: string) => {
   const notif = await db.orm.public.Notification
     .where({ id: notificationId, userId })
     .first();
@@ -147,7 +147,7 @@ export const deleteNotification = async (userId: number, notificationId: number)
 /**
  * Clear all read notifications for a user
  */
-export const clearReadNotifications = async (userId: number) => {
+export const clearReadNotifications = async (userId: string) => {
   const readList = await db.orm.public.Notification
     .where({ userId, isRead: true })
     .all();
@@ -209,7 +209,7 @@ export const notifyAdmins = async (payload: {
  * Dispatcher: Notify a seller by their SellerProfile ID
  */
 export const notifySeller = async (
-  sellerId: number,
+  sellerId: string,
   payload: {
     title: string;
     message: string;

@@ -1,4 +1,4 @@
-﻿import type { Request, Response } from "express";
+import type { Request, Response } from "express";
 import { catchAsync } from "../../utils/catchAsync.ts";
 import { sendResponse } from "../../utils/sendResponse.ts";
 import { BrandService } from "./brand.service.ts";
@@ -36,7 +36,7 @@ export const createBrand = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const updateBrand = catchAsync(async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
+  const id = req.params.id as string;
   const result = await BrandService.updateBrand(id, req.body);
   sendResponse(res, {
     statusCode: 200,
@@ -47,7 +47,7 @@ export const updateBrand = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const deleteBrand = catchAsync(async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
+  const id = req.params.id as string;
   const result = await BrandService.deleteBrand(id);
   sendResponse(res, {
     statusCode: 200,

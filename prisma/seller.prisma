@@ -1,7 +1,7 @@
 // use prisma-8
 model SellerProfile {
-  id                Int                        @id @default(autoincrement())
-  userId            Int                        @unique
+  id                String                     @id @default(uuid())
+  userId            String                     @unique
   user              User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
   storeName         String                     @unique
   storeSlug         String                     @unique
@@ -25,17 +25,17 @@ model SellerProfile {
   payouts           PayoutRequest[]
   medias            Media[]
   useMedias         UseMedia[]
-  logoId            Int?
+  logoId            String?
   logo              UseMedia?                  @relation("SellerLogo", fields: [logoId], references: [id], onDelete: SetNull)
-  bannerId          Int?
+  bannerId          String?
   banner            UseMedia?                  @relation("SellerBanner", fields: [bannerId], references: [id], onDelete: SetNull)
   createdAt         TimestamptzString          @default(now())
   updatedAt         temporal.updatedAtString()
 }
 
 model SellerWallet {
-  id                  Int                        @id @default(autoincrement())
-  sellerId            Int                        @unique
+  id                  String                     @id @default(uuid())
+  sellerId            String                     @unique
   seller              SellerProfile              @relation(fields: [sellerId], references: [id], onDelete: Cascade)
   balance             Float                      @default(0.0) // Available for withdrawal
   pendingBalance      Float                      @default(0.0) // On hold until order delivered / return window
@@ -48,10 +48,10 @@ model SellerWallet {
 }
 
 model WalletTransaction {
-  id          Int               @id @default(autoincrement())
-  walletId    Int
+  id          String            @id @default(uuid())
+  walletId    String
   wallet      SellerWallet      @relation(fields: [walletId], references: [id], onDelete: Cascade)
-  subOrderId  Int?
+  subOrderId  String?
   amount      Float
   type        String // "ORDER_EARNING" | "COMMISSION_DEDUCTION" | "PAYOUT_WITHDRAWAL" | "REFUND_REVERSAL"
   description String
@@ -59,8 +59,8 @@ model WalletTransaction {
 }
 
 model PayoutRequest {
-  id                   Int                        @id @default(autoincrement())
-  sellerId             Int
+  id                   String                     @id @default(uuid())
+  sellerId             String
   seller               SellerProfile              @relation(fields: [sellerId], references: [id], onDelete: Cascade)
   amount               Float
   paymentMethod        String // "BANK" | "BKASH" | "NAGAD"

@@ -1,4 +1,4 @@
-﻿import type { Request, Response } from "express";
+import type { Request, Response } from "express";
 import { catchAsync } from "../../utils/catchAsync.ts";
 import { sendResponse } from "../../utils/sendResponse.ts";
 import { PayoutService } from "./payout.service.ts";
@@ -38,7 +38,7 @@ export const adminGetAllPayouts = catchAsync(async (req: Request, res: Response)
 });
 
 export const adminProcessPayout = catchAsync(async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
+  const id = req.params.id as string;
   const result = await PayoutService.adminProcessPayout(id, req.body);
 
   sendResponse(res, {

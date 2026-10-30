@@ -1,13 +1,13 @@
 // use prisma-8
 model Category {
-  id           Int                        @id @default(autoincrement())
+  id           String                     @id @default(uuid())
   name         String
   slug         String                     @unique
   description  String?
   icon         String?
-  imageId      Int?
+  imageId      String?
   image        UseMedia?                  @relation(fields: [imageId], references: [id], onDelete: SetNull)
-  parentId     Int?
+  parentId     String?
   parent       Category?                  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
   children     Category[]                 @relation("CategoryHierarchy")
   isActive     Boolean                    @default(true)
@@ -18,12 +18,12 @@ model Category {
 }
 
 model Brand {
-  id          Int                        @id @default(autoincrement())
+  id          String                     @id @default(uuid())
   name        String
   slug        String                     @unique
   description String?
   website     String?
-  logoId      Int?
+  logoId      String?
   logo        UseMedia?                  @relation(fields: [logoId], references: [id], onDelete: SetNull)
   isActive    Boolean                    @default(true)
   products    Product[]
@@ -32,17 +32,17 @@ model Brand {
 }
 
 model Product {
-  id                  Int                        @id @default(autoincrement())
+  id                  String                     @id @default(uuid())
   name                String
   slug                String                     @unique
   sku                 String                     @unique
   shortDescription    String?
   description         String
-  categoryId          Int
+  categoryId          String
   category            Category                   @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  brandId             Int?
+  brandId             String?
   brand               Brand?                     @relation(fields: [brandId], references: [id], onDelete: SetNull)
-  sellerId            Int? // NULL = Platform-owned (Admin direct product)
+  sellerId            String? // NULL = Platform-owned (Admin direct product)
   seller              SellerProfile?             @relation(fields: [sellerId], references: [id], onDelete: SetNull)
   isPlatformOwned     Boolean                    @default(false)
   approvalStatus      String                     @default("PENDING") // "DRAFT" | "PENDING" | "APPROVED" | "REJECTED"
@@ -54,7 +54,7 @@ model Product {
   costPrice           Float?
   stock               Int                        @default(0)
   lowStockThreshold   Int                        @default(5)
-  mainImageId         Int?
+  mainImageId         String?
   mainImage           UseMedia?                  @relation("ProductMainImage", fields: [mainImageId], references: [id], onDelete: SetNull)
   images              ProductImage[]
   variants            ProductVariant[]
@@ -83,20 +83,20 @@ model Product {
 }
 
 model ProductImage {
-  id           Int               @id @default(autoincrement())
-  productId    Int
+  id           String            @id @default(uuid())
+  productId    String
   product      Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
   altText      String?
   displayOrder Int               @default(0)
   isPrimary    Boolean           @default(false)
-  imageId      Int?
+  imageId      String?
   image        UseMedia?         @relation(fields: [imageId], references: [id], onDelete: Cascade)
   createdAt    TimestamptzString @default(now())
 }
 
 model ProductVariant {
-  id                Int                            @id @default(autoincrement())
-  productId         Int
+  id                String                         @id @default(uuid())
+  productId         String
   product           Product                        @relation(fields: [productId], references: [id], onDelete: Cascade)
   sku               String                         @unique
   title             String                         // e.g. "Red / XL"
@@ -105,7 +105,7 @@ model ProductVariant {
   costPrice         Float?
   stock             Int                            @default(0)
   lowStockThreshold Int                            @default(5)
-  imageId           Int?
+  imageId           String?
   image             UseMedia?                      @relation(fields: [imageId], references: [id], onDelete: SetNull)
   attributes        Json?                          // Cached key-value helper e.g. {"Color": "Red", "Size": "XL"}
   attributeValues   ProductVariantAttributeValue[]

@@ -1,4 +1,4 @@
-﻿import { db } from "../../config/db.ts";
+import { db } from "../../config/db.ts";
 import { ENV } from "../../config/env.ts";
 import { AppError } from "../../errors/AppError.ts";
 import { cloudinary, type UploadApiResponse } from "../../lib/cloudinary.ts";
@@ -41,7 +41,7 @@ export const uploadToCloudinary = async (
  */
 export const uploadSingleMedia = async (
   file: Express.Multer.File,
-  user: { id: number; sellerId?: number | null },
+  user: { id: string; sellerId?: string | null },
   folder?: string
 ) => {
   if (!file || !file.buffer) {
@@ -76,7 +76,7 @@ export const uploadSingleMedia = async (
  */
 export const uploadMultipleMedia = async (
   files: Express.Multer.File[],
-  user: { id: number; sellerId?: number | null },
+  user: { id: string; sellerId?: string | null },
   folder?: string
 ) => {
   if (!files || files.length === 0) {
@@ -91,7 +91,7 @@ export const uploadMultipleMedia = async (
  * Fetch uploaded media library with filtering and pagination
  */
 export const getMyMediaLibrary = async (
-  user: { id: number; role: string; sellerId?: number | null },
+  user: { id: string; role: string; sellerId?: string | null },
   query: { page?: number; limit?: number; folder?: string }
 ) => {
   const page = Math.max(1, Number(query.page) || 1);
@@ -132,8 +132,8 @@ export const getMyMediaLibrary = async (
  * Get single raw media asset by ID
  */
 export const getMediaById = async (
-  id: number,
-  user: { id: number; role: string; sellerId?: number | null }
+  id: string,
+  user: { id: string; role: string; sellerId?: string | null }
 ) => {
   const media = await db.orm.public.Media.where({ id }).first();
   if (!media) {
@@ -156,8 +156,8 @@ export const getMediaById = async (
  * Delete media asset from Cloudinary and database
  */
 export const deleteMedia = async (
-  id: number,
-  user: { id: number; role: string; sellerId?: number | null }
+  id: string,
+  user: { id: string; role: string; sellerId?: string | null }
 ) => {
   const media = await getMediaById(id, user);
 
@@ -179,8 +179,8 @@ export const deleteMedia = async (
  * Attaches alt and description to the selected mediaId
  */
 export const createUseMedia = async (
-  user: { id: number; role: string; sellerId?: number | null },
-  payload: { mediaId: number; alt?: string; description?: string }
+  user: { id: string; role: string; sellerId?: string | null },
+  payload: { mediaId: string; alt?: string; description?: string }
 ) => {
   // Validate that media exists
   const media = await db.orm.public.Media.where({ id: payload.mediaId }).first();
@@ -225,7 +225,7 @@ export const createUseMedia = async (
  * Fetch configured UseMedia items with joined Media details
  */
 export const getUseMediaLibrary = async (
-  user: { id: number; role: string; sellerId?: number | null },
+  user: { id: string; role: string; sellerId?: string | null },
   query: { page?: number; limit?: number }
 ) => {
   const page = Math.max(1, Number(query.page) || 1);
@@ -289,7 +289,7 @@ export const getUseMediaLibrary = async (
 /**
  * Get single UseMedia record by ID with joined Media
  */
-export const getUseMediaById = async (id: number) => {
+export const getUseMediaById = async (id: string) => {
   const useMedia = await db.orm.public.UseMedia.where({ id }).first();
   if (!useMedia) {
     throw new AppError("UseMedia record not found", 404);
@@ -325,8 +325,8 @@ export const getUseMediaById = async (id: number) => {
  * Update UseMedia alt text or description
  */
 export const updateUseMedia = async (
-  id: number,
-  user: { id: number; role: string; sellerId?: number | null },
+  id: string,
+  user: { id: string; role: string; sellerId?: string | null },
   payload: { alt?: string; description?: string }
 ) => {
   const existing = await db.orm.public.UseMedia.where({ id }).first();
@@ -359,8 +359,8 @@ export const updateUseMedia = async (
  * Delete a UseMedia configuration
  */
 export const deleteUseMedia = async (
-  id: number,
-  user: { id: number; role: string; sellerId?: number | null }
+  id: string,
+  user: { id: string; role: string; sellerId?: string | null }
 ) => {
   const existing = await db.orm.public.UseMedia.where({ id }).first();
   if (!existing) {
@@ -385,7 +385,7 @@ export const deleteUseMedia = async (
  */
 export const uploadAndCreateUseMedia = async (
   file: Express.Multer.File,
-  user: { id: number; role: string; sellerId?: number | null },
+  user: { id: string; role: string; sellerId?: string | null },
   payload: { alt?: string; description?: string; folder?: string }
 ) => {
   // 1. Upload raw image to Media

@@ -1,4 +1,4 @@
-﻿import type { Request, Response } from "express";
+import type { Request, Response } from "express";
 import { catchAsync } from "../../utils/catchAsync.ts";
 import { sendResponse } from "../../utils/sendResponse.ts";
 import { MarketingService } from "./marketing.service.ts";
@@ -38,7 +38,7 @@ export const getAllCoupons = catchAsync(async (_req: Request, res: Response) => 
 });
 
 export const deleteCoupon = catchAsync(async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
+  const id = req.params.id as string;
   await MarketingService.deleteCoupon(id);
 
   sendResponse(res, {
@@ -83,7 +83,7 @@ export const getAllBanners = catchAsync(async (_req: Request, res: Response) => 
 });
 
 export const deleteBanner = catchAsync(async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
+  const id = req.params.id as string;
   await MarketingService.deleteBanner(id);
 
   sendResponse(res, {

@@ -1,4 +1,4 @@
-﻿import type { Request, Response } from "express";
+import type { Request, Response } from "express";
 import { catchAsync } from "../../utils/catchAsync.ts";
 import { sendResponse } from "../../utils/sendResponse.ts";
 import { AttributeService } from "./attribute.service.ts";
@@ -34,7 +34,7 @@ export const getAllAttributes = catchAsync(async (req: Request, res: Response) =
  * Get single attribute by ID
  */
 export const getAttributeById = catchAsync(async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
+  const id = req.params.id as string;
   const result = await AttributeService.getAttributeById(id);
   sendResponse(res, {
     statusCode: 200,
@@ -48,7 +48,7 @@ export const getAttributeById = catchAsync(async (req: Request, res: Response) =
  * Update an existing attribute
  */
 export const updateAttribute = catchAsync(async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
+  const id = req.params.id as string;
   const result = await AttributeService.updateAttribute(id, req.body);
   sendResponse(res, {
     statusCode: 200,
@@ -62,7 +62,7 @@ export const updateAttribute = catchAsync(async (req: Request, res: Response) =>
  * Delete an attribute
  */
 export const deleteAttribute = catchAsync(async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
+  const id = req.params.id as string;
   const result = await AttributeService.deleteAttribute(id);
   sendResponse(res, {
     statusCode: 200,
@@ -76,7 +76,7 @@ export const deleteAttribute = catchAsync(async (req: Request, res: Response) =>
  * Add a value to an attribute
  */
 export const createAttributeValue = catchAsync(async (req: Request, res: Response) => {
-  const attributeId = Number(req.params.id);
+  const attributeId = req.params.id as string;
   const result = await AttributeService.createAttributeValue(attributeId, req.body);
   sendResponse(res, {
     statusCode: 201,
@@ -90,7 +90,7 @@ export const createAttributeValue = catchAsync(async (req: Request, res: Respons
  * Update an attribute value
  */
 export const updateAttributeValue = catchAsync(async (req: Request, res: Response) => {
-  const valueId = Number(req.params.valueId);
+  const valueId = req.params.valueId as string;
   const result = await AttributeService.updateAttributeValue(valueId, req.body);
   sendResponse(res, {
     statusCode: 200,
@@ -104,7 +104,7 @@ export const updateAttributeValue = catchAsync(async (req: Request, res: Respons
  * Delete an attribute value
  */
 export const deleteAttributeValue = catchAsync(async (req: Request, res: Response) => {
-  const valueId = Number(req.params.valueId);
+  const valueId = req.params.valueId as string;
   const result = await AttributeService.deleteAttributeValue(valueId);
   sendResponse(res, {
     statusCode: 200,

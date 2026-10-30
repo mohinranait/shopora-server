@@ -1,4 +1,4 @@
-﻿import type { Request, Response } from "express";
+import type { Request, Response } from "express";
 import { catchAsync } from "../../utils/catchAsync.ts";
 import { sendResponse } from "../../utils/sendResponse.ts";
 import { NotificationService } from "./notification.service.ts";
@@ -44,7 +44,7 @@ export const getUnreadCount = catchAsync(
 export const markAsRead = catchAsync(
   async (req: Request, res: Response) => {
     const userId = req.user!.id;
-    const notificationId = Number(req.params.id);
+    const notificationId = req.params.id as string;
 
     const result = await NotificationService.markAsRead(userId, notificationId);
 
@@ -75,7 +75,7 @@ export const markAllAsRead = catchAsync(
 export const deleteNotification = catchAsync(
   async (req: Request, res: Response) => {
     const userId = req.user!.id;
-    const notificationId = Number(req.params.id);
+    const notificationId = req.params.id as string;
 
     const result = await NotificationService.deleteNotification(
       userId,

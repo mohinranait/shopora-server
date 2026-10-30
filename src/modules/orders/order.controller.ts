@@ -1,4 +1,4 @@
-﻿import type { Request, Response } from "express";
+import type { Request, Response } from "express";
 import { catchAsync } from "../../utils/catchAsync.ts";
 import { sendResponse } from "../../utils/sendResponse.ts";
 import { OrderService } from "./order.service.ts";
@@ -68,7 +68,7 @@ export const cancelOrder = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const adminUpdateOrderStatus = catchAsync(async (req: Request, res: Response) => {
-  const result = await OrderService.adminUpdateOrderStatus(Number(req.params.id), req.user!, req.body);
+  const result = await OrderService.adminUpdateOrderStatus(req.params.id as string, req.user!, req.body);
 
   sendResponse(res, {
     statusCode: 200,
@@ -91,7 +91,7 @@ export const getSellerSubOrders = catchAsync(async (req: Request, res: Response)
 });
 
 export const updateSubOrderStatus = catchAsync(async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
+  const id = req.params.id as string;
   const result = await OrderService.updateSubOrderStatus(id, req.user!, req.body);
 
   sendResponse(res, {
@@ -124,7 +124,7 @@ export const adminGetAllOrders = catchAsync(async (req: Request, res: Response) 
 });
 
 export const updatePaymentStatus = catchAsync(async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
+  const id = req.params.id as string;
   const result = await OrderService.updatePaymentStatus(id, req.body);
 
   sendResponse(res, {

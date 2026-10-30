@@ -4,10 +4,10 @@ import { SELLER_STATUS } from "../../constants/index.ts";
 export const updateSellerProfileSchema = z.object({
   body: z.object({
     storeName: z.string().min(3).optional(),
-    logoId: z.number().int().positive().nullable().optional(),
-    logoUseMediaId: z.number().int().positive().nullable().optional(),
-    bannerId: z.number().int().positive().nullable().optional(),
-    bannerUseMediaId: z.number().int().positive().nullable().optional(),
+    logoId: z.string().nullable().optional(),
+    logoUseMediaId: z.string().nullable().optional(),
+    bannerId: z.string().nullable().optional(),
+    bannerUseMediaId: z.string().nullable().optional(),
     storeDescription: z.string().optional(),
     phone: z.string().optional(),
     businessAddress: z.string().optional(),

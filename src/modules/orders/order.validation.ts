@@ -1,4 +1,4 @@
-﻿import { z } from "zod";
+import { z } from "zod";
 import { PAYMENT_METHOD, ORDER_STATUS } from "../../constants/index.ts";
 
 /**
@@ -18,8 +18,8 @@ export const checkoutAddressSchema = z.object({
  * Order Item Input
  */
 export const orderItemInputSchema = z.object({
-  productId: z.number().int().positive(),
-  variantId: z.number().int().positive().nullable().optional(),
+  productId: z.string().min(1, "Product ID is required"),
+  variantId: z.string().nullable().optional(),
   quantity: z.number().int().positive("Quantity must be at least 1"),
 });
 

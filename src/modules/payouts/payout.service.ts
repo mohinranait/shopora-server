@@ -1,11 +1,11 @@
-﻿import { db } from "../../config/db.ts";
+import { db } from "../../config/db.ts";
 import { AppError } from "../../errors/AppError.ts";
 import { PAYOUT_STATUS, TRANSACTION_TYPE } from "../../constants/index.ts";
 
 /**
  * Get Seller Wallet & Transactions
  */
-export const getSellerWallet = async (userId: number) => {
+export const getSellerWallet = async (userId: string) => {
   const seller = await db.orm.public.SellerProfile.where({ userId }).first();
   if (!seller) {
     throw new AppError("Seller profile not found", 404);
@@ -37,7 +37,7 @@ export const getSellerWallet = async (userId: number) => {
  * Seller: Submit Payout Request
  */
 export const requestPayout = async (
-  userId: number,
+  userId: string,
   payload: {
     amount: number;
     paymentMethod: string;
@@ -111,7 +111,7 @@ export const adminGetAllPayouts = async (status?: string) => {
  * Admin: Process Payout Request (Approve / Mark PAID / Reject)
  */
 export const adminProcessPayout = async (
-  payoutId: number,
+  payoutId: string,
   payload: {
     status: string;
     transactionReference?: string;

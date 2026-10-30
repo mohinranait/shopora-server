@@ -1,4 +1,4 @@
-﻿import type { Request, Response } from "express";
+import type { Request, Response } from "express";
 import { catchAsync } from "../../utils/catchAsync.ts";
 import { sendResponse } from "../../utils/sendResponse.ts";
 import { ReviewService } from "./review.service.ts";
@@ -15,7 +15,7 @@ export const createReview = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const getProductReviews = catchAsync(async (req: Request, res: Response) => {
-  const productId = Number(req.params.productId);
+  const productId = req.params.productId as string;
   const result = await ReviewService.getProductReviews(productId);
 
   sendResponse(res, {
@@ -27,7 +27,7 @@ export const getProductReviews = catchAsync(async (req: Request, res: Response) 
 });
 
 export const adminModerateReview = catchAsync(async (req: Request, res: Response) => {
-  const reviewId = Number(req.params.id);
+  const reviewId = req.params.id as string;
   const isApproved = req.body.isApproved === true;
   const result = await ReviewService.adminModerateReview(reviewId, isApproved);
 

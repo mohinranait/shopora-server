@@ -1,6 +1,6 @@
 // use prisma-8
 model Media {
-  id               Int               @id @default(autoincrement())
+  id               String            @id @default(uuid())
   url              String
   publicId         String            @unique
   format           String?
@@ -9,23 +9,23 @@ model Media {
   height           Int?
   originalFilename String?
   folder           String?
-  userId           Int
+  userId           String
   user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  sellerId         Int?
+  sellerId         String?
   seller           SellerProfile?    @relation(fields: [sellerId], references: [id], onDelete: SetNull)
   useMedias        UseMedia[]
   createdAt        TimestamptzString @default(now())
 }
 
 model UseMedia {
-  id              Int                        @id @default(autoincrement())
-  mediaId         Int
+  id              String                     @id @default(uuid())
+  mediaId         String
   media           Media                      @relation(fields: [mediaId], references: [id], onDelete: Cascade)
   alt             String?
   description     String?
-  userId          Int
+  userId          String
   user            User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  sellerId        Int?
+  sellerId        String?
   seller          SellerProfile?             @relation(fields: [sellerId], references: [id], onDelete: SetNull)
 
   // Reverse relations to models using this media

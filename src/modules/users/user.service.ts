@@ -5,8 +5,8 @@ import { AppError } from "../../errors/AppError.ts";
  * Update current user profile
  */
 export const updateProfile = async (
-  userId: number,
-  payload: { name?: string; phone?: string; avatarId?: number | null; avatarUseMediaId?: number | null }
+  userId: string,
+  payload: { name?: string; phone?: string; avatarId?: string | null; avatarUseMediaId?: string | null }
 ) => {
   const user = await db.orm.public.User.where({ id: userId }).first();
   if (!user) {
@@ -51,7 +51,7 @@ export const updateProfile = async (
 /**
  * Add an address for user
  */
-export const addAddress = async (userId: number, payload: any) => {
+export const addAddress = async (userId: string, payload: any) => {
   if (payload.isDefault) {
     // Reset any existing default address
     await db.orm.public.Address
@@ -77,7 +77,7 @@ export const addAddress = async (userId: number, payload: any) => {
 /**
  * Get user addresses
  */
-export const getUserAddresses = async (userId: number) => {
+export const getUserAddresses = async (userId: string) => {
   return await db.orm.public.Address
     .where({ userId })
     .orderBy((a) => a.createdAt.desc())
@@ -87,7 +87,7 @@ export const getUserAddresses = async (userId: number) => {
 /**
  * Delete address
  */
-export const deleteAddress = async (addressId: number, userId: number) => {
+export const deleteAddress = async (addressId: string, userId: string) => {
   const address = await db.orm.public.Address.where({ id: addressId }).first();
   if (!address) {
     throw new AppError("Address not found", 404);
@@ -150,7 +150,7 @@ export const adminGetAllUsers = async (filters: {
     .all();
 
   const userIds = users.map((u) => u.id);
-  const avatarUseMediaIds = [...new Set(users.map((u: any) => u.avatarId ?? u.avatarUseMediaId).filter((id): id is number => typeof id === "number"))];
+  const avatarUseMediaIds = [...new Set(users.map((u: any) => u.avatarId ?? u.avatarUseMediaId).filter((id): id is string => typeof id === "string" && Boolean(id)))];
 
   const [orders, addresses, useMedias] = await Promise.all([
     userIds.length > 0 ? db.orm.public.Order.where((o) => o.userId.in(userIds)).all() : [],
@@ -211,7 +211,7 @@ export const adminGetAllUsers = async (filters: {
 /**
  * Admin: Get customer detail with order history, addresses, and statistics
  */
-export const adminGetUserDetail = async (userId: number) => {
+export const adminGetUserDetail = async (userId: string) => {
   const user = await db.orm.public.User.where({ id: userId }).first();
   if (!user) {
     throw new AppError("Customer not found", 404);
@@ -243,7 +243,7 @@ export const adminGetUserDetail = async (userId: number) => {
     ? await db.orm.public.Product.where((p) => p.id.in(reviewProductIds)).all()
     : [];
 
-  const productMainMediaIds = [...new Set(products.map((p) => p.mainImageId).filter((id): id is number => typeof id === "number"))];
+  const productMainMediaIds = [...new Set(products.map((p) => p.mainImageId).filter((id): id is string => typeof id === "string" && Boolean(id)))];
   const productUseMedias = productMainMediaIds.length > 0
     ? await db.orm.public.UseMedia.where((um) => um.id.in(productMainMediaIds)).all()
     : [];
@@ -323,7 +323,7 @@ export const adminGetUserDetail = async (userId: number) => {
  * Admin: Update customer profile details
  */
 export const adminUpdateUser = async (
-  userId: number,
+  userId: string,
   payload: {
     name?: string;
     email?: string;
@@ -400,7 +400,7 @@ export const adminUpdateUser = async (
 /**
  * Admin: Toggle user active status
  */
-export const adminToggleUserStatus = async (userId: number, isActive: boolean) => {
+export const adminToggleUserStatus = async (userId: string, isActive: boolean) => {
   const user = await db.orm.public.User.where({ id: userId }).first();
   if (!user) {
     throw new AppError("User not found", 404);

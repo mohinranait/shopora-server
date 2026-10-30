@@ -1,4 +1,4 @@
-﻿import type { Request, Response } from "express";
+import type { Request, Response } from "express";
 import { catchAsync } from "../../utils/catchAsync.ts";
 import { sendResponse } from "../../utils/sendResponse.ts";
 import { SliderService } from "./slider.service.ts";
@@ -15,7 +15,7 @@ export const getSliders = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const getSliderById = catchAsync(async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
+  const id = req.params.id as string;
   const result = await SliderService.getSliderById(id);
   sendResponse(res, {
     statusCode: 200,
@@ -36,7 +36,7 @@ export const createSlider = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const updateSlider = catchAsync(async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
+  const id = req.params.id as string;
   const result = await SliderService.updateSlider(id, req.body);
   sendResponse(res, {
     statusCode: 200,
@@ -47,7 +47,7 @@ export const updateSlider = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const deleteSlider = catchAsync(async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
+  const id = req.params.id as string;
   await SliderService.deleteSlider(id);
   sendResponse(res, {
     statusCode: 200,

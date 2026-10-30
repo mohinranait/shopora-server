@@ -79,7 +79,7 @@ export const getAllCoupons = async () => {
 /**
  * Admin: Delete coupon
  */
-export const deleteCoupon = async (id: number) => {
+export const deleteCoupon = async (id: string) => {
   return await db.orm.public.Coupon.where({ id }).delete();
 };
 
@@ -162,7 +162,7 @@ export const getAllBanners = async () => {
 /**
  * Admin: Delete banner
  */
-export const deleteBanner = async (id: number) => {
+export const deleteBanner = async (id: string) => {
   return await db.orm.public.Banner.where({ id }).delete();
 };
 

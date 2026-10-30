@@ -5,9 +5,9 @@ import { AppError } from "../../errors/AppError.ts";
  * Add or update a review for a product
  */
 export const createReview = async (
-  userId: number,
+  userId: string,
   payload: {
-    productId: number;
+    productId: string;
     rating: number;
     title?: string;
     comment: string;
@@ -75,7 +75,7 @@ export const createReview = async (
 /**
  * Get all reviews for a product
  */
-export const getProductReviews = async (productId: number) => {
+export const getProductReviews = async (productId: string) => {
   const reviews = await db.orm.public.ProductReview
     .where({ productId })
     .where({ isApproved: true })
@@ -115,7 +115,7 @@ export const getProductReviews = async (productId: number) => {
 /**
  * Admin: Moderate review (Approve / Reject / Delete)
  */
-export const adminModerateReview = async (reviewId: number, isApproved: boolean) => {
+export const adminModerateReview = async (reviewId: string, isApproved: boolean) => {
   const review = await db.orm.public.ProductReview.where({ id: reviewId }).first();
   if (!review) {
     throw new AppError("Review not found", 404);

@@ -1,4 +1,4 @@
-﻿import crypto from "node:crypto";
+import crypto from "node:crypto";
 import { db } from "../config/db.ts";
 import { hashPassword } from "../utils/hash.ts";
 import {
@@ -218,8 +218,8 @@ async function main() {
     url: string,
     alt: string,
     description: string,
-    userId: number,
-    sellerId: number | null = null
+    userId: string,
+    sellerId: string | null = null
   ) {
     const hash = crypto.createHash("sha256").update(url).digest("hex").slice(0, 24);
     const publicId = `shopora_${hash}`;

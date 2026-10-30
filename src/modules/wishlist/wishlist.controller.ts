@@ -1,10 +1,10 @@
-﻿import type { Request, Response } from "express";
+import type { Request, Response } from "express";
 import { catchAsync } from "../../utils/catchAsync.ts";
 import { sendResponse } from "../../utils/sendResponse.ts";
 import { WishlistService } from "./wishlist.service.ts";
 
 export const toggleWishlist = catchAsync(async (req: Request, res: Response) => {
-  const productId = Number(req.body.productId);
+  const productId = req.body.productId as string;
   const result = await WishlistService.toggleWishlistItem(req.user!.id, productId);
 
   sendResponse(res, {
@@ -27,7 +27,7 @@ export const getUserWishlist = catchAsync(async (req: Request, res: Response) =>
 });
 
 export const removeWishlistItem = catchAsync(async (req: Request, res: Response) => {
-  const productId = Number(req.params.productId);
+  const productId = req.params.productId as string;
   const result = await WishlistService.removeWishlistItem(req.user!.id, productId);
 
   sendResponse(res, {

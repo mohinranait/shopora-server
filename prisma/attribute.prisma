@@ -1,7 +1,7 @@
 // use prisma-8
 
 model Attribute {
-  id                     Int                            @id @default(autoincrement())
+  id                     String                         @id @default(uuid())
   name                   String                         @unique // e.g. "Color", "Size", "Storage", "Material"
   slug                   String                         @unique // e.g. "color", "size", "storage", "material"
   type                   String                         @default("SELECT") // "TEXT" | "COLOR" | "BUTTON" | "SELECT" | "RADIO"
@@ -16,8 +16,8 @@ model Attribute {
 }
 
 model AttributeValue {
-  id                     Int                            @id @default(autoincrement())
-  attributeId            Int
+  id                     String                         @id @default(uuid())
+  attributeId            String
   attribute              Attribute                      @relation(fields: [attributeId], references: [id], onDelete: Cascade)
   value                  String                         // e.g. "Red", "Blue", "XL", "128GB"
   colorCode              String?                        // e.g. "#FF0000" for visual color swatches
@@ -28,10 +28,10 @@ model AttributeValue {
 }
 
 model ProductAttribute {
-  id          Int                     @id @default(autoincrement())
-  productId   Int
+  id          String                  @id @default(uuid())
+  productId   String
   product     Product                 @relation(fields: [productId], references: [id], onDelete: Cascade)
-  attributeId Int
+  attributeId String
   attribute   Attribute               @relation(fields: [attributeId], references: [id], onDelete: Cascade)
   isVariation Boolean                 @default(false) // true if used for generating variants, false for general specs
   values      ProductAttributeValue[]
@@ -39,22 +39,22 @@ model ProductAttribute {
 }
 
 model ProductAttributeValue {
-  id                 Int              @id @default(autoincrement())
-  productAttributeId Int
+  id                 String           @id @default(uuid())
+  productAttributeId String
   productAttribute   ProductAttribute @relation(fields: [productAttributeId], references: [id], onDelete: Cascade)
-  attributeValueId   Int?
+  attributeValueId   String?
   attributeValue     AttributeValue?  @relation(fields: [attributeValueId], references: [id], onDelete: SetNull)
   customValue        String?          // For non-predefined custom specifications
   createdAt          TimestamptzString @default(now())
 }
 
 model ProductVariantAttributeValue {
-  id               Int            @id @default(autoincrement())
-  variantId        Int
+  id               String         @id @default(uuid())
+  variantId        String
   variant          ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
-  attributeId      Int
+  attributeId      String
   attribute        Attribute      @relation(fields: [attributeId], references: [id], onDelete: Cascade)
-  attributeValueId Int
+  attributeValueId String
   attributeValue   AttributeValue @relation(fields: [attributeValueId], references: [id], onDelete: Cascade)
   createdAt        TimestamptzString @default(now())
 }

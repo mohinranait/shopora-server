@@ -1,4 +1,4 @@
-﻿import type { Request, Response } from "express";
+import type { Request, Response } from "express";
 import { catchAsync } from "../../utils/catchAsync.ts";
 import { sendResponse } from "../../utils/sendResponse.ts";
 import { ReturnService } from "./return.service.ts";
@@ -38,7 +38,7 @@ export const adminGetAllReturns = catchAsync(async (req: Request, res: Response)
 });
 
 export const adminReviewReturn = catchAsync(async (req: Request, res: Response) => {
-  const returnId = Number(req.params.id);
+  const returnId = req.params.id as string;
   const result = await ReturnService.adminReviewReturn(returnId, req.body);
 
   sendResponse(res, {

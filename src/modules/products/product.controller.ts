@@ -1,4 +1,4 @@
-﻿import type { Request, Response } from "express";
+import type { Request, Response } from "express";
 import { catchAsync } from "../../utils/catchAsync.ts";
 import { sendResponse } from "../../utils/sendResponse.ts";
 import { ProductService, type IProductFilterOptions } from "./product.service.ts";
@@ -17,7 +17,7 @@ const parsePublicFilters = (query: any): IProductFilterOptions => {
     search: query.search,
     category: query.category,
     brand: query.brand,
-    sellerId: num(query.sellerId),
+    sellerId: query.sellerId ? String(query.sellerId) : undefined,
     isPlatformOwned: query.isPlatformOwned !== undefined ? query.isPlatformOwned === "true" : undefined,
     minPrice: num(query.minPrice),
     maxPrice: num(query.maxPrice),
@@ -77,10 +77,7 @@ export const getProductBySlug = catchAsync(async (req: Request, res: Response) =
  * Get single product by ID
  */
 export const getProductById = catchAsync(async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
-  if (Number.isNaN(id)) {
-    throw new AppError("Invalid product ID", 400);
-  }
+  const id = req.params.id as string;
   const result = await ProductService.getProductById(id, req.user);
 
   sendResponse(res, {
@@ -164,7 +161,7 @@ export const createProduct = catchAsync(async (req: Request, res: Response) => {
  * Update product
  */
 export const updateProduct = catchAsync(async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
+  const id = req.params.id as string;
   const result = await ProductService.updateProduct(id, req.user!, req.body);
 
   sendResponse(res, {
@@ -179,7 +176,7 @@ export const updateProduct = catchAsync(async (req: Request, res: Response) => {
  * Admin Review Product Approval
  */
 export const reviewProductApproval = catchAsync(async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
+  const id = req.params.id as string;
   const result = await ProductService.reviewProductApproval(id, req.body);
 
   sendResponse(res, {
@@ -194,7 +191,7 @@ export const reviewProductApproval = catchAsync(async (req: Request, res: Respon
  * Delete product
  */
 export const deleteProduct = catchAsync(async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
+  const id = req.params.id as string;
   const result = await ProductService.deleteProduct(id, req.user!);
 
   sendResponse(res, {

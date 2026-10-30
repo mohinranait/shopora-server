@@ -1,11 +1,11 @@
-﻿import jwt, { type JwtPayload, type SignOptions } from "jsonwebtoken";
+import jwt, { type JwtPayload, type SignOptions } from "jsonwebtoken";
 import { ENV } from "../config/env.ts";
 
 export interface IJwtUserPayload {
-  id: number;
+  id: string;
   email: string;
   role: string;
-  sellerId?: number | null;
+  sellerId?: string | null;
 }
 
 /**

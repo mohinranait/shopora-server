@@ -1,4 +1,4 @@
-﻿import { db } from "../../config/db.ts";
+import { db } from "../../config/db.ts";
 import { AppError } from "../../errors/AppError.ts";
 import { RETURN_STATUS, USER_ROLES } from "../../constants/index.ts";
 
@@ -6,10 +6,10 @@ import { RETURN_STATUS, USER_ROLES } from "../../constants/index.ts";
  * Customer request return / refund
  */
 export const createReturnRequest = async (
-  userId: number,
+  userId: string,
   payload: {
-    orderId: number;
-    orderItemId: number;
+    orderId: string;
+    orderItemId: string;
     reason: string;
     customerComment?: string;
     images?: string[];
@@ -49,7 +49,7 @@ export const createReturnRequest = async (
 /**
  * Customer: Get their return requests
  */
-export const getCustomerReturns = async (userId: number) => {
+export const getCustomerReturns = async (userId: string) => {
   const returns = await db.orm.public.ReturnRequest
     .where({ userId })
     .orderBy((r) => r.createdAt.desc())
@@ -98,7 +98,7 @@ export const adminGetAllReturns = async (status?: string) => {
  * Admin: Review and update Return Request status
  */
 export const adminReviewReturn = async (
-  returnId: number,
+  returnId: string,
   payload: { status: string; adminNote?: string }
 ) => {
   const ret = await db.orm.public.ReturnRequest.where({ id: returnId }).first();

@@ -16,7 +16,7 @@ export interface IProductFilterOptions {
   search?: string;
   category?: string;
   brand?: string; // single or comma-separated brand slugs / ids
-  sellerId?: number;
+  sellerId?: string;
   isPlatformOwned?: boolean;
   minPrice?: number;
   maxPrice?: number;
@@ -30,16 +30,16 @@ export interface IProductFilterOptions {
   limit?: number;
   approvalStatus?: string;
   status?: string;
-  sellerUserId?: number; // When seller requests their own products
+  sellerUserId?: string; // When seller requests their own products
   isAdmin?: boolean;
 }
 
 type FacetKey = "category" | "brand" | "price";
 
 interface IResolvedFilters {
-  categoryIds?: number[]; // selected category + all of its descendants
-  brandIds?: number[];
-  sellerProfileId?: number;
+  categoryIds?: string[]; // selected category + all of its descendants
+  brandIds?: string[];
+  sellerProfileId?: string;
   unresolved: boolean; // a category/brand was requested but doesn't exist -> no results
 }
 
@@ -58,20 +58,17 @@ const resolveFilters = async (filters: IProductFilterOptions): Promise<IResolved
   const categoryTask = (async () => {
     if (!filters.category) return;
     const categories = await db.orm.public.Category.select("id", "slug", "parentId").all();
-    const asId = Number(filters.category);
-    const root = categories.find((c) =>
-      Number.isNaN(asId) ? c.slug === filters.category : c.id === asId
-    );
+    const root = categories.find((c) => c.slug === filters.category || c.id === filters.category);
     if (!root) {
       resolved.unresolved = true;
       return;
     }
-    const childrenOf = new Map<number, number[]>();
+    const childrenOf = new Map<string, string[]>();
     for (const c of categories) {
       if (c.parentId == null) continue;
       childrenOf.set(c.parentId, [...(childrenOf.get(c.parentId) ?? []), c.id]);
     }
-    const ids: number[] = [];
+    const ids: string[] = [];
     const stack = [root.id];
     while (stack.length) {
       const id = stack.pop()!;
@@ -84,12 +81,8 @@ const resolveFilters = async (filters: IProductFilterOptions): Promise<IResolved
   const brandTask = (async () => {
     const values = splitList(filters.brand);
     if (values.length === 0) return;
-    const ids = values.map(Number).filter((n) => !Number.isNaN(n));
-    const slugs = values.filter((v) => Number.isNaN(Number(v)));
-    if (slugs.length > 0) {
-      const brands = await db.orm.public.Brand.where((b) => b.slug.in(slugs)).select("id").all();
-      ids.push(...brands.map((b) => b.id));
-    }
+    const brands = await db.orm.public.Brand.where((b, { fns }) => fns.or(b.slug.in(values), b.id.in(values))).select("id").all();
+    const ids = brands.map((b) => b.id);
     if (ids.length === 0) resolved.unresolved = true;
     else resolved.brandIds = ids;
   })();
@@ -219,8 +212,8 @@ export const getAllProducts = async (filters: IProductFilterOptions) => {
   const total = Number(countResult.total) || 0;
 
   // Batch-load relations (one query per relation instead of per product)
-  const uniq = (ids: (number | null | undefined)[]) =>
-    [...new Set(ids.filter((id): id is number => typeof id === "number"))];
+  const uniq = (ids: (string | null | undefined)[]) =>
+    [...new Set(ids.filter((id): id is string => typeof id === "string" && Boolean(id)))];
   const categoryIds = uniq(products.map((p) => p.categoryId));
   const brandIds = uniq(products.map((p) => p.brandId));
   const sellerIds = uniq(products.map((p) => p.sellerId));
@@ -267,6 +260,7 @@ export const getAllProducts = async (filters: IProductFilterOptions) => {
       mainImageId: prod.mainImageId ?? targetMainId ?? null,
       mainImageUseMedia: mainMedia,
       mainImage: mainMedia?.media?.url ?? "",
+      image: mainMedia?.media?.url ?? "",
       category: categoryMap.get(prod.categoryId) ?? null,
       brand: prod.brandId ? brandMap.get(prod.brandId) ?? null : null,
       seller: prod.sellerId ? sellerMap.get(prod.sellerId) ?? null : null,
@@ -312,8 +306,8 @@ export const getProductFilters = async (filters: IProductFilterOptions) => {
 
   // Category tree with counts rolled up into parents
   const directCount = new Map(categoryGroups.map((g) => [g.categoryId, Number(g.count) || 0]));
-  type CategoryNode = { id: number; name: string; slug: string; parentId: number | null; count: number; children: CategoryNode[] };
-  const nodes = new Map<number, CategoryNode>(
+  type CategoryNode = { id: string; name: string; slug: string; parentId: string | null; count: number; children: CategoryNode[] };
+  const nodes = new Map<string, CategoryNode>(
     allCategories.map((c) => [
       c.id,
       { id: c.id, name: c.name, slug: c.slug, parentId: c.parentId ?? null, count: 0, children: [] },
@@ -528,6 +522,7 @@ export const populateProductDetails = async (product: any, requestingUser?: any)
     mainImageId: product.mainImageId ?? productMainId ?? null,
     mainImageUseMedia,
     mainImage: mainImageUseMedia?.media?.url ?? "",
+    image: mainImageUseMedia?.media?.url ?? "",
     category,
     brand,
     seller: seller
@@ -560,7 +555,7 @@ export const getProductBySlug = async (slug: string, requestingUser?: any) => {
 /**
  * Get Product Details by ID (for admin/seller editing and detail viewing)
  */
-export const getProductById = async (id: number, requestingUser?: any) => {
+export const getProductById = async (id: string, requestingUser?: any) => {
   const product = await db.orm.public.Product.where({ id }).first();
   if (!product) {
     throw new AppError("Product not found", 404);
@@ -572,7 +567,7 @@ export const getProductById = async (id: number, requestingUser?: any) => {
  * Create a new product (Platform-owned if Admin, or Vendor-owned if Seller)
  */
 export const createProduct = async (
-  user: { id: number; role: string; sellerId?: number | null },
+  user: { id: string; role: string; sellerId?: string | null },
   payload: any
 ) => {
   // Validate category
@@ -590,7 +585,7 @@ export const createProduct = async (
   }
 
   let isPlatformOwned = false;
-  let sellerId: number | null = null;
+  let sellerId: string | null = null;
   let approvalStatus: string = PRODUCT_APPROVAL_STATUS.PENDING;
 
   if (user.role === USER_ROLES.ADMIN) {
@@ -690,18 +685,19 @@ export const createProduct = async (
 
         if (Array.isArray(attrItem.values)) {
           for (const val of attrItem.values) {
-            const numVal = Number(val);
-            if (!Number.isNaN(numVal) && typeof val === "number") {
+            const strVal = String(val).trim();
+            const attrVal = await tx.orm.public.AttributeValue.where({ id: strVal }).first();
+            if (attrVal) {
               await tx.orm.public.ProductAttributeValue.create({
                 productAttributeId: prodAttr.id,
-                attributeValueId: numVal,
+                attributeValueId: attrVal.id,
                 customValue: null,
               });
             } else {
               await tx.orm.public.ProductAttributeValue.create({
                 productAttributeId: prodAttr.id,
                 attributeValueId: null,
-                customValue: String(val),
+                customValue: strVal,
               });
             }
           }
@@ -758,8 +754,8 @@ export const createProduct = async (
  * Update an existing product
  */
 export const updateProduct = async (
-  id: number,
-  user: { id: number; role: string; sellerId?: number | null },
+  id: string,
+  user: { id: string; role: string; sellerId?: string | null },
   payload: any
 ) => {
   const product = await db.orm.public.Product.where({ id }).first();
@@ -834,18 +830,19 @@ export const updateProduct = async (
 
         if (Array.isArray(attrItem.values)) {
           for (const val of attrItem.values) {
-            const numVal = Number(val);
-            if (!Number.isNaN(numVal) && typeof val === "number") {
+            const strVal = String(val).trim();
+            const attrVal = await tx.orm.public.AttributeValue.where({ id: strVal }).first();
+            if (attrVal) {
               await tx.orm.public.ProductAttributeValue.create({
                 productAttributeId: prodAttr.id,
-                attributeValueId: numVal,
+                attributeValueId: attrVal.id,
                 customValue: null,
               });
             } else {
               await tx.orm.public.ProductAttributeValue.create({
                 productAttributeId: prodAttr.id,
                 attributeValueId: null,
-                customValue: String(val),
+                customValue: strVal,
               });
             }
           }
@@ -860,8 +857,8 @@ export const updateProduct = async (
       
       // Cleanup variants removed in UI
       const retainedVariantIds = payload.variants
-        .map((v: any) => (v.id ? Number(v.id) : null))
-        .filter((id: number | null): id is number => id !== null && !Number.isNaN(id));
+        .map((v: any) => (v.id ? String(v.id) : null))
+        .filter((id: string | null): id is string => id !== null && id.trim() !== "");
 
       const existingVariants = await tx.orm.public.ProductVariant.where({ productId: id }).all();
       for (const exVar of existingVariants) {
@@ -941,7 +938,7 @@ export const updateProduct = async (
  * Admin Product Approval / Rejection
  */
 export const reviewProductApproval = async (
-  id: number,
+  id: string,
   payload: { status: string; rejectionReason?: string }
 ) => {
   const product = await db.orm.public.Product.where({ id }).first();
@@ -978,8 +975,8 @@ export const reviewProductApproval = async (
  * Delete Product
  */
 export const deleteProduct = async (
-  id: number,
-  user: { id: number; role: string; sellerId?: number | null }
+  id: string,
+  user: { id: string; role: string; sellerId?: string | null }
 ) => {
   const product = await db.orm.public.Product.where({ id }).first();
   if (!product) {

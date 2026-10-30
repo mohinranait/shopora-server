@@ -1,9 +1,9 @@
 // use prisma-8
 model ProductReview {
-  id                 Int                        @id @default(autoincrement())
-  productId          Int
+  id                 String                     @id @default(uuid())
+  productId          String
   product            Product                    @relation(fields: [productId], references: [id], onDelete: Cascade)
-  userId             Int
+  userId             String
   user               User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
   rating             Int // 1-5
   title              String?
@@ -16,22 +16,22 @@ model ProductReview {
 }
 
 model WishlistItem {
-  id        Int               @id @default(autoincrement())
-  userId    Int
+  id        String            @id @default(uuid())
+  userId    String
   user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  productId Int
+  productId String
   product   Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
   createdAt TimestamptzString @default(now())
 }
 
 model CartItem {
-  id        Int                        @id @default(autoincrement())
-  userId    Int?
+  id        String                     @id @default(uuid())
+  userId    String?
   user      User?                      @relation(fields: [userId], references: [id], onDelete: Cascade)
   sessionId String?
-  productId Int
+  productId String
   product   Product                    @relation(fields: [productId], references: [id], onDelete: Cascade)
-  variantId Int?
+  variantId String?
   variant   ProductVariant?            @relation(fields: [variantId], references: [id], onDelete: SetNull)
   quantity  Int                        @default(1)
   createdAt TimestamptzString          @default(now())

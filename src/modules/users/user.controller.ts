@@ -1,4 +1,4 @@
-﻿import type { Request, Response } from "express";
+import type { Request, Response } from "express";
 import { catchAsync } from "../../utils/catchAsync.ts";
 import { sendResponse } from "../../utils/sendResponse.ts";
 import { UserService } from "./user.service.ts";
@@ -37,7 +37,7 @@ export const getUserAddresses = catchAsync(async (req: Request, res: Response) =
 });
 
 export const deleteAddress = catchAsync(async (req: Request, res: Response) => {
-  const addressId = Number(req.params.id);
+  const addressId = req.params.id as string;
   await UserService.deleteAddress(addressId, req.user!.id);
 
   sendResponse(res, {
@@ -69,7 +69,7 @@ export const adminGetAllUsers = catchAsync(async (req: Request, res: Response) =
 });
 
 export const adminGetUserDetail = catchAsync(async (req: Request, res: Response) => {
-  const userId = Number(req.params.id);
+  const userId = req.params.id as string;
   const result = await UserService.adminGetUserDetail(userId);
 
   sendResponse(res, {
@@ -81,7 +81,7 @@ export const adminGetUserDetail = catchAsync(async (req: Request, res: Response)
 });
 
 export const adminUpdateUser = catchAsync(async (req: Request, res: Response) => {
-  const userId = Number(req.params.id);
+  const userId = req.params.id as string;
   const result = await UserService.adminUpdateUser(userId, req.body);
 
   sendResponse(res, {
@@ -93,7 +93,7 @@ export const adminUpdateUser = catchAsync(async (req: Request, res: Response) =>
 });
 
 export const adminToggleUserStatus = catchAsync(async (req: Request, res: Response) => {
-  const userId = Number(req.params.id);
+  const userId = req.params.id as string;
   const isActive = req.body.isActive === true;
   const result = await UserService.adminToggleUserStatus(userId, isActive);
 

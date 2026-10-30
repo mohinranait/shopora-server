@@ -1,4 +1,4 @@
-﻿import { z } from "zod";
+import { z } from "zod";
 
 /**
  * Validation schema for creating a UseMedia record from an existing Media ID
@@ -6,7 +6,7 @@
  */
 export const createUseMediaSchema = z.object({
   body: z.object({
-    mediaId: z.coerce.number().int().positive("mediaId must be a valid positive integer ID"),
+    mediaId: z.string().min(1, "mediaId is required"),
     alt: z.string().trim().optional(),
     description: z.string().trim().optional(),
   }),

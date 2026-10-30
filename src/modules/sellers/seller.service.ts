@@ -76,10 +76,10 @@ export interface IPublicStoreFilters {
 const resolveStoreMedia = async (sellers: any[]) => {
   const useMediaIds = [
     ...new Set(
-      sellers.flatMap((s) => [s.logoId ?? s.logoUseMediaId, s.bannerId ?? s.bannerUseMediaId]).filter((id): id is number => typeof id === "number")
+      sellers.flatMap((s) => [s.logoId ?? s.logoUseMediaId, s.bannerId ?? s.bannerUseMediaId]).filter((id): id is string => typeof id === "string" && Boolean(id))
     ),
   ];
-  if (useMediaIds.length === 0) return new Map<number, string>();
+  if (useMediaIds.length === 0) return new Map<string, string>();
   const useMedias = await db.orm.public.UseMedia.where((u) => u.id.in(useMediaIds)).select("id", "mediaId").all();
   const mediaIds = [...new Set(useMedias.map((u) => u.mediaId))];
   const medias = mediaIds.length
@@ -92,8 +92,8 @@ const resolveStoreMedia = async (sellers: any[]) => {
 /**
  * Aggregate public product stats per seller (count, units sold, rating)
  */
-const getStoreStats = async (sellerIds: number[]) => {
-  if (sellerIds.length === 0) return new Map<number, { productCount: number; totalSold: number; reviewCount: number; rating: number }>();
+const getStoreStats = async (sellerIds: string[]) => {
+  if (sellerIds.length === 0) return new Map<string, { productCount: number; totalSold: number; reviewCount: number; rating: number }>();
   const groups = await db.orm.public.Product
     .where({ approvalStatus: PRODUCT_APPROVAL_STATUS.APPROVED })
     .where({ status: PRODUCT_STATUS.PUBLISHED })
@@ -107,7 +107,7 @@ const getStoreStats = async (sellerIds: number[]) => {
     }));
   return new Map(
     groups.map((g) => [
-      g.sellerId as number,
+      g.sellerId as string,
       {
         productCount: Number(g.count) || 0,
         totalSold: Number(g.sold) || 0,
@@ -120,7 +120,7 @@ const getStoreStats = async (sellerIds: number[]) => {
 
 const toPublicStore = (
   seller: any,
-  mediaMap: Map<number, string>,
+  mediaMap: Map<string, string>,
   stats?: { productCount: number; totalSold: number; reviewCount: number; rating: number }
 ) => {
   const targetLogoId = seller.logoId ?? seller.logoUseMediaId;
@@ -221,7 +221,7 @@ export const getPublicStoreBySlug = async (storeSlug: string) => {
 /**
  * Get seller's own dashboard stats & overview
  */
-export const getSellerDashboardStats = async (userId: number) => {
+export const getSellerDashboardStats = async (userId: string) => {
   const seller = await db.orm.public.SellerProfile.where({ userId }).first();
   if (!seller) {
     throw new AppError("Seller profile not found", 404);
@@ -283,7 +283,7 @@ export const getSellerDashboardStats = async (userId: number) => {
 /**
  * Seller update their own store profile
  */
-export const updateSellerProfile = async (userId: number, payload: any) => {
+export const updateSellerProfile = async (userId: string, payload: any) => {
   const seller = await db.orm.public.SellerProfile.where({ userId }).first();
   if (!seller) {
     throw new AppError("Seller profile not found", 404);
@@ -374,7 +374,7 @@ export const adminGetAllSellers = async (status?: string) => {
  * Admin: Review seller application (Approve, Reject, Suspend, Commission Rate)
  */
 export const adminReviewSellerApplication = async (
-  sellerId: number,
+  sellerId: string,
   payload: {
     status: string;
     rejectionReason?: string;
@@ -425,7 +425,7 @@ export const adminReviewSellerApplication = async (
 /**
  * Admin: Get comprehensive Seller Details, Financials, Performance, and Health/Risk Score
  */
-export const adminGetSellerDetails = async (sellerId: number) => {
+export const adminGetSellerDetails = async (sellerId: string) => {
   const seller = await db.orm.public.SellerProfile.where({ id: sellerId }).first();
   if (!seller) {
     throw new AppError("Seller not found", 404);
@@ -577,7 +577,7 @@ export const adminGetSellerDetails = async (sellerId: number) => {
     },
     recentProducts: await (async () => {
       const recentList = products.slice(0, 8);
-      const prodMediaIds = [...new Set(recentList.map((p: any) => p.mainImageId ?? p.mainImageUseMediaId).filter((id): id is number => typeof id === "number"))];
+      const prodMediaIds = [...new Set(recentList.map((p: any) => p.mainImageId ?? p.mainImageUseMediaId).filter((id): id is string => typeof id === "string" && Boolean(id)))];
       const prodUseMedias = prodMediaIds.length > 0 ? await db.orm.public.UseMedia.where((um) => um.id.in(prodMediaIds)).all() : [];
       const rawMedIds = [...new Set(prodUseMedias.map((um) => um.mediaId))];
       const rawMeds = rawMedIds.length > 0 ? await db.orm.public.Media.where((m) => m.id.in(rawMedIds)).all() : [];
@@ -609,7 +609,7 @@ export const adminGetSellerDetails = async (sellerId: number) => {
 /**
  * Admin: Send direct warning or system notice to seller
  */
-export const adminSendSellerNotice = async (sellerId: number, title: string, message: string) => {
+export const adminSendSellerNotice = async (sellerId: string, title: string, message: string) => {
   const seller = await db.orm.public.SellerProfile.where({ id: sellerId }).first();
   if (!seller) throw new AppError("Seller not found", 404);
 

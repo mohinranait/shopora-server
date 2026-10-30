@@ -31,6 +31,8 @@ const populateSliderMedia = async (slider: any) => {
     mobileImageId: slider.mobileImageId ?? targetMobileImageId ?? null,
     useMedia,
     mobileUseMedia,
+    image: useMedia,
+    mobileImage: mobileUseMedia,
     imageUrl: useMedia?.media?.url ?? null,
     mobileImageUrl: mobileUseMedia?.media?.url ?? null,
   };
@@ -48,7 +50,7 @@ export const getSliders = async (includeInactive = false) => {
   return await Promise.all(rows.map((slider) => populateSliderMedia(slider)));
 };
 
-export const getSliderById = async (id: number) => {
+export const getSliderById = async (id: string) => {
   const slider = await db.orm.public.Slider.where({ id }).first();
   if (!slider) {
     throw new AppError("Slider not found", 404);
@@ -79,7 +81,7 @@ export const createSlider = async (payload: any) => {
   return await populateSliderMedia(slider);
 };
 
-export const updateSlider = async (id: number, payload: any) => {
+export const updateSlider = async (id: string, payload: any) => {
   const existing = await db.orm.public.Slider.where({ id }).first();
   if (!existing) {
     throw new AppError("Slider not found", 404);
@@ -111,7 +113,7 @@ export const updateSlider = async (id: number, payload: any) => {
   return await populateSliderMedia(updated);
 };
 
-export const deleteSlider = async (id: number) => {
+export const deleteSlider = async (id: string) => {
   const existing = await db.orm.public.Slider.where({ id }).first();
   if (!existing) {
     throw new AppError("Slider not found", 404);

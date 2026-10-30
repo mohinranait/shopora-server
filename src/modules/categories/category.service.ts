@@ -41,7 +41,7 @@ export const getCategoryTree = async () => {
   );
 
   // Build tree
-  const categoryMap = new Map<number, any>();
+  const categoryMap = new Map<string, any>();
   const rootCategories: any[] = [];
 
   for (const cat of populated) {
@@ -114,10 +114,10 @@ export const getCategoryBySlug = async (slug: string) => {
 export const createCategory = async (payload: {
   name: string;
   description?: string;
-  imageId?: number | null;
-  useMediaId?: number | null;
+  imageId?: string | null;
+  useMediaId?: string | null;
   icon?: string;
-  parentId?: number | null;
+  parentId?: string | null;
   displayOrder?: number;
   isActive?: boolean;
 }) => {
@@ -152,14 +152,14 @@ export const createCategory = async (payload: {
  * Update an existing Category
  */
 export const updateCategory = async (
-  id: number,
+  id: string,
   payload: {
     name?: string;
     description?: string;
-    imageId?: number | null;
-    useMediaId?: number | null;
+    imageId?: string | null;
+    useMediaId?: string | null;
     icon?: string;
-    parentId?: number | null;
+    parentId?: string | null;
     displayOrder?: number;
     isActive?: boolean;
   }
@@ -195,7 +195,7 @@ export const updateCategory = async (
 /**
  * Delete a Category
  */
-export const deleteCategory = async (id: number) => {
+export const deleteCategory = async (id: string) => {
   const existing = await db.orm.public.Category.where({ id }).first();
   if (!existing) {
     throw new AppError("Category not found", 404);

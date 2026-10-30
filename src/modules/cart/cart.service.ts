@@ -2,7 +2,7 @@ import { db } from "../../config/db.ts";
 import { AppError } from "../../errors/AppError.ts";
 import { PRODUCT_APPROVAL_STATUS, PRODUCT_STATUS } from "../../constants/index.ts";
 
-type CartOwner = { userId: number | null; sessionId?: string };
+type CartOwner = { userId: string | null; sessionId?: string };
 
 const ownerQuery = ({ userId, sessionId }: CartOwner) => {
   if (userId) return db.orm.public.CartItem.where({ userId });
@@ -13,12 +13,12 @@ const ownerQuery = ({ userId, sessionId }: CartOwner) => {
 /**
  * Move a guest session's cart into the logged-in user's cart (merging duplicates)
  */
-const mergeGuestCart = async (userId: number, sessionId: string) => {
+const mergeGuestCart = async (userId: string, sessionId: string) => {
   const guestItems = await db.orm.public.CartItem.where({ sessionId }).all();
   if (guestItems.length === 0) return;
 
   const userItems = await db.orm.public.CartItem.where({ userId }).all();
-  const key = (i: { productId: number; variantId: number | null }) => `${i.productId}:${i.variantId ?? 0}`;
+  const key = (i: { productId: string; variantId: string | null }) => `${i.productId}:${i.variantId ?? 0}`;
   const userByKey = new Map(userItems.map((i) => [key(i), i]));
 
   for (const item of guestItems) {
@@ -37,7 +37,7 @@ const mergeGuestCart = async (userId: number, sessionId: string) => {
 /**
  * Get Cart Items for user or guest session (relations batch-loaded)
  */
-export const getCart = async (userId: number | null, sessionId?: string) => {
+export const getCart = async (userId: string | null, sessionId?: string) => {
   if (userId && sessionId) {
     await mergeGuestCart(userId, sessionId);
   }
@@ -53,14 +53,14 @@ export const getCart = async (userId: number | null, sessionId?: string) => {
   }
 
   const productIds = [...new Set(items.map((i) => i.productId))];
-  const variantIds = [...new Set(items.map((i) => i.variantId).filter((id): id is number => id != null))];
+  const variantIds = [...new Set(items.map((i) => i.variantId).filter((id): id is string => id != null))];
 
   const [products, variants] = await Promise.all([
     db.orm.public.Product.where((p) => p.id.in(productIds)).all(),
     variantIds.length ? db.orm.public.ProductVariant.where((v) => v.id.in(variantIds)).all() : [],
   ]);
 
-  const sellerIds = [...new Set(products.map((p) => p.sellerId).filter((id): id is number => id != null))];
+  const sellerIds = [...new Set(products.map((p) => p.sellerId).filter((id): id is string => typeof id === "string" && Boolean(id)))];
   const sellers = sellerIds.length
     ? await db.orm.public.SellerProfile.where((s) => s.id.in(sellerIds))
         .select("id", "storeName", "storeSlug", "logoId", "isVerified")
@@ -73,7 +73,7 @@ export const getCart = async (userId: number | null, sessionId?: string) => {
       ...products.map((p: any) => p.mainImageId ?? p.mainImageUseMediaId),
       ...variants.map((v: any) => v.imageId ?? v.useMediaId),
       ...sellers.map((s: any) => s.logoId ?? s.logoUseMediaId),
-    ].filter((id): id is number => typeof id === "number"))
+    ].filter((id): id is string => typeof id === "string" && Boolean(id)))
   ];
 
   const useMedias = allUseMediaIds.length > 0
@@ -185,9 +185,9 @@ export const getCart = async (userId: number | null, sessionId?: string) => {
  * Add or increment item in Cart
  */
 export const addToCart = async (
-  userId: number | null,
+  userId: string | null,
   sessionId: string | undefined,
-  payload: { productId: number; variantId?: number | null; quantity: number }
+  payload: { productId: string; variantId?: string | null; quantity: number }
 ) => {
   const quantity = Math.max(1, Math.floor(Number(payload.quantity) || 1));
   if (!userId && !sessionId) {
@@ -241,7 +241,7 @@ export const addToCart = async (
 /**
  * Load a cart item and make sure it belongs to the requesting user or guest session
  */
-const getOwnedItem = async (itemId: number, owner: CartOwner) => {
+const getOwnedItem = async (itemId: string, owner: CartOwner) => {
   const item = await db.orm.public.CartItem.where({ id: itemId }).first();
   if (!item) {
     throw new AppError("Cart item not found", 404);
@@ -259,8 +259,8 @@ const getOwnedItem = async (itemId: number, owner: CartOwner) => {
  * Update Cart Item Quantity
  */
 export const updateCartItemQuantity = async (
-  itemId: number,
-  userId: number | null,
+  itemId: string,
+  userId: string | null,
   sessionId: string | undefined,
   quantity: number
 ) => {
@@ -290,7 +290,7 @@ export const updateCartItemQuantity = async (
 /**
  * Remove Item from Cart
  */
-export const removeCartItem = async (itemId: number, userId: number | null, sessionId?: string) => {
+export const removeCartItem = async (itemId: string, userId: string | null, sessionId?: string) => {
   await getOwnedItem(itemId, { userId, sessionId });
   return await db.orm.public.CartItem.where({ id: itemId }).delete();
 };
@@ -298,7 +298,7 @@ export const removeCartItem = async (itemId: number, userId: number | null, sess
 /**
  * Clear Cart
  */
-export const clearCart = async (userId: number | null, sessionId?: string) => {
+export const clearCart = async (userId: string | null, sessionId?: string) => {
   if (userId) {
     await db.orm.public.CartItem.where({ userId }).deleteAll();
   } else if (sessionId) {

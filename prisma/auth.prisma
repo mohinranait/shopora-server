@@ -1,6 +1,6 @@
 // use prisma-8
 model User {
-  id             Int                        @id @default(autoincrement())
+  id             String                     @id @default(uuid())
   email          String                     @unique
   password       String
   name           String
@@ -18,15 +18,15 @@ model User {
   returnRequests ReturnRequest[]
   medias         Media[]
   useMedias      UseMedia[]
-  avatarId       Int?
+  avatarId       String?
   avatar         UseMedia?                  @relation("UserAvatar", fields: [avatarId], references: [id], onDelete: SetNull)
   createdAt      TimestamptzString          @default(now())
   updatedAt      temporal.updatedAtString()
 }
 
 model Address {
-  id            Int                        @id @default(autoincrement())
-  userId        Int
+  id            String                     @id @default(uuid())
+  userId        String
   user          User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
   fullName      String
   phone         String

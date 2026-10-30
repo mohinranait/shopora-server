@@ -47,7 +47,7 @@ export const getAdminPlatformAnalytics = async () => {
     .limit(5)
     .all();
 
-  const prodUseMediaIds = [...new Set(topProducts.map((p: any) => p.mainImageId ?? p.mainImageUseMediaId).filter((id): id is number => typeof id === "number"))];
+  const prodUseMediaIds = [...new Set(topProducts.map((p: any) => p.mainImageId ?? p.mainImageUseMediaId).filter((id): id is string => typeof id === "string" && Boolean(id)))];
   const useMedias = prodUseMediaIds.length > 0 ? await db.orm.public.UseMedia.where((um) => um.id.in(prodUseMediaIds)).all() : [];
   const rawMediaIds = [...new Set(useMedias.map((um) => um.mediaId))];
   const medias = rawMediaIds.length > 0 ? await db.orm.public.Media.where((m) => m.id.in(rawMediaIds)).all() : [];
