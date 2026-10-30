@@ -1,4 +1,4 @@
-﻿import { Router } from "express";
+import { Router } from "express";
 import { ProductController } from "./product.controller.ts";
 import { validateRequest } from "../../middlewares/validate.ts";
 import {
@@ -7,7 +7,7 @@ import {
   reviewProductApprovalSchema,
   productFilterQuerySchema,
 } from "./product.validation.ts";
-import { authGuard } from "../../middlewares/auth.ts";
+import { authGuard, optionalAuth } from "../../middlewares/auth.ts";
 import { USER_ROLES } from "../../constants/index.ts";
 
 const router = Router();
@@ -25,7 +25,7 @@ router.get(
   ProductController.getProductFilters
 );
 
-router.get("/detail/:slug", ProductController.getProductBySlug);
+router.get("/detail/:slug", optionalAuth(), ProductController.getProductBySlug);
 
 // Seller routes
 router.get(
@@ -49,7 +49,7 @@ router.patch(
 );
 
 // Single Product by ID (Admin, Seller, or Public depending on product status)
-router.get("/:id", ProductController.getProductById);
+router.get("/:id", optionalAuth(), ProductController.getProductById);
 
 // Creation route (Admin or Approved Seller)
 router.post(
