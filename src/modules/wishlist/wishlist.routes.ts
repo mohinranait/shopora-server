@@ -1,4 +1,4 @@
-import { Router } from "express";
+﻿import { Router } from "express";
 import { WishlistController } from "./wishlist.controller.ts";
 import { authGuard } from "../../middlewares/auth.ts";
 

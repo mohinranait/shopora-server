@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Generate URL-friendly slug from title/name
  */
 export const slugify = (text: string): string => {

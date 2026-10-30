@@ -1,4 +1,4 @@
-import { z } from "zod";
+﻿import { z } from "zod";
 
 /**
  * Validation schema for creating a global product attribute

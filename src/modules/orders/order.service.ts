@@ -29,7 +29,7 @@ interface IPricedLine {
   isPlatformOwned: boolean;
   productName: string;
   variantTitle: string | null;
-  productImage: string;
+  productImage: string | null;
   sku: string;
   price: number;
   comparePrice: number | null;
@@ -83,6 +83,19 @@ export const priceOrder = async (items: OrderItemInput[], couponCode?: string) =
     productIds.length ? db.orm.public.Product.where((p) => p.id.in(productIds)).all() : [],
     variantIds.length ? db.orm.public.ProductVariant.where((v) => v.id.in(variantIds)).all() : [],
   ]);
+
+  const allUseMediaIds = [
+    ...new Set([
+      ...products.map((p) => p.mainImageUseMediaId),
+      ...variants.map((v) => v.useMediaId),
+    ].filter((id): id is number => typeof id === "number")),
+  ];
+  const useMedias = allUseMediaIds.length ? await db.orm.public.UseMedia.where((um) => um.id.in(allUseMediaIds)).all() : [];
+  const mediaIds = [...new Set(useMedias.map((um) => um.mediaId))];
+  const medias = mediaIds.length ? await db.orm.public.Media.where((m) => m.id.in(mediaIds)).all() : [];
+  const mediaMap = new Map(medias.map((m) => [m.id, m.url]));
+  const useMediaUrlMap = new Map(useMedias.map((um) => [um.id, mediaMap.get(um.mediaId) ?? ""]));
+
   const productMap = new Map(products.map((p) => [p.id, p]));
   const variantMap = new Map(variants.map((v) => [v.id, v]));
 
@@ -132,6 +145,9 @@ export const priceOrder = async (items: OrderItemInput[], couponCode?: string) =
       continue;
     }
 
+    const variantImageUrl = selectedVariant?.useMediaId ? useMediaUrlMap.get(selectedVariant.useMediaId) : null;
+    const productImageUrl = product.mainImageUseMediaId ? useMediaUrlMap.get(product.mainImageUseMediaId) : null;
+
     lines.push({
       product,
       selectedVariant,
@@ -141,7 +157,7 @@ export const priceOrder = async (items: OrderItemInput[], couponCode?: string) =
       isPlatformOwned: product.isPlatformOwned,
       productName: product.name,
       variantTitle,
-      productImage: selectedVariant?.image || product.mainImage,
+      productImage: variantImageUrl || productImageUrl || null,
       sku,
       price: unitPrice,
       comparePrice,

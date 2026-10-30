@@ -47,9 +47,9 @@ export const getStoreBySlug = async (storeSlug: string) => {
       id: seller.id,
       storeName: seller.storeName,
       storeSlug: seller.storeSlug,
-      storeLogo: seller.storeLogo,
+      storeLogo: logoUseMedia?.media?.url ?? null,
       logoUseMedia,
-      storeBanner: seller.storeBanner,
+      storeBanner: bannerUseMedia?.media?.url ?? null,
       bannerUseMedia,
       storeDescription: seller.storeDescription,
       businessAddress: seller.businessAddress,
@@ -124,8 +124,8 @@ const toPublicStore = (
   id: seller.id,
   storeName: seller.storeName,
   storeSlug: seller.storeSlug,
-  storeLogo: (seller.logoUseMediaId && mediaMap.get(seller.logoUseMediaId)) || seller.storeLogo || null,
-  storeBanner: (seller.bannerUseMediaId && mediaMap.get(seller.bannerUseMediaId)) || seller.storeBanner || null,
+  storeLogo: (seller.logoUseMediaId && mediaMap.get(seller.logoUseMediaId)) || null,
+  storeBanner: (seller.bannerUseMediaId && mediaMap.get(seller.bannerUseMediaId)) || null,
   storeDescription: seller.storeDescription ?? null,
   businessAddress: seller.businessAddress ?? null,
   isVerified: Boolean(seller.isVerified),
@@ -140,8 +140,6 @@ const PUBLIC_STORE_FIELDS = [
   "id",
   "storeName",
   "storeSlug",
-  "storeLogo",
-  "storeBanner",
   "storeDescription",
   "businessAddress",
   "isVerified",
@@ -288,27 +286,11 @@ export const updateSellerProfile = async (userId: number, payload: any) => {
     updateData.storeName = payload.storeName;
     updateData.storeSlug = slugify(payload.storeName);
   }
-  if (payload.storeLogo !== undefined) updateData.storeLogo = payload.storeLogo;
   if (payload.logoUseMediaId !== undefined) {
     updateData.logoUseMediaId = payload.logoUseMediaId;
-    if (payload.logoUseMediaId && !payload.storeLogo) {
-      const useMedia = await db.orm.public.UseMedia.where({ id: payload.logoUseMediaId }).first();
-      if (useMedia) {
-        const media = await db.orm.public.Media.where({ id: useMedia.mediaId }).first();
-        if (media) updateData.storeLogo = media.url;
-      }
-    }
   }
-  if (payload.storeBanner !== undefined) updateData.storeBanner = payload.storeBanner;
   if (payload.bannerUseMediaId !== undefined) {
     updateData.bannerUseMediaId = payload.bannerUseMediaId;
-    if (payload.bannerUseMediaId && !payload.storeBanner) {
-      const useMedia = await db.orm.public.UseMedia.where({ id: payload.bannerUseMediaId }).first();
-      if (useMedia) {
-        const media = await db.orm.public.Media.where({ id: useMedia.mediaId }).first();
-        if (media) updateData.storeBanner = media.url;
-      }
-    }
   }
   if (payload.storeDescription !== undefined) updateData.storeDescription = payload.storeDescription;
   if (payload.phone !== undefined) updateData.phone = payload.phone;
@@ -332,7 +314,7 @@ export const adminGetAllSellers = async (status?: string) => {
 
   const sellers = await query.orderBy((s) => s.createdAt.desc()).all();
 
-  // Populate user email and wallet
+  // Populate user email, wallet, and media
   const populated = await Promise.all(
     sellers.map(async (seller) => {
       const user = await db.orm.public.User.where({ id: seller.userId }).first();
@@ -341,8 +323,30 @@ export const adminGetAllSellers = async (status?: string) => {
         .where({ sellerId: seller.id })
         .aggregate((a) => ({ count: a.count() }));
 
+      let logoUseMedia: any = null;
+      if (seller.logoUseMediaId) {
+        const um = await db.orm.public.UseMedia.where({ id: seller.logoUseMediaId }).first();
+        if (um) {
+          const m = await db.orm.public.Media.where({ id: um.mediaId }).first();
+          logoUseMedia = { ...um, media: m };
+        }
+      }
+
+      let bannerUseMedia: any = null;
+      if (seller.bannerUseMediaId) {
+        const um = await db.orm.public.UseMedia.where({ id: seller.bannerUseMediaId }).first();
+        if (um) {
+          const m = await db.orm.public.Media.where({ id: um.mediaId }).first();
+          bannerUseMedia = { ...um, media: m };
+        }
+      }
+
       return {
         ...seller,
+        logoUseMedia,
+        bannerUseMedia,
+        storeLogo: logoUseMedia?.media?.url ?? null,
+        storeBanner: bannerUseMedia?.media?.url ?? null,
         userEmail: user?.email,
         userName: user?.name,
         wallet,
@@ -559,19 +563,30 @@ export const adminGetSellerDetails = async (sellerId: number) => {
       reputation,
       riskFlags,
     },
-    recentProducts: products.slice(0, 8).map((p) => ({
-      id: p.id,
-      name: p.name,
-      slug: p.slug,
-      sku: p.sku,
-      mainImage: p.mainImage,
-      basePrice: p.basePrice,
-      stock: p.stock,
-      status: p.status,
-      approvalStatus: p.approvalStatus,
-      ratingAverage: p.ratingAverage,
-      createdAt: p.createdAt,
-    })),
+    recentProducts: await (async () => {
+      const recentList = products.slice(0, 8);
+      const prodMediaIds = [...new Set(recentList.map((p) => p.mainImageUseMediaId).filter((id): id is number => typeof id === "number"))];
+      const prodUseMedias = prodMediaIds.length > 0 ? await db.orm.public.UseMedia.where((um) => um.id.in(prodMediaIds)).all() : [];
+      const rawMedIds = [...new Set(prodUseMedias.map((um) => um.mediaId))];
+      const rawMeds = rawMedIds.length > 0 ? await db.orm.public.Media.where((m) => m.id.in(rawMedIds)).all() : [];
+      const rawMedMap = new Map(rawMeds.map((m) => [m.id, m.url]));
+      const useMediaUrlMap = new Map(prodUseMedias.map((um) => [um.id, rawMedMap.get(um.mediaId) ?? ""]));
+
+      return recentList.map((p) => ({
+        id: p.id,
+        name: p.name,
+        slug: p.slug,
+        sku: p.sku,
+        mainImageUseMediaId: p.mainImageUseMediaId,
+        mainImage: (p.mainImageUseMediaId ? useMediaUrlMap.get(p.mainImageUseMediaId) : null) ?? null,
+        basePrice: p.basePrice,
+        stock: p.stock,
+        status: p.status,
+        approvalStatus: p.approvalStatus,
+        ratingAverage: p.ratingAverage,
+        createdAt: p.createdAt,
+      }));
+    })(),
     recentOrders,
   };
 };

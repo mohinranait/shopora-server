@@ -6,7 +6,6 @@ model User {
   name             String
   role             String                     @default("CUSTOMER") // "ADMIN" | "SELLER" | "CUSTOMER"
   phone            String?
-  avatar           String?
   isActive         Boolean                    @default(true)
   isVerified       Boolean                    @default(false)
   addresses        Address[]

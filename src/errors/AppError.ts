@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Custom Operational Application Error
  * Allows passing HTTP status code and clean error messages
  */

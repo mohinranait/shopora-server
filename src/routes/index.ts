@@ -1,4 +1,4 @@
-import { Router } from "express";
+﻿import { Router } from "express";
 import { AuthRoutes } from "../modules/auth/auth.routes.ts";
 import { UserRoutes } from "../modules/users/user.routes.ts";
 import { CategoryRoutes } from "../modules/categories/category.routes.ts";

@@ -63,13 +63,40 @@ export const getCart = async (userId: number | null, sessionId?: string) => {
   const sellerIds = [...new Set(products.map((p) => p.sellerId).filter((id): id is number => id != null))];
   const sellers = sellerIds.length
     ? await db.orm.public.SellerProfile.where((s) => s.id.in(sellerIds))
-        .select("id", "storeName", "storeSlug", "storeLogo", "isVerified")
+        .select("id", "storeName", "storeSlug", "logoUseMediaId", "isVerified")
         .all()
     : [];
 
+  // Batch-load UseMedia for products, variants, and sellers
+  const allUseMediaIds = [
+    ...new Set([
+      ...products.map((p) => p.mainImageUseMediaId),
+      ...variants.map((v) => v.useMediaId),
+      ...sellers.map((s) => s.logoUseMediaId),
+    ].filter((id): id is number => typeof id === "number"))
+  ];
+
+  const useMedias = allUseMediaIds.length > 0
+    ? await db.orm.public.UseMedia.where((um) => um.id.in(allUseMediaIds)).all()
+    : [];
+  const allMediaIds = [...new Set(useMedias.map((um) => um.mediaId))];
+  const medias = allMediaIds.length > 0
+    ? await db.orm.public.Media.where((m) => m.id.in(allMediaIds)).all()
+    : [];
+  const mediaUrlMap = new Map(medias.map((m) => [m.id, m.url]));
+  const useMediaUrlMap = new Map(useMedias.map((um) => [um.id, mediaUrlMap.get(um.mediaId) ?? ""]));
+
   const productMap = new Map(products.map((p) => [p.id, p]));
   const variantMap = new Map(variants.map((v) => [v.id, v]));
-  const sellerMap = new Map(sellers.map((s) => [s.id, s]));
+  const sellerMap = new Map(
+    sellers.map((s) => [
+      s.id,
+      {
+        ...s,
+        storeLogo: (s.logoUseMediaId ? useMediaUrlMap.get(s.logoUseMediaId) : null) ?? null,
+      },
+    ])
+  );
 
   let subtotal = 0;
   let totalItems = 0;
@@ -96,6 +123,8 @@ export const getCart = async (userId: number | null, sessionId?: string) => {
     }
 
     const seller = product?.sellerId ? sellerMap.get(product.sellerId) ?? null : null;
+    const mainImageUrl = product?.mainImageUseMediaId ? useMediaUrlMap.get(product.mainImageUseMediaId) ?? "" : "";
+    const variantImageUrl = variant?.useMediaId ? useMediaUrlMap.get(variant.useMediaId) ?? null : null;
 
     return {
       id: item.id,
@@ -107,7 +136,8 @@ export const getCart = async (userId: number | null, sessionId?: string) => {
             id: product.id,
             name: product.name,
             slug: product.slug,
-            mainImage: product.mainImage,
+            mainImage: mainImageUrl,
+            mainImageUseMediaId: product.mainImageUseMediaId,
             basePrice: product.basePrice,
             stock: product.stock,
             isPlatformOwned: product.isPlatformOwned,
@@ -121,7 +151,8 @@ export const getCart = async (userId: number | null, sessionId?: string) => {
             sku: variant.sku,
             price: variant.price,
             stock: variant.stock,
-            image: variant.image,
+            image: variantImageUrl,
+            useMediaId: variant.useMediaId,
             attributes: variant.attributes,
           }
         : null,

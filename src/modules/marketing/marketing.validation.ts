@@ -1,4 +1,4 @@
-import { z } from "zod";
+﻿import { z } from "zod";
 
 export const createCouponSchema = z.object({
   body: z.object({
@@ -26,17 +26,13 @@ export const createBannerSchema = z.object({
   body: z.object({
     title: z.string().min(2, "Title is required"),
     subtitle: z.string().optional(),
-    imageUrl: z.string().optional(),
     useMediaId: z.number().int().positive().nullable().optional(),
-    mobileImageUrl: z.string().optional(),
+    mobileUseMediaId: z.number().int().positive().nullable().optional(),
     linkUrl: z.string().optional(),
     position: z.enum(["HERO_SLIDER", "PROMO_GRID", "MIDDLE_STRIP", "POPUP"]).default("HERO_SLIDER"),
     displayOrder: z.number().int().default(0).optional(),
     isActive: z.boolean().default(true).optional(),
     startDate: z.string().optional(),
     endDate: z.string().optional(),
-  }).refine((data) => data.imageUrl || data.useMediaId, {
-    message: "Either imageUrl or useMediaId is required",
-    path: ["useMediaId"],
   }),
 });

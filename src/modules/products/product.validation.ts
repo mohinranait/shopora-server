@@ -22,7 +22,6 @@ export const variantInputSchema = z.object({
   costPrice: z.number().nonnegative().nullable().optional(),
   stock: z.number().int().nonnegative("Variant stock cannot be negative").default(0),
   lowStockThreshold: z.number().int().default(5).optional(),
-  image: z.string().nullable().optional(),
   useMediaId: z.number().int().positive().nullable().optional(),
   barcode: z.string().nullable().optional(),
   weightKg: z.number().positive().nullable().optional(),
@@ -44,8 +43,7 @@ export const variantInputSchema = z.object({
  * Image Gallery Input Schema
  */
 export const productImageInputSchema = z.object({
-  url: z.string().optional(),
-  useMediaId: z.number().int().positive().optional(),
+  useMediaId: z.number().int().positive("useMediaId is required for gallery image"),
   altText: z.string().optional(),
   displayOrder: z.number().int().default(0).optional(),
   isPrimary: z.boolean().default(false).optional(),
@@ -68,8 +66,7 @@ export const createProductSchema = z.object({
     costPrice: z.number().positive().nullable().optional(),
     stock: z.number().int().nonnegative().default(0),
     lowStockThreshold: z.number().int().default(5).optional(),
-    mainImage: z.string().optional(),
-    mainImageUseMediaId: z.number().int().positive().optional(),
+    mainImageUseMediaId: z.number().int().positive("mainImageUseMediaId is required").nullable().optional(),
     images: z.array(productImageInputSchema).optional(),
     selectedAttributes: z.array(productSelectedAttributeSchema).optional(),
     variants: z.array(variantInputSchema).optional(),
@@ -91,9 +88,6 @@ export const createProductSchema = z.object({
     metaKeywords: z.string().optional(),
     isFeatured: z.boolean().default(false).optional(),
     isTrending: z.boolean().default(false).optional(),
-  }).refine((data) => data.mainImage || data.mainImageUseMediaId, {
-    message: "Either mainImage URL or mainImageUseMediaId is required",
-    path: ["mainImageUseMediaId"],
   }),
 });
 
@@ -113,7 +107,6 @@ export const updateProductSchema = z.object({
     costPrice: z.number().positive().nullable().optional(),
     stock: z.number().int().nonnegative().optional(),
     lowStockThreshold: z.number().int().optional(),
-    mainImage: z.string().optional(),
     mainImageUseMediaId: z.number().int().positive().nullable().optional(),
     images: z.array(productImageInputSchema).optional(),
     selectedAttributes: z.array(productSelectedAttributeSchema).optional(),

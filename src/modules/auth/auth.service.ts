@@ -235,6 +235,15 @@ export const loginUser = async (payload: {
   const accessToken = generateAccessToken(tokenPayload);
   const refreshToken = generateRefreshToken(tokenPayload);
 
+  let avatarUseMedia: any = null;
+  if (user.avatarUseMediaId) {
+    const um = await db.orm.public.UseMedia.where({ id: user.avatarUseMediaId }).first();
+    if (um) {
+      const m = await db.orm.public.Media.where({ id: um.mediaId }).first();
+      avatarUseMedia = { ...um, media: m };
+    }
+  }
+
   return {
     user: {
       id: user.id,
@@ -242,7 +251,9 @@ export const loginUser = async (payload: {
       email: user.email,
       role: user.role,
       phone: user.phone,
-      avatar: user.avatar,
+      avatarUseMediaId: user.avatarUseMediaId,
+      avatarUseMedia,
+      avatar: avatarUseMedia?.media?.url ?? null,
       sellerProfile: sellerProfile
         ? {
             id: sellerProfile.id,
@@ -271,6 +282,15 @@ export const getMe = async (userId: number) => {
     seller = await db.orm.public.SellerProfile.where({ userId: user.id }).first();
   }
 
+  let avatarUseMedia: any = null;
+  if (user.avatarUseMediaId) {
+    const um = await db.orm.public.UseMedia.where({ id: user.avatarUseMediaId }).first();
+    if (um) {
+      const m = await db.orm.public.Media.where({ id: um.mediaId }).first();
+      avatarUseMedia = { ...um, media: m };
+    }
+  }
+
   const addresses = await db.orm.public.Address.where({ userId: user.id }).all();
 
   return {
@@ -279,7 +299,9 @@ export const getMe = async (userId: number) => {
     email: user.email,
     role: user.role,
     phone: user.phone,
-    avatar: user.avatar,
+    avatarUseMediaId: user.avatarUseMediaId,
+    avatarUseMedia,
+    avatar: avatarUseMedia?.media?.url ?? null,
     isActive: user.isActive,
     isVerified: user.isVerified,
     sellerProfile: seller,

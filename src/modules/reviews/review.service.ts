@@ -85,13 +85,22 @@ export const getProductReviews = async (productId: number) => {
   const populated = await Promise.all(
     reviews.map(async (rev) => {
       const user = await db.orm.public.User.where({ id: rev.userId }).first();
+      let userAvatar: string | null = null;
+      if (user?.avatarUseMediaId) {
+        const um = await db.orm.public.UseMedia.where({ id: user.avatarUseMediaId }).first();
+        if (um) {
+          const m = await db.orm.public.Media.where({ id: um.mediaId }).first();
+          userAvatar = m?.url ?? null;
+        }
+      }
       return {
         ...rev,
         user: user
           ? {
               id: user.id,
               name: user.name,
-              avatar: user.avatar,
+              avatar: userAvatar,
+              avatarUseMediaId: user.avatarUseMediaId,
             }
           : null,
       };

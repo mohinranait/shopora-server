@@ -34,8 +34,10 @@ model UseMedia {
   productVariants ProductVariant[]
   brands          Brand[]
   categories      Category[]
-  banners         Banner[]
-  sliders         Slider[]
+  bannersMain     Banner[]                   @relation("BannerDesktopImage")
+  bannersMobile   Banner[]                   @relation("BannerMobileImage")
+  slidersMain     Slider[]                   @relation("SliderDesktopImage")
+  slidersMobile   Slider[]                   @relation("SliderMobileImage")
   userAvatars     User[]                     @relation("UserAvatar")
   sellerLogos     SellerProfile[]            @relation("SellerLogo")
   sellerBanners   SellerProfile[]            @relation("SellerBanner")

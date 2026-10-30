@@ -1,6 +1,25 @@
-import { db } from "../../config/db.ts";
+﻿import { db } from "../../config/db.ts";
 import { AppError } from "../../errors/AppError.ts";
 import { slugify } from "../../utils/slugify.ts";
+
+/**
+ * Helper to populate useMedia and virtual image URL
+ */
+const populateCategoryMedia = async (cat: any) => {
+  let useMedia: any = null;
+  if (cat.useMediaId) {
+    const um = await db.orm.public.UseMedia.where({ id: cat.useMediaId }).first();
+    if (um) {
+      const m = await db.orm.public.Media.where({ id: um.mediaId }).first();
+      useMedia = { ...um, media: m };
+    }
+  }
+  return {
+    ...cat,
+    useMedia,
+    image: useMedia?.media?.url ?? null,
+  };
+};
 
 /**
  * Get all categories structured as a hierarchical tree
@@ -14,15 +33,8 @@ export const getCategoryTree = async () => {
   // Populate useMedia for each category
   const populated = await Promise.all(
     allCategories.map(async (cat) => {
-      let useMedia: any = null;
-      if (cat.useMediaId) {
-        const um = await db.orm.public.UseMedia.where({ id: cat.useMediaId }).first();
-        if (um) {
-          const m = await db.orm.public.Media.where({ id: um.mediaId }).first();
-          useMedia = { ...um, media: m };
-        }
-      }
-      return { ...cat, useMedia, children: [] };
+      const pop = await populateCategoryMedia(cat);
+      return { ...pop, children: [] };
     })
   );
 
@@ -62,19 +74,7 @@ export const getAllCategories = async (includeInactive = false) => {
       .all();
   }
 
-  return await Promise.all(
-    categories.map(async (cat) => {
-      let useMedia: any = null;
-      if (cat.useMediaId) {
-        const um = await db.orm.public.UseMedia.where({ id: cat.useMediaId }).first();
-        if (um) {
-          const m = await db.orm.public.Media.where({ id: um.mediaId }).first();
-          useMedia = { ...um, media: m };
-        }
-      }
-      return { ...cat, useMedia };
-    })
-  );
+  return await Promise.all(categories.map((cat) => populateCategoryMedia(cat)));
 };
 
 /**
@@ -86,38 +86,21 @@ export const getCategoryBySlug = async (slug: string) => {
     throw new AppError("Category not found", 404);
   }
 
-  let useMedia: any = null;
-  if (category.useMediaId) {
-    const um = await db.orm.public.UseMedia.where({ id: category.useMediaId }).first();
-    if (um) {
-      const m = await db.orm.public.Media.where({ id: um.mediaId }).first();
-      useMedia = { ...um, media: m };
-    }
-  }
+  const populated = await populateCategoryMedia(category);
 
   const rawChildren = await db.orm.public.Category.where({ parentId: category.id }).all();
-  const children = await Promise.all(
-    rawChildren.map(async (child) => {
-      let childMedia: any = null;
-      if (child.useMediaId) {
-        const um = await db.orm.public.UseMedia.where({ id: child.useMediaId }).first();
-        if (um) {
-          const m = await db.orm.public.Media.where({ id: um.mediaId }).first();
-          childMedia = { ...um, media: m };
-        }
-      }
-      return { ...child, useMedia: childMedia };
-    })
-  );
+  const children = await Promise.all(rawChildren.map((child) => populateCategoryMedia(child)));
 
   let parent = null;
   if (category.parentId) {
-    parent = await db.orm.public.Category.where({ id: category.parentId }).first();
+    const rawParent = await db.orm.public.Category.where({ id: category.parentId }).first();
+    if (rawParent) {
+      parent = await populateCategoryMedia(rawParent);
+    }
   }
 
   return {
-    ...category,
-    useMedia,
+    ...populated,
     parent,
     children,
   };
@@ -129,7 +112,6 @@ export const getCategoryBySlug = async (slug: string) => {
 export const createCategory = async (payload: {
   name: string;
   description?: string;
-  image?: string;
   useMediaId?: number | null;
   icon?: string;
   parentId?: number | null;
@@ -149,27 +131,18 @@ export const createCategory = async (payload: {
     }
   }
 
-  let image = payload.image ?? null;
-  const useMediaId = payload.useMediaId ?? null;
-  if (useMediaId && !image) {
-    const useMedia = await db.orm.public.UseMedia.where({ id: useMediaId }).first();
-    if (useMedia) {
-      const media = await db.orm.public.Media.where({ id: useMedia.mediaId }).first();
-      if (media) image = media.url;
-    }
-  }
-
-  return await db.orm.public.Category.create({
+  const category = await db.orm.public.Category.create({
     name: payload.name,
     slug,
     description: payload.description ?? null,
-    image,
-    useMediaId,
+    useMediaId: payload.useMediaId ?? null,
     icon: payload.icon ?? null,
     parentId: payload.parentId ?? null,
     displayOrder: payload.displayOrder ?? 0,
     isActive: payload.isActive ?? true,
   });
+
+  return await populateCategoryMedia(category);
 };
 
 /**
@@ -180,7 +153,6 @@ export const updateCategory = async (
   payload: {
     name?: string;
     description?: string;
-    image?: string;
     useMediaId?: number | null;
     icon?: string;
     parentId?: number | null;
@@ -199,16 +171,8 @@ export const updateCategory = async (
     updateData.slug = slugify(payload.name);
   }
   if (payload.description !== undefined) updateData.description = payload.description;
-  if (payload.image !== undefined) updateData.image = payload.image;
   if (payload.useMediaId !== undefined) {
     updateData.useMediaId = payload.useMediaId;
-    if (payload.useMediaId && !payload.image) {
-      const useMedia = await db.orm.public.UseMedia.where({ id: payload.useMediaId }).first();
-      if (useMedia) {
-        const media = await db.orm.public.Media.where({ id: useMedia.mediaId }).first();
-        if (media) updateData.image = media.url;
-      }
-    }
   }
   if (payload.icon !== undefined) updateData.icon = payload.icon;
   if (payload.displayOrder !== undefined) updateData.displayOrder = payload.displayOrder;
@@ -220,7 +184,8 @@ export const updateCategory = async (
     updateData.parentId = payload.parentId;
   }
 
-  return await db.orm.public.Category.where({ id }).update(updateData);
+  const updated = await db.orm.public.Category.where({ id }).update(updateData);
+  return await populateCategoryMedia(updated);
 };
 
 /**

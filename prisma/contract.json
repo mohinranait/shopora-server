@@ -582,13 +582,6 @@
                   "kind": "scalar"
                 }
               },
-              "imageUrl": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
               "isActive": {
                 "nullable": false,
                 "type": {
@@ -603,10 +596,10 @@
                   "kind": "scalar"
                 }
               },
-              "mobileImageUrl": {
+              "mobileUseMediaId": {
                 "nullable": true,
                 "type": {
-                  "codecId": "pg/text@1",
+                  "codecId": "pg/int4@1",
                   "kind": "scalar"
                 }
               },
@@ -654,6 +647,22 @@
               }
             },
             "relations": {
+              "mobileUseMedia": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "mobileUseMediaId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "UseMedia",
+                  "namespace": "public"
+                }
+              },
               "useMedia": {
                 "cardinality": "N:1",
                 "nullable": true,
@@ -685,17 +694,14 @@
                 "id": {
                   "column": "id"
                 },
-                "imageUrl": {
-                  "column": "imageUrl"
-                },
                 "isActive": {
                   "column": "isActive"
                 },
                 "linkUrl": {
                   "column": "linkUrl"
                 },
-                "mobileImageUrl": {
-                  "column": "mobileImageUrl"
+                "mobileUseMediaId": {
+                  "column": "mobileUseMediaId"
                 },
                 "position": {
                   "column": "position"
@@ -747,13 +753,6 @@
                 "nullable": false,
                 "type": {
                   "codecId": "pg/bool@1",
-                  "kind": "scalar"
-                }
-              },
-              "logo": {
-                "nullable": true,
-                "type": {
-                  "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
               },
@@ -839,9 +838,6 @@
                 },
                 "isActive": {
                   "column": "isActive"
-                },
-                "logo": {
-                  "column": "logo"
                 },
                 "name": {
                   "column": "name"
@@ -1040,13 +1036,6 @@
                   "kind": "scalar"
                 }
               },
-              "image": {
-                "nullable": true,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
               "isActive": {
                 "nullable": false,
                 "type": {
@@ -1170,9 +1159,6 @@
                 },
                 "id": {
                   "column": "id"
-                },
-                "image": {
-                  "column": "image"
                 },
                 "isActive": {
                   "column": "isActive"
@@ -2384,13 +2370,6 @@
                   "kind": "scalar"
                 }
               },
-              "mainImage": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
               "mainImageUseMediaId": {
                 "nullable": true,
                 "type": {
@@ -2767,9 +2746,6 @@
                 "lowStockThreshold": {
                   "column": "lowStockThreshold"
                 },
-                "mainImage": {
-                  "column": "mainImage"
-                },
                 "mainImageUseMediaId": {
                   "column": "mainImageUseMediaId"
                 },
@@ -3088,13 +3064,6 @@
                   "kind": "scalar"
                 }
               },
-              "url": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
               "useMediaId": {
                 "nullable": true,
                 "type": {
@@ -3156,9 +3125,6 @@
                 },
                 "productId": {
                   "column": "productId"
-                },
-                "url": {
-                  "column": "url"
                 },
                 "useMediaId": {
                   "column": "useMediaId"
@@ -3376,13 +3342,6 @@
                   "kind": "scalar"
                 }
               },
-              "image": {
-                "nullable": true,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
               "isActive": {
                 "nullable": false,
                 "type": {
@@ -3562,9 +3521,6 @@
                 },
                 "id": {
                   "column": "id"
-                },
-                "image": {
-                  "column": "image"
                 },
                 "isActive": {
                   "column": "isActive"
@@ -4004,21 +3960,7 @@
                   "kind": "scalar"
                 }
               },
-              "storeBanner": {
-                "nullable": true,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
               "storeDescription": {
-                "nullable": true,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "storeLogo": {
                 "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
@@ -4256,14 +4198,8 @@
                 "status": {
                   "column": "status"
                 },
-                "storeBanner": {
-                  "column": "storeBanner"
-                },
                 "storeDescription": {
                   "column": "storeDescription"
-                },
-                "storeLogo": {
-                  "column": "storeLogo"
                 },
                 "storeName": {
                   "column": "storeName"
@@ -4486,13 +4422,6 @@
                   "kind": "scalar"
                 }
               },
-              "imageUrl": {
-                "nullable": true,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
               "isActive": {
                 "nullable": false,
                 "type": {
@@ -4507,10 +4436,10 @@
                   "kind": "scalar"
                 }
               },
-              "mobileImageUrl": {
+              "mobileUseMediaId": {
                 "nullable": true,
                 "type": {
-                  "codecId": "pg/text@1",
+                  "codecId": "pg/int4@1",
                   "kind": "scalar"
                 }
               },
@@ -4565,6 +4494,22 @@
               }
             },
             "relations": {
+              "mobileUseMedia": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "mobileUseMediaId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "UseMedia",
+                  "namespace": "public"
+                }
+              },
               "useMedia": {
                 "cardinality": "N:1",
                 "nullable": true,
@@ -4611,17 +4556,14 @@
                 "id": {
                   "column": "id"
                 },
-                "imageUrl": {
-                  "column": "imageUrl"
-                },
                 "isActive": {
                   "column": "isActive"
                 },
                 "linkUrl": {
                   "column": "linkUrl"
                 },
-                "mobileImageUrl": {
-                  "column": "mobileImageUrl"
+                "mobileUseMediaId": {
+                  "column": "mobileUseMediaId"
                 },
                 "startDate": {
                   "column": "startDate"
@@ -4948,7 +4890,7 @@
               }
             },
             "relations": {
-              "banners": {
+              "bannersMain": {
                 "cardinality": "1:N",
                 "on": {
                   "localFields": [
@@ -4956,6 +4898,21 @@
                   ],
                   "targetFields": [
                     "useMediaId"
+                  ]
+                },
+                "to": {
+                  "model": "Banner",
+                  "namespace": "public"
+                }
+              },
+              "bannersMobile": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "mobileUseMediaId"
                   ]
                 },
                 "to": {
@@ -5100,7 +5057,7 @@
                   "namespace": "public"
                 }
               },
-              "sliders": {
+              "slidersMain": {
                 "cardinality": "1:N",
                 "on": {
                   "localFields": [
@@ -5108,6 +5065,21 @@
                   ],
                   "targetFields": [
                     "useMediaId"
+                  ]
+                },
+                "to": {
+                  "model": "Slider",
+                  "namespace": "public"
+                }
+              },
+              "slidersMobile": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "mobileUseMediaId"
                   ]
                 },
                 "to": {
@@ -5180,13 +5152,6 @@
           },
           "User": {
             "fields": {
-              "avatar": {
-                "nullable": true,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
               "avatarUseMediaId": {
                 "nullable": true,
                 "type": {
@@ -5436,9 +5401,6 @@
             },
             "storage": {
               "fields": {
-                "avatar": {
-                  "column": "avatar"
-                },
                 "avatarUseMediaId": {
                   "column": "avatarUseMediaId"
                 },
@@ -6072,11 +6034,6 @@
                   },
                   "nullable": false
                 },
-                "imageUrl": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
-                },
                 "isActive": {
                   "codecId": "pg/bool@1",
                   "dataType": "pg/bool",
@@ -6091,9 +6048,9 @@
                   "dataType": "pg/text",
                   "nullable": true
                 },
-                "mobileImageUrl": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
+                "mobileUseMediaId": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
                   "nullable": true
                 },
                 "position": {
@@ -6151,9 +6108,37 @@
                     "namespaceId": "public",
                     "tableName": "UseMedia"
                   }
+                },
+                {
+                  "index": {
+                    "name": "Banner_mobileUseMediaId_idx_23c4ac31"
+                  },
+                  "onDelete": "setNull",
+                  "source": {
+                    "columns": [
+                      "mobileUseMediaId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Banner"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "UseMedia"
+                  }
                 }
               ],
               "indexes": [
+                {
+                  "columns": [
+                    "mobileUseMediaId"
+                  ],
+                  "name": "Banner_mobileUseMediaId_idx_23c4ac31",
+                  "prefix": "Banner_mobileUseMediaId_idx",
+                  "unique": false
+                },
                 {
                   "columns": [
                     "useMediaId"
@@ -6203,11 +6188,6 @@
                     "value": true
                   },
                   "nullable": false
-                },
-                "logo": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": true
                 },
                 "name": {
                   "codecId": "pg/text@1",
@@ -6468,11 +6448,6 @@
                     "kind": "function"
                   },
                   "nullable": false
-                },
-                "image": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": true
                 },
                 "isActive": {
                   "codecId": "pg/bool@1",
@@ -7541,11 +7516,6 @@
                   },
                   "nullable": false
                 },
-                "mainImage": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
-                },
                 "mainImageUseMediaId": {
                   "codecId": "pg/int4@1",
                   "dataType": "pg/int4",
@@ -8080,11 +8050,6 @@
                   "dataType": "pg/int4",
                   "nullable": false
                 },
-                "url": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
-                },
                 "useMediaId": {
                   "codecId": "pg/int4@1",
                   "dataType": "pg/int4",
@@ -8353,11 +8318,6 @@
                     "kind": "function"
                   },
                   "nullable": false
-                },
-                "image": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": true
                 },
                 "isActive": {
                   "codecId": "pg/bool@1",
@@ -8908,17 +8868,7 @@
                   },
                   "nullable": false
                 },
-                "storeBanner": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": true
-                },
                 "storeDescription": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": true
-                },
-                "storeLogo": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
                   "nullable": true
@@ -9236,11 +9186,6 @@
                   },
                   "nullable": false
                 },
-                "imageUrl": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": true
-                },
                 "isActive": {
                   "codecId": "pg/bool@1",
                   "dataType": "pg/bool",
@@ -9255,9 +9200,9 @@
                   "dataType": "pg/text",
                   "nullable": true
                 },
-                "mobileImageUrl": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
+                "mobileUseMediaId": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
                   "nullable": true
                 },
                 "startDate": {
@@ -9324,9 +9269,37 @@
                     "namespaceId": "public",
                     "tableName": "UseMedia"
                   }
+                },
+                {
+                  "index": {
+                    "name": "Slider_mobileUseMediaId_idx_23c4ac31"
+                  },
+                  "onDelete": "setNull",
+                  "source": {
+                    "columns": [
+                      "mobileUseMediaId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Slider"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "UseMedia"
+                  }
                 }
               ],
               "indexes": [
+                {
+                  "columns": [
+                    "mobileUseMediaId"
+                  ],
+                  "name": "Slider_mobileUseMediaId_idx_23c4ac31",
+                  "prefix": "Slider_mobileUseMediaId_idx",
+                  "unique": false
+                },
                 {
                   "columns": [
                     "useMediaId"
@@ -9697,11 +9670,6 @@
             },
             "User": {
               "columns": {
-                "avatar": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": true
-                },
                 "avatarUseMediaId": {
                   "codecId": "pg/int4@1",
                   "dataType": "pg/int4",
@@ -10068,7 +10036,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "64f4d91e6d12b7000e59170a8ecbf39b94f37f97e19340bd4e53bc2e19860b58"
+    "storageHash": "33999df06bd19207c520cdc03808c6acaaeb5c49e03023df62951e1a6efea249"
   },
   "execution": {
     "executionHash": "062293750bdc8c9c1251b37395101db3917c14302a935dbccddcf6edbe3efced",

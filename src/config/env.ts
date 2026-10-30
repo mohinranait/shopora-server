@@ -1,4 +1,4 @@
-import "dotenv/config";
+﻿import "dotenv/config";
 
 /**
  * Validated Environment Variables configuration for Shopora Backend

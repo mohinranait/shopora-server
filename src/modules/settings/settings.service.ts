@@ -1,4 +1,4 @@
-import { db } from "../../config/db.ts";
+﻿import { db } from "../../config/db.ts";
 
 export const DEFAULT_SETTINGS: Record<string, { value: any; group: string; description: string }> = {
   // GENERAL

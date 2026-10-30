@@ -6,7 +6,7 @@ import { AppError } from "../../errors/AppError.ts";
  */
 export const updateProfile = async (
   userId: number,
-  payload: { name?: string; phone?: string; avatar?: string; avatarUseMediaId?: number | null }
+  payload: { name?: string; phone?: string; avatarUseMediaId?: number | null }
 ) => {
   const user = await db.orm.public.User.where({ id: userId }).first();
   if (!user) {
@@ -16,16 +16,8 @@ export const updateProfile = async (
   const updateData: any = {};
   if (payload.name !== undefined) updateData.name = payload.name;
   if (payload.phone !== undefined) updateData.phone = payload.phone;
-  if (payload.avatar !== undefined) updateData.avatar = payload.avatar;
   if (payload.avatarUseMediaId !== undefined) {
     updateData.avatarUseMediaId = payload.avatarUseMediaId;
-    if (payload.avatarUseMediaId && !payload.avatar) {
-      const useMedia = await db.orm.public.UseMedia.where({ id: payload.avatarUseMediaId }).first();
-      if (useMedia) {
-        const media = await db.orm.public.Media.where({ id: useMedia.mediaId }).first();
-        if (media) updateData.avatar = media.url;
-      }
-    }
   }
 
   const updated = await db.orm.public.User.where({ id: userId }).update(updateData);
@@ -48,7 +40,7 @@ export const updateProfile = async (
     email: updated.email,
     role: updated.role,
     phone: updated.phone,
-    avatar: updated.avatar,
+    avatar: avatarUseMedia?.media?.url ?? null,
     avatarUseMediaId: updated.avatarUseMediaId,
     avatarUseMedia,
   };
@@ -156,10 +148,18 @@ export const adminGetAllUsers = async (filters: {
     .all();
 
   const userIds = users.map((u) => u.id);
-  const [orders, addresses] = await Promise.all([
+  const avatarUseMediaIds = [...new Set(users.map((u) => u.avatarUseMediaId).filter((id): id is number => typeof id === "number"))];
+
+  const [orders, addresses, useMedias] = await Promise.all([
     userIds.length > 0 ? db.orm.public.Order.where((o) => o.userId.in(userIds)).all() : [],
     userIds.length > 0 ? db.orm.public.Address.where((a) => a.userId.in(userIds)).all() : [],
+    avatarUseMediaIds.length > 0 ? db.orm.public.UseMedia.where((um) => um.id.in(avatarUseMediaIds)).all() : [],
   ]);
+
+  const mediaIds = [...new Set(useMedias.map((um) => um.mediaId))];
+  const medias = mediaIds.length > 0 ? await db.orm.public.Media.where((m) => m.id.in(mediaIds)).all() : [];
+  const mediaMap = new Map(medias.map((m) => [m.id, m]));
+  const useMediaMap = new Map(useMedias.map((um) => [um.id, { ...um, media: mediaMap.get(um.mediaId) ?? null }]));
 
   const enrichedUsers = users.map((u) => {
     const userOrders = orders.filter((o) => o.userId === u.id);
@@ -167,6 +167,7 @@ export const adminGetAllUsers = async (filters: {
     const validOrders = userOrders.filter((o) => o.orderStatus !== "CANCELLED");
     const totalSpent = validOrders.reduce((acc, o) => acc + (Number(o.totalAmount) || 0), 0);
     const defaultAddress = userAddresses.find((a) => a.isDefault) || userAddresses[0] || null;
+    const avatarUseMedia = u.avatarUseMediaId ? useMediaMap.get(u.avatarUseMediaId) ?? null : null;
 
     return {
       id: u.id,
@@ -174,7 +175,9 @@ export const adminGetAllUsers = async (filters: {
       email: u.email,
       role: u.role,
       phone: u.phone,
-      avatar: u.avatar,
+      avatarUseMediaId: u.avatarUseMediaId,
+      avatarUseMedia,
+      avatar: avatarUseMedia?.media?.url ?? null,
       isActive: u.isActive,
       isVerified: u.isVerified,
       createdAt: u.createdAt,
@@ -236,8 +239,20 @@ export const adminGetUserDetail = async (userId: number) => {
     ? await db.orm.public.Product.where((p) => p.id.in(reviewProductIds)).all()
     : [];
 
+  const productMainMediaIds = [...new Set(products.map((p) => p.mainImageUseMediaId).filter((id): id is number => typeof id === "number"))];
+  const productUseMedias = productMainMediaIds.length > 0
+    ? await db.orm.public.UseMedia.where((um) => um.id.in(productMainMediaIds)).all()
+    : [];
+  const prodMediaIds = [...new Set(productUseMedias.map((um) => um.mediaId))];
+  const prodMedias = prodMediaIds.length > 0
+    ? await db.orm.public.Media.where((m) => m.id.in(prodMediaIds)).all()
+    : [];
+  const prodMediaMap = new Map(prodMedias.map((m) => [m.id, m.url]));
+  const prodUseMediaMap = new Map(productUseMedias.map((um) => [um.id, prodMediaMap.get(um.mediaId) ?? ""]));
+
   const enrichedReviews = reviews.map((r) => {
     const product = products.find((p) => p.id === r.productId);
+    const mainImageUrl = product?.mainImageUseMediaId ? prodUseMediaMap.get(product.mainImageUseMediaId) ?? null : null;
     return {
       ...r,
       product: product
@@ -245,7 +260,8 @@ export const adminGetUserDetail = async (userId: number) => {
             id: product.id,
             name: product.name,
             slug: product.slug,
-            mainImage: product.mainImage,
+            mainImage: mainImageUrl,
+            mainImageUseMediaId: product.mainImageUseMediaId,
           }
         : null,
     };
@@ -259,6 +275,15 @@ export const adminGetUserDetail = async (userId: number) => {
     ["PENDING", "CONFIRMED", "PROCESSING", "SHIPPED"].includes(o.orderStatus)
   ).length;
 
+  let avatarUseMedia: any = null;
+  if (user.avatarUseMediaId) {
+    const um = await db.orm.public.UseMedia.where({ id: user.avatarUseMediaId }).first();
+    if (um) {
+      const m = await db.orm.public.Media.where({ id: um.mediaId }).first();
+      avatarUseMedia = { ...um, media: m };
+    }
+  }
+
   return {
     user: {
       id: user.id,
@@ -266,7 +291,9 @@ export const adminGetUserDetail = async (userId: number) => {
       email: user.email,
       role: user.role,
       phone: user.phone,
-      avatar: user.avatar,
+      avatarUseMediaId: user.avatarUseMediaId,
+      avatarUseMedia,
+      avatar: avatarUseMedia?.media?.url ?? null,
       isActive: user.isActive,
       isVerified: user.isVerified,
       createdAt: user.createdAt,
@@ -336,13 +363,24 @@ export const adminUpdateUser = async (
     throw new AppError("Failed to update customer", 500);
   }
 
+  let avatarUseMedia: any = null;
+  if (updated.avatarUseMediaId) {
+    const um = await db.orm.public.UseMedia.where({ id: updated.avatarUseMediaId }).first();
+    if (um) {
+      const m = await db.orm.public.Media.where({ id: um.mediaId }).first();
+      avatarUseMedia = { ...um, media: m };
+    }
+  }
+
   return {
     id: updated.id,
     name: updated.name,
     email: updated.email,
     role: updated.role,
     phone: updated.phone,
-    avatar: updated.avatar,
+    avatarUseMediaId: updated.avatarUseMediaId,
+    avatarUseMedia,
+    avatar: avatarUseMedia?.media?.url ?? null,
     isActive: updated.isActive,
     isVerified: updated.isVerified,
     createdAt: updated.createdAt,

@@ -1,4 +1,4 @@
-import jwt, { type JwtPayload, type SignOptions } from "jsonwebtoken";
+﻿import jwt, { type JwtPayload, type SignOptions } from "jsonwebtoken";
 import { ENV } from "../config/env.ts";
 
 export interface IJwtUserPayload {

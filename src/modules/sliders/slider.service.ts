@@ -1,5 +1,36 @@
-import { db } from "../../config/db.ts";
+﻿import { db } from "../../config/db.ts";
 import { AppError } from "../../errors/AppError.ts";
+
+/**
+ * Helper: Populate slider media
+ */
+const populateSliderMedia = async (slider: any) => {
+  let useMedia: any = null;
+  if (slider.useMediaId) {
+    const um = await db.orm.public.UseMedia.where({ id: slider.useMediaId }).first();
+    if (um) {
+      const m = await db.orm.public.Media.where({ id: um.mediaId }).first();
+      useMedia = { ...um, media: m };
+    }
+  }
+
+  let mobileUseMedia: any = null;
+  if (slider.mobileUseMediaId) {
+    const mum = await db.orm.public.UseMedia.where({ id: slider.mobileUseMediaId }).first();
+    if (mum) {
+      const mm = await db.orm.public.Media.where({ id: mum.mediaId }).first();
+      mobileUseMedia = { ...mum, media: mm };
+    }
+  }
+
+  return {
+    ...slider,
+    useMedia,
+    mobileUseMedia,
+    imageUrl: useMedia?.media?.url ?? null,
+    mobileImageUrl: mobileUseMedia?.media?.url ?? null,
+  };
+};
 
 export const getSliders = async (includeInactive = false) => {
   let query = db.orm.public.Slider;
@@ -10,20 +41,7 @@ export const getSliders = async (includeInactive = false) => {
     rows = await query.orderBy((s) => s.displayOrder.asc()).all();
   }
 
-  // Populate useMedia with media if present
-  return await Promise.all(
-    rows.map(async (slider) => {
-      let useMedia: any = null;
-      if (slider.useMediaId) {
-        const um = await db.orm.public.UseMedia.where({ id: slider.useMediaId }).first();
-        if (um) {
-          const m = await db.orm.public.Media.where({ id: um.mediaId }).first();
-          useMedia = { ...um, media: m };
-        }
-      }
-      return { ...slider, useMedia };
-    })
-  );
+  return await Promise.all(rows.map((slider) => populateSliderMedia(slider)));
 };
 
 export const getSliderById = async (id: number) => {
@@ -31,38 +49,18 @@ export const getSliderById = async (id: number) => {
   if (!slider) {
     throw new AppError("Slider not found", 404);
   }
-  let useMedia: any = null;
-  if (slider.useMediaId) {
-    const um = await db.orm.public.UseMedia.where({ id: slider.useMediaId }).first();
-    if (um) {
-      const m = await db.orm.public.Media.where({ id: um.mediaId }).first();
-      useMedia = { ...um, media: m };
-    }
-  }
-  return { ...slider, useMedia };
+  return await populateSliderMedia(slider);
 };
 
 export const createSlider = async (payload: any) => {
-  let imageUrl = payload.imageUrl || null;
-  const useMediaId = payload.useMediaId ?? null;
-
-  if (useMediaId && !imageUrl) {
-    const useMedia = await db.orm.public.UseMedia.where({ id: useMediaId }).first();
-    if (useMedia) {
-      const media = await db.orm.public.Media.where({ id: useMedia.mediaId }).first();
-      if (media) imageUrl = media.url;
-    }
-  }
-
-  return await db.orm.public.Slider.create({
+  const slider = await db.orm.public.Slider.create({
     type: payload.type || "IMAGE_BG_CONTENT",
     title: payload.title ?? null,
     subtitle: payload.subtitle ?? null,
     description: payload.description ?? null,
     badgeText: payload.badgeText ?? null,
-    imageUrl,
-    mobileImageUrl: payload.mobileImageUrl ?? null,
-    useMediaId,
+    useMediaId: payload.useMediaId ?? null,
+    mobileUseMediaId: payload.mobileUseMediaId ?? null,
     linkUrl: payload.linkUrl ?? null,
     buttonText: payload.buttonText ?? "Shop Now",
     bgGradient: payload.bgGradient ?? null,
@@ -73,6 +71,8 @@ export const createSlider = async (payload: any) => {
     startDate: payload.startDate ?? null,
     endDate: payload.endDate ?? null,
   });
+
+  return await populateSliderMedia(slider);
 };
 
 export const updateSlider = async (id: number, payload: any) => {
@@ -81,36 +81,26 @@ export const updateSlider = async (id: number, payload: any) => {
     throw new AppError("Slider not found", 404);
   }
 
-  let imageUrl = payload.imageUrl !== undefined ? payload.imageUrl : existing.imageUrl;
-  const useMediaId = payload.useMediaId !== undefined ? payload.useMediaId : existing.useMediaId;
+  const updateData: any = {};
+  if (payload.type !== undefined) updateData.type = payload.type;
+  if (payload.title !== undefined) updateData.title = payload.title;
+  if (payload.subtitle !== undefined) updateData.subtitle = payload.subtitle;
+  if (payload.description !== undefined) updateData.description = payload.description;
+  if (payload.badgeText !== undefined) updateData.badgeText = payload.badgeText;
+  if (payload.useMediaId !== undefined) updateData.useMediaId = payload.useMediaId;
+  if (payload.mobileUseMediaId !== undefined) updateData.mobileUseMediaId = payload.mobileUseMediaId;
+  if (payload.linkUrl !== undefined) updateData.linkUrl = payload.linkUrl;
+  if (payload.buttonText !== undefined) updateData.buttonText = payload.buttonText;
+  if (payload.bgGradient !== undefined) updateData.bgGradient = payload.bgGradient;
+  if (payload.bgColor !== undefined) updateData.bgColor = payload.bgColor;
+  if (payload.textColor !== undefined) updateData.textColor = payload.textColor;
+  if (payload.displayOrder !== undefined) updateData.displayOrder = payload.displayOrder;
+  if (payload.isActive !== undefined) updateData.isActive = payload.isActive;
+  if (payload.startDate !== undefined) updateData.startDate = payload.startDate;
+  if (payload.endDate !== undefined) updateData.endDate = payload.endDate;
 
-  if (useMediaId && !imageUrl) {
-    const useMedia = await db.orm.public.UseMedia.where({ id: useMediaId }).first();
-    if (useMedia) {
-      const media = await db.orm.public.Media.where({ id: useMedia.mediaId }).first();
-      if (media) imageUrl = media.url;
-    }
-  }
-
-  return await db.orm.public.Slider.where({ id }).update({
-    type: payload.type !== undefined ? payload.type : existing.type,
-    title: payload.title !== undefined ? payload.title : existing.title,
-    subtitle: payload.subtitle !== undefined ? payload.subtitle : existing.subtitle,
-    description: payload.description !== undefined ? payload.description : existing.description,
-    badgeText: payload.badgeText !== undefined ? payload.badgeText : existing.badgeText,
-    imageUrl,
-    mobileImageUrl: payload.mobileImageUrl !== undefined ? payload.mobileImageUrl : existing.mobileImageUrl,
-    useMediaId,
-    linkUrl: payload.linkUrl !== undefined ? payload.linkUrl : existing.linkUrl,
-    buttonText: payload.buttonText !== undefined ? payload.buttonText : existing.buttonText,
-    bgGradient: payload.bgGradient !== undefined ? payload.bgGradient : existing.bgGradient,
-    bgColor: payload.bgColor !== undefined ? payload.bgColor : existing.bgColor,
-    textColor: payload.textColor !== undefined ? payload.textColor : existing.textColor,
-    displayOrder: payload.displayOrder !== undefined ? payload.displayOrder : existing.displayOrder,
-    isActive: payload.isActive !== undefined ? payload.isActive : existing.isActive,
-    startDate: payload.startDate !== undefined ? payload.startDate : existing.startDate,
-    endDate: payload.endDate !== undefined ? payload.endDate : existing.endDate,
-  });
+  const updated = await db.orm.public.Slider.where({ id }).update(updateData);
+  return await populateSliderMedia(updated);
 };
 
 export const deleteSlider = async (id: number) => {

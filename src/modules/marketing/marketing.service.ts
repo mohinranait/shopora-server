@@ -1,4 +1,4 @@
-import { db } from "../../config/db.ts";
+﻿import { db } from "../../config/db.ts";
 import { AppError } from "../../errors/AppError.ts";
 
 /**
@@ -84,6 +84,37 @@ export const deleteCoupon = async (id: number) => {
 };
 
 /**
+ * Helper: Populate banner media
+ */
+const populateBannerMedia = async (b: any) => {
+  let useMedia: any = null;
+  if (b.useMediaId) {
+    const um = await db.orm.public.UseMedia.where({ id: b.useMediaId }).first();
+    if (um) {
+      const m = await db.orm.public.Media.where({ id: um.mediaId }).first();
+      useMedia = { ...um, media: m };
+    }
+  }
+
+  let mobileUseMedia: any = null;
+  if (b.mobileUseMediaId) {
+    const mum = await db.orm.public.UseMedia.where({ id: b.mobileUseMediaId }).first();
+    if (mum) {
+      const mm = await db.orm.public.Media.where({ id: mum.mediaId }).first();
+      mobileUseMedia = { ...mum, media: mm };
+    }
+  }
+
+  return {
+    ...b,
+    useMedia,
+    mobileUseMedia,
+    imageUrl: useMedia?.media?.url ?? null,
+    mobileImageUrl: mobileUseMedia?.media?.url ?? null,
+  };
+};
+
+/**
  * Public: Get active banners by position
  */
 export const getActiveBanners = async (position?: string) => {
@@ -93,42 +124,18 @@ export const getActiveBanners = async (position?: string) => {
   }
 
   const banners = await query.orderBy((b) => b.displayOrder.asc()).all();
-  return await Promise.all(
-    banners.map(async (b) => {
-      let useMedia: any = null;
-      if (b.useMediaId) {
-        const um = await db.orm.public.UseMedia.where({ id: b.useMediaId }).first();
-        if (um) {
-          const m = await db.orm.public.Media.where({ id: um.mediaId }).first();
-          useMedia = { ...um, media: m };
-        }
-      }
-      return { ...b, useMedia };
-    })
-  );
+  return await Promise.all(banners.map((b) => populateBannerMedia(b)));
 };
 
 /**
  * Admin: Create banner
  */
 export const createBanner = async (payload: any) => {
-  let imageUrl = payload.imageUrl || "";
-  const useMediaId = payload.useMediaId ?? null;
-
-  if (useMediaId && !imageUrl) {
-    const useMedia = await db.orm.public.UseMedia.where({ id: useMediaId }).first();
-    if (useMedia) {
-      const media = await db.orm.public.Media.where({ id: useMedia.mediaId }).first();
-      if (media) imageUrl = media.url;
-    }
-  }
-
-  return await db.orm.public.Banner.create({
+  const banner = await db.orm.public.Banner.create({
     title: payload.title,
     subtitle: payload.subtitle ?? null,
-    imageUrl,
-    useMediaId,
-    mobileImageUrl: payload.mobileImageUrl ?? null,
+    useMediaId: payload.useMediaId ?? null,
+    mobileUseMediaId: payload.mobileUseMediaId ?? null,
     linkUrl: payload.linkUrl ?? null,
     position: payload.position || "HERO_SLIDER",
     displayOrder: payload.displayOrder || 0,
@@ -136,6 +143,8 @@ export const createBanner = async (payload: any) => {
     startDate: payload.startDate ?? null,
     endDate: payload.endDate ?? null,
   });
+
+  return await populateBannerMedia(banner);
 };
 
 /**
@@ -143,19 +152,7 @@ export const createBanner = async (payload: any) => {
  */
 export const getAllBanners = async () => {
   const banners = await db.orm.public.Banner.orderBy((b) => b.displayOrder.asc()).all();
-  return await Promise.all(
-    banners.map(async (b) => {
-      let useMedia: any = null;
-      if (b.useMediaId) {
-        const um = await db.orm.public.UseMedia.where({ id: b.useMediaId }).first();
-        if (um) {
-          const m = await db.orm.public.Media.where({ id: um.mediaId }).first();
-          useMedia = { ...um, media: m };
-        }
-      }
-      return { ...b, useMedia };
-    })
-  );
+  return await Promise.all(banners.map((b) => populateBannerMedia(b)));
 };
 
 /**

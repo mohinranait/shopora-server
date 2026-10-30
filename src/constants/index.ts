@@ -1,4 +1,4 @@
-/**
+﻿/**
  * System Roles for Multi-Vendor Platform
  */
 export const USER_ROLES = {

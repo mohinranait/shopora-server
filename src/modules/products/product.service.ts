@@ -235,7 +235,7 @@ export const getAllProducts = async (filters: IProductFilterOptions) => {
       : [],
     sellerIds.length
       ? db.orm.public.SellerProfile.where((s) => s.id.in(sellerIds))
-          .select("id", "storeName", "storeSlug", "storeLogo")
+          .select("id", "storeName", "storeSlug", "logoUseMediaId")
           .all()
       : [],
     useMediaIds.length ? db.orm.public.UseMedia.where((u) => u.id.in(useMediaIds)).all() : [],
@@ -258,11 +258,13 @@ export const getAllProducts = async (filters: IProductFilterOptions) => {
     // Public listings don't need the long description or internal cost price
     const { description, costPrice, ...rest } = prod;
     const base = isPublic ? rest : prod;
+    const mainMedia = prod.mainImageUseMediaId
+      ? useMediaMap.get(prod.mainImageUseMediaId) ?? null
+      : null;
     return {
       ...base,
-      mainImageUseMedia: prod.mainImageUseMediaId
-        ? useMediaMap.get(prod.mainImageUseMediaId) ?? null
-        : null,
+      mainImageUseMedia: mainMedia,
+      mainImage: mainMedia?.media?.url ?? "",
       category: categoryMap.get(prod.categoryId) ?? null,
       brand: prod.brandId ? brandMap.get(prod.brandId) ?? null : null,
       seller: prod.sellerId ? sellerMap.get(prod.sellerId) ?? null : null,
@@ -303,7 +305,7 @@ export const getProductFilters = async (filters: IProductFilterOptions) => {
       .orderBy((c) => c.displayOrder.asc())
       .select("id", "name", "slug", "parentId")
       .all(),
-    db.orm.public.Brand.where({ isActive: true }).select("id", "name", "slug", "logo").all(),
+    db.orm.public.Brand.where({ isActive: true }).select("id", "name", "slug", "useMediaId").all(),
   ]);
 
   // Category tree with counts rolled up into parents
@@ -371,6 +373,14 @@ export const populateProductDetails = async (product: any, requestingUser?: any)
   const seller = product.sellerId
     ? await db.orm.public.SellerProfile.where({ id: product.sellerId }).first()
     : null;
+  let sellerLogo: string | null = null;
+  if (seller?.logoUseMediaId) {
+    const um = await db.orm.public.UseMedia.where({ id: seller.logoUseMediaId }).first();
+    if (um) {
+      const m = await db.orm.public.Media.where({ id: um.mediaId }).first();
+      sellerLogo = m?.url ?? null;
+    }
+  }
 
   let mainImageUseMedia: any = null;
   if (product.mainImageUseMediaId) {
@@ -399,6 +409,7 @@ export const populateProductDetails = async (product: any, requestingUser?: any)
       return {
         ...img,
         useMedia,
+        url: useMedia?.media?.url ?? "",
       };
     })
   );
@@ -490,6 +501,7 @@ export const populateProductDetails = async (product: any, requestingUser?: any)
       return {
         ...v,
         useMedia,
+        image: useMedia?.media?.url ?? null,
         attributeValues,
         attributeValueIds: rawVav.map((x) => x.attributeValueId),
       };
@@ -506,6 +518,7 @@ export const populateProductDetails = async (product: any, requestingUser?: any)
   return {
     ...product,
     mainImageUseMedia,
+    mainImage: mainImageUseMedia?.media?.url ?? "",
     category,
     brand,
     seller: seller
@@ -513,7 +526,7 @@ export const populateProductDetails = async (product: any, requestingUser?: any)
           id: seller.id,
           storeName: seller.storeName,
           storeSlug: seller.storeSlug,
-          storeLogo: seller.storeLogo,
+          storeLogo: sellerLogo,
           phone: seller.phone,
         }
       : null,
@@ -606,20 +619,6 @@ export const createProduct = async (
     calculatedStock = payload.variants.reduce((acc: number, v: any) => acc + (v.stock || 0), 0);
   }
 
-  // Resolve main image useMedia and url
-  let mainImageUrl = payload.mainImage || "";
-  const mainImageUseMediaId = payload.mainImageUseMediaId ?? null;
-
-  if (mainImageUseMediaId) {
-    const useMedia = await db.orm.public.UseMedia.where({ id: mainImageUseMediaId }).first();
-    if (useMedia) {
-      const media = await db.orm.public.Media.where({ id: useMedia.mediaId }).first();
-      if (media && !mainImageUrl) {
-        mainImageUrl = media.url;
-      }
-    }
-  }
-
   // Transaction to create product, gallery images and variants
   return await db.transaction(async (tx) => {
     // 1. Create main product record
@@ -641,8 +640,7 @@ export const createProduct = async (
       costPrice: payload.costPrice ?? null,
       stock: calculatedStock,
       lowStockThreshold: payload.lowStockThreshold || 5,
-      mainImage: mainImageUrl,
-      mainImageUseMediaId,
+      mainImageUseMediaId: payload.mainImageUseMediaId ?? null,
       tags: payload.tags || [],
       warranty: payload.warranty ?? null,
       weightKg: payload.weightKg ?? null,
@@ -660,28 +658,13 @@ export const createProduct = async (
     // 2. Insert gallery images if provided
     if (Array.isArray(payload.images) && payload.images.length > 0) {
       for (const img of payload.images) {
-        let imgUrl = img.url || "";
-        let altText = img.altText ?? null;
-        const useMediaId = img.useMediaId ?? null;
-
-        if (useMediaId && !imgUrl) {
-          const useMedia = await db.orm.public.UseMedia.where({ id: useMediaId }).first();
-          if (useMedia) {
-            altText = altText || useMedia.alt || null;
-            const media = await db.orm.public.Media.where({ id: useMedia.mediaId }).first();
-            if (media) {
-              imgUrl = media.url;
-            }
-          }
-        }
-
+        if (!img.useMediaId) continue;
         await tx.orm.public.ProductImage.create({
           productId: newProduct.id,
-          url: imgUrl,
-          altText,
+          altText: img.altText ?? null,
           displayOrder: img.displayOrder || 0,
           isPrimary: img.isPrimary || false,
-          useMediaId,
+          useMediaId: img.useMediaId,
         });
       }
     }
@@ -721,18 +704,6 @@ export const createProduct = async (
       for (let i = 0; i < payload.variants.length; i++) {
         const v = payload.variants[i];
         const vSku = v.sku || `${newProduct.sku}-VAR${i + 1}`;
-        let variantImage = v.image ?? null;
-        const useMediaId = v.useMediaId ?? null;
-
-        if (useMediaId && !variantImage) {
-          const useMedia = await db.orm.public.UseMedia.where({ id: useMediaId }).first();
-          if (useMedia) {
-            const media = await db.orm.public.Media.where({ id: useMedia.mediaId }).first();
-            if (media) {
-              variantImage = media.url;
-            }
-          }
-        }
 
         const variant = await tx.orm.public.ProductVariant.create({
           productId: newProduct.id,
@@ -743,8 +714,7 @@ export const createProduct = async (
           costPrice: v.costPrice ?? null,
           stock: v.stock || 0,
           lowStockThreshold: v.lowStockThreshold || 5,
-          image: variantImage,
-          useMediaId,
+          useMediaId: v.useMediaId ?? null,
           attributes: v.attributes || {},
           barcode: v.barcode ?? null,
           weightKg: v.weightKg ?? null,
@@ -807,18 +777,8 @@ export const updateProduct = async (
     if (payload.comparePrice !== undefined) updateData.comparePrice = payload.comparePrice;
     if (payload.costPrice !== undefined) updateData.costPrice = payload.costPrice;
     if (payload.lowStockThreshold !== undefined) updateData.lowStockThreshold = payload.lowStockThreshold;
-    if (payload.mainImage !== undefined) updateData.mainImage = payload.mainImage;
     if (payload.mainImageUseMediaId !== undefined) {
       updateData.mainImageUseMediaId = payload.mainImageUseMediaId;
-      if (payload.mainImageUseMediaId) {
-        const useMedia = await db.orm.public.UseMedia.where({ id: payload.mainImageUseMediaId }).first();
-        if (useMedia) {
-          const media = await db.orm.public.Media.where({ id: useMedia.mediaId }).first();
-          if (media && !payload.mainImage) {
-            updateData.mainImage = media.url;
-          }
-        }
-      }
     }
     if (payload.status !== undefined) updateData.status = payload.status;
     if (payload.productType !== undefined) updateData.productType = payload.productType;
@@ -839,26 +799,13 @@ export const updateProduct = async (
     if (Array.isArray(payload.images)) {
       await tx.orm.public.ProductImage.where({ productId: id }).delete();
       for (const img of payload.images) {
-        let imgUrl = img.url || "";
-        let altText = img.altText ?? null;
-        const useMediaId = img.useMediaId ?? null;
-
-        if (useMediaId && !imgUrl) {
-          const useMedia = await db.orm.public.UseMedia.where({ id: useMediaId }).first();
-          if (useMedia) {
-            altText = altText || useMedia.alt || null;
-            const media = await db.orm.public.Media.where({ id: useMedia.mediaId }).first();
-            if (media) imgUrl = media.url;
-          }
-        }
-
+        if (!img.useMediaId) continue;
         await tx.orm.public.ProductImage.create({
           productId: id,
-          url: imgUrl,
-          altText,
+          altText: img.altText ?? null,
           displayOrder: img.displayOrder || 0,
           isPrimary: img.isPrimary || false,
-          useMediaId,
+          useMediaId: img.useMediaId,
         });
       }
     }
@@ -914,16 +861,7 @@ export const updateProduct = async (
 
       // Upsert/create variants
       for (const v of payload.variants) {
-        let variantImage = v.image ?? null;
         const useMediaId = v.useMediaId ?? null;
-
-        if (useMediaId && !variantImage) {
-          const useMedia = await db.orm.public.UseMedia.where({ id: useMediaId }).first();
-          if (useMedia) {
-            const media = await db.orm.public.Media.where({ id: useMedia.mediaId }).first();
-            if (media) variantImage = media.url;
-          }
-        }
 
         let variantId = v.id;
         if (variantId) {
@@ -934,7 +872,6 @@ export const updateProduct = async (
             costPrice: v.costPrice ?? null,
             stock: v.stock || 0,
             lowStockThreshold: v.lowStockThreshold !== undefined ? v.lowStockThreshold : 5,
-            image: variantImage,
             useMediaId,
             attributes: v.attributes || {},
             barcode: v.barcode ?? null,
@@ -954,7 +891,6 @@ export const updateProduct = async (
             costPrice: v.costPrice ?? null,
             stock: v.stock || 0,
             lowStockThreshold: v.lowStockThreshold || 5,
-            image: variantImage,
             useMediaId,
             attributes: v.attributes || {},
             barcode: v.barcode ?? null,

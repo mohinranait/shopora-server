@@ -1,4 +1,4 @@
-import { Router } from "express";
+﻿import { Router } from "express";
 import { PayoutController } from "./payout.controller.ts";
 import { validateRequest } from "../../middlewares/validate.ts";
 import { requestPayoutSchema, processPayoutSchema } from "./payout.validation.ts";

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Generate human-readable unique order numbers
  * e.g. SHO-20261018-8472
  */

@@ -4,7 +4,6 @@ model Category {
   name         String
   slug         String                     @unique
   description  String?
-  image        String?
   icon         String?
   useMediaId   Int?
   useMedia     UseMedia?                  @relation(fields: [useMediaId], references: [id], onDelete: SetNull)
@@ -22,7 +21,6 @@ model Brand {
   id          Int                        @id @default(autoincrement())
   name        String
   slug        String                     @unique
-  logo        String?
   description String?
   website     String?
   useMediaId  Int?
@@ -56,7 +54,6 @@ model Product {
   costPrice           Float?
   stock               Int                        @default(0)
   lowStockThreshold   Int                        @default(5)
-  mainImage           String
   mainImageUseMediaId Int?
   mainImageUseMedia   UseMedia?                  @relation("ProductMainImage", fields: [mainImageUseMediaId], references: [id], onDelete: SetNull)
   images              ProductImage[]
@@ -89,7 +86,6 @@ model ProductImage {
   id           Int               @id @default(autoincrement())
   productId    Int
   product      Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
-  url          String
   altText      String?
   displayOrder Int               @default(0)
   isPrimary    Boolean           @default(false)
@@ -109,7 +105,6 @@ model ProductVariant {
   costPrice         Float?
   stock             Int                            @default(0)
   lowStockThreshold Int                            @default(5)
-  image             String?
   useMediaId        Int?
   useMedia          UseMedia?                      @relation(fields: [useMediaId], references: [id], onDelete: SetNull)
   attributes        Json?                          // Cached key-value helper e.g. {"Color": "Red", "Size": "XL"}

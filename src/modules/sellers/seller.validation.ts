@@ -1,12 +1,10 @@
-import { z } from "zod";
+﻿import { z } from "zod";
 import { SELLER_STATUS } from "../../constants/index.ts";
 
 export const updateSellerProfileSchema = z.object({
   body: z.object({
     storeName: z.string().min(3).optional(),
-    storeLogo: z.string().optional(),
     logoUseMediaId: z.number().int().positive().nullable().optional(),
-    storeBanner: z.string().optional(),
     bannerUseMediaId: z.number().int().positive().nullable().optional(),
     storeDescription: z.string().optional(),
     phone: z.string().optional(),

@@ -5,8 +5,6 @@ model SellerProfile {
   user              User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
   storeName         String                     @unique
   storeSlug         String                     @unique
-  storeLogo         String?
-  storeBanner       String?
   storeDescription  String?
   phone             String?
   businessAddress   String?
