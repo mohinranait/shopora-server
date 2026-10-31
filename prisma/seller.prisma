@@ -19,6 +19,8 @@ model SellerProfile {
   commissionRate    Float? // Custom commission rate % (null = uses global setting)
   isVerified        Boolean                    @default(false)
   verifiedAt        TimestamptzString?
+  isHolidayMode     Boolean                    @default(false)
+  holidayMessage    String?
   products          Product[]
   subOrders         SubOrder[]
   wallet            SellerWallet?

@@ -25,6 +25,9 @@ router.get(
   ProductController.getProductFilters
 );
 
+router.get("/search/autocomplete", ProductController.getAutocomplete);
+router.get("/:id/bundle", ProductController.getBundle);
+
 router.get("/detail/:slug", optionalAuth(), ProductController.getProductBySlug);
 
 // Seller routes

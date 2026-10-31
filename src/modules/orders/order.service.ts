@@ -190,11 +190,43 @@ export const priceOrder = async (items: OrderItemInput[], couponCode?: string) =
   const freeShippingThreshold = typeof settings.free_shipping_threshold === "number" ? settings.free_shipping_threshold : 1500;
   const vatPercentage = typeof settings.vat_percentage === "number" ? settings.vat_percentage : 0;
 
-  const allFreeShipping = lines.length > 0 && lines.every((l) => l.isFreeShipping);
-  const shippingFee =
-    lines.length === 0 || allFreeShipping || subtotal >= freeShippingThreshold
-      ? 0
-      : standardFee;
+  // Group lines by vendor (Platform vs individual sellers) - Daraz Multi-Vendor Split Shipping Model
+  const vendorGroupsMap = new Map<string, IPricedLine[]>();
+  for (const line of lines) {
+    const key = line.isPlatformOwned || !line.sellerId ? "PLATFORM" : line.sellerId;
+    const existing = vendorGroupsMap.get(key) || [];
+    existing.push(line);
+    vendorGroupsMap.set(key, existing);
+  }
+
+  let totalMultiVendorShipping = 0;
+  const packages: Array<{
+    sellerId: string | null;
+    isPlatformOwned: boolean;
+    itemCount: number;
+    subtotal: number;
+    shippingFee: number;
+    isFreeShipping: boolean;
+  }> = [];
+
+  for (const [key, groupLines] of vendorGroupsMap.entries()) {
+    const groupSubtotal = groupLines.reduce((acc, l) => acc + l.totalPrice, 0);
+    const allGroupFreeShipping = groupLines.every((l) => l.isFreeShipping);
+    const packageFee =
+      lines.length === 0 || allGroupFreeShipping || groupSubtotal >= freeShippingThreshold ? 0 : standardFee;
+    totalMultiVendorShipping += packageFee;
+
+    packages.push({
+      sellerId: key === "PLATFORM" ? null : key,
+      isPlatformOwned: key === "PLATFORM",
+      itemCount: groupLines.reduce((acc, l) => acc + l.quantity, 0),
+      subtotal: groupSubtotal,
+      shippingFee: packageFee,
+      isFreeShipping: packageFee === 0,
+    });
+  }
+
+  const shippingFee = lines.length === 0 ? 0 : totalMultiVendorShipping;
   const tax = Math.round(subtotal * (vatPercentage / 100));
   const totalAmount = Math.max(0, subtotal - discount + shippingFee + tax);
 
@@ -207,6 +239,7 @@ export const priceOrder = async (items: OrderItemInput[], couponCode?: string) =
     coupon,
     couponMessage,
     shippingFee,
+    packages,
     tax,
     totalAmount,
     freeShippingThreshold,
@@ -231,6 +264,7 @@ export const quoteOrder = async (items: OrderItemInput[], couponCode?: string) =
     savings: priced.savings,
     discount: priced.discount,
     shippingFee: priced.shippingFee,
+    packages: priced.packages,
     tax: priced.tax,
     totalAmount: priced.totalAmount,
     freeShippingThreshold: priced.freeShippingThreshold,
@@ -417,6 +451,8 @@ export const createOrder = async (
     });
 
     // 5.2. Create SubOrders and OrderItems for each Seller group
+    const standardFee = typeof settings.shipping_fee_standard === "number" ? settings.shipping_fee_standard : 70;
+    const freeShippingThreshold = typeof settings.free_shipping_threshold === "number" ? settings.free_shipping_threshold : 1500;
     let vendorIndex = 1;
     for (const [groupKey, groupItems] of vendorGroups.entries()) {
       const isPlatformOwned = groupKey === "PLATFORM";
@@ -439,6 +475,11 @@ export const createOrder = async (
       const commissionAmount = isPlatformOwned ? 0 : (groupSubtotal * commissionRate) / 100;
       const sellerEarnings = isPlatformOwned ? groupSubtotal : groupSubtotal - commissionAmount;
 
+      // Multi-Vendor Split Shipping Calculation for this vendor package
+      const allVendorFreeShipping = groupItems.every((it) => it.isFreeShipping);
+      const packageShippingFee =
+        allVendorFreeShipping || groupSubtotal >= freeShippingThreshold ? 0 : standardFee;
+
       // Create SubOrder
       const subOrder = await tx.orm.public.SubOrder.create({
         subOrderNumber,
@@ -446,13 +487,15 @@ export const createOrder = async (
         sellerId,
         isPlatformOwned,
         subtotal: groupSubtotal,
-        shippingFee: 0,
+        shippingFee: packageShippingFee,
+        shippingCost: packageShippingFee,
         tax: 0,
-        totalAmount: groupSubtotal,
+        totalAmount: groupSubtotal + packageShippingFee,
         commissionRate,
         commissionAmount,
         sellerEarnings,
         isPayoutSettled: false,
+        escrowStatus: "PENDING",
         status: ORDER_STATUS.PENDING,
       });
 
@@ -644,13 +687,18 @@ const applySubOrderStatus = async (
     await restoreStock(tx, items);
   }
 
-  // Credit the seller once the shipment is delivered
+  // Credit the seller once the shipment is delivered via Escrow Hold
   if (status === ORDER_STATUS.DELIVERED && !subOrder.isPayoutSettled && subOrder.sellerId) {
     const wallet = await tx.orm.public.SellerWallet.where({ sellerId: subOrder.sellerId }).first();
     if (wallet) {
-      update.isPayoutSettled = true;
+      const holdDays = 7; // 7-day escrow return window
+      const holdUntil = new Date(Date.now() + holdDays * 24 * 60 * 60 * 1000).toISOString();
+      update.isPayoutSettled = false;
+      update.escrowStatus = "HELD";
+      update.escrowHoldUntil = holdUntil;
+
       await tx.orm.public.SellerWallet.where({ id: wallet.id }).update({
-        balance: wallet.balance + subOrder.sellerEarnings,
+        pendingBalance: wallet.pendingBalance + subOrder.sellerEarnings,
         totalEarnings: wallet.totalEarnings + subOrder.sellerEarnings,
         totalCommissionPaid: wallet.totalCommissionPaid + subOrder.commissionAmount,
       });
@@ -659,21 +707,33 @@ const applySubOrderStatus = async (
         subOrderId: subOrder.id,
         amount: subOrder.sellerEarnings,
         type: TRANSACTION_TYPE.ORDER_EARNING,
-        description: `Order delivery payout for sub-order #${subOrder.subOrderNumber} (Subtotal: ${subOrder.subtotal} BDT - Commission: ${subOrder.commissionAmount} BDT)`,
+        description: `Delivered order payout held in escrow for ${holdDays} days (Available on ${new Date(holdUntil).toLocaleDateString()})`,
       });
     }
   }
 
-  // Reverse the seller credit if a delivered shipment comes back
-  if (status === ORDER_STATUS.RETURNED && subOrder.isPayoutSettled && subOrder.sellerId) {
+  // Reverse the seller credit if a delivered shipment comes back during or after escrow
+  if (status === ORDER_STATUS.RETURNED && subOrder.sellerId) {
     const wallet = await tx.orm.public.SellerWallet.where({ sellerId: subOrder.sellerId }).first();
     if (wallet) {
+      const wasReleased = subOrder.escrowStatus === "RELEASED";
       update.isPayoutSettled = false;
-      await tx.orm.public.SellerWallet.where({ id: wallet.id }).update({
-        balance: wallet.balance - subOrder.sellerEarnings,
-        totalEarnings: Math.max(0, wallet.totalEarnings - subOrder.sellerEarnings),
-        totalCommissionPaid: Math.max(0, wallet.totalCommissionPaid - subOrder.commissionAmount),
-      });
+      update.escrowStatus = "REFUNDED";
+
+      if (wasReleased) {
+        await tx.orm.public.SellerWallet.where({ id: wallet.id }).update({
+          balance: Math.max(0, wallet.balance - subOrder.sellerEarnings),
+          totalEarnings: Math.max(0, wallet.totalEarnings - subOrder.sellerEarnings),
+          totalCommissionPaid: Math.max(0, wallet.totalCommissionPaid - subOrder.commissionAmount),
+        });
+      } else {
+        await tx.orm.public.SellerWallet.where({ id: wallet.id }).update({
+          pendingBalance: Math.max(0, wallet.pendingBalance - subOrder.sellerEarnings),
+          totalEarnings: Math.max(0, wallet.totalEarnings - subOrder.sellerEarnings),
+          totalCommissionPaid: Math.max(0, wallet.totalCommissionPaid - subOrder.commissionAmount),
+        });
+      }
+
       await tx.orm.public.WalletTransaction.create({
         walletId: wallet.id,
         subOrderId: subOrder.id,
@@ -1130,6 +1190,183 @@ export const updatePaymentStatus = async (
   });
 };
 
+/**
+ * Seller: Get a single SubOrder by ID
+ */
+export const getSellerSubOrderById = async (userId: string, subOrderId: string) => {
+  const seller = await db.orm.public.SellerProfile.where({ userId }).first();
+  if (!seller) {
+    throw new AppError("Seller profile not found", 404);
+  }
+
+  const subOrder = await db.orm.public.SubOrder.where({ id: subOrderId, sellerId: seller.id }).first();
+  if (!subOrder) {
+    throw new AppError("Sub-order not found", 404);
+  }
+
+  const [parent, items] = await Promise.all([
+    db.orm.public.Order.where({ id: subOrder.orderId }).first(),
+    db.orm.public.OrderItem.where({ subOrderId: subOrder.id }).all(),
+  ]);
+
+  return {
+    ...subOrder,
+    items,
+    orderNumber: parent?.orderNumber,
+    shippingAddress: parent?.shippingAddress,
+    paymentStatus: parent?.paymentStatus,
+    paymentMethod: parent?.paymentMethod,
+    totalItems: items.reduce((sum, i) => sum + i.quantity, 0),
+  };
+};
+
+/**
+ * Escrow: Release matured suborders whose 7-day return hold has elapsed
+ */
+export const releaseMaturedEscrow = async () => {
+  const matureSubOrders = await db.orm.public.SubOrder
+    .where({ status: ORDER_STATUS.DELIVERED, escrowStatus: "HELD" })
+    .all();
+
+  const toRelease = matureSubOrders.filter(
+    (s: any) => s.escrowHoldUntil && new Date(s.escrowHoldUntil).getTime() <= Date.now()
+  );
+
+  let releasedCount = 0;
+  for (const s of toRelease) {
+    if (!s.sellerId) continue;
+    const wallet = await db.orm.public.SellerWallet.where({ sellerId: s.sellerId }).first();
+    if (wallet) {
+      await db.transaction(async (tx) => {
+        await tx.orm.public.SubOrder.where({ id: s.id }).update({
+          escrowStatus: "RELEASED",
+          escrowReleasedAt: new Date().toISOString(),
+          isPayoutSettled: true,
+        });
+        await tx.orm.public.SellerWallet.where({ id: wallet.id }).update({
+          pendingBalance: Math.max(0, wallet.pendingBalance - s.sellerEarnings),
+          balance: wallet.balance + s.sellerEarnings,
+        });
+        await tx.orm.public.WalletTransaction.create({
+          walletId: wallet.id,
+          subOrderId: s.id,
+          amount: s.sellerEarnings,
+          type: "ESCROW_RELEASE",
+          description: `Escrow released to available balance for sub-order #${s.subOrderNumber}`,
+        });
+      });
+      releasedCount++;
+    }
+  }
+
+  return { releasedCount };
+};
+
+/**
+ * Admin: Manually release escrow early for a sub-order
+ */
+export const releaseSubOrderEscrowEarly = async (subOrderId: string, adminUser: any) => {
+  if (adminUser.role !== USER_ROLES.ADMIN) {
+    throw new AppError("Only administrators can release escrow early", 403);
+  }
+
+  const subOrder = await db.orm.public.SubOrder.where({ id: subOrderId }).first();
+  if (!subOrder) throw new AppError("Sub-order not found", 404);
+  if (subOrder.escrowStatus === "RELEASED") throw new AppError("Escrow already released", 400);
+  if (!subOrder.sellerId) throw new AppError("Platform shipments do not have seller escrow", 400);
+
+  const wallet = await db.orm.public.SellerWallet.where({ sellerId: subOrder.sellerId }).first();
+  if (!wallet) throw new AppError("Seller wallet not found", 404);
+
+  await db.transaction(async (tx) => {
+    await tx.orm.public.SubOrder.where({ id: subOrder.id }).update({
+      escrowStatus: "RELEASED",
+      escrowReleasedAt: new Date().toISOString(),
+      isPayoutSettled: true,
+    });
+    await tx.orm.public.SellerWallet.where({ id: wallet.id }).update({
+      pendingBalance: Math.max(0, wallet.pendingBalance - subOrder.sellerEarnings),
+      balance: wallet.balance + subOrder.sellerEarnings,
+    });
+    await tx.orm.public.WalletTransaction.create({
+      walletId: wallet.id,
+      subOrderId: subOrder.id,
+      amount: subOrder.sellerEarnings,
+      type: "ESCROW_RELEASE",
+      description: `Admin manual early escrow release for #${subOrder.subOrderNumber}`,
+    });
+  });
+
+  return { success: true, message: `Escrow released for #${subOrder.subOrderNumber}` };
+};
+
+/**
+ * Seller: View active escrow holds
+ */
+export const getSellerEscrowHoldings = async (userId: string) => {
+  const seller = await db.orm.public.SellerProfile.where({ userId }).first();
+  if (!seller) throw new AppError("Seller profile not found", 404);
+
+  const heldSubOrders = await db.orm.public.SubOrder
+    .where({ sellerId: seller.id, escrowStatus: "HELD" })
+    .orderBy((s) => s.createdAt.desc())
+    .all();
+
+  const wallet = await db.orm.public.SellerWallet.where({ sellerId: seller.id }).first();
+
+  return {
+    pendingBalance: wallet?.pendingBalance || 0,
+    availableBalance: wallet?.balance || 0,
+    heldShipments: heldSubOrders.map((s) => ({
+      subOrderId: s.id,
+      subOrderNumber: s.subOrderNumber,
+      sellerEarnings: s.sellerEarnings,
+      deliveredAt: s.updatedAt,
+      holdUntil: s.escrowHoldUntil,
+      status: s.escrowStatus,
+    })),
+  };
+};
+
+/**
+ * Master Order Invoice Generator Data
+ */
+export const getOrderInvoiceData = async (orderId: string) => {
+  const order = await db.orm.public.Order.where({ id: orderId }).first();
+  if (!order) throw new AppError("Order not found", 404);
+
+  const [items, subOrders] = await Promise.all([
+    db.orm.public.OrderItem.where({ orderId }).all(),
+    db.orm.public.SubOrder.where({ orderId }).all(),
+  ]);
+
+  const sellerIds = subOrders.map((s) => s.sellerId).filter((id): id is string => typeof id === "string" && Boolean(id));
+  const sellers = sellerIds.length ? await db.orm.public.SellerProfile.where((s) => s.id.in(sellerIds)).all() : [];
+  const sellerMap = new Map(sellers.map((s) => [s.id, s]));
+
+  return {
+    invoiceNumber: `INV-${order.orderNumber}`,
+    orderNumber: order.orderNumber,
+    date: order.createdAt,
+    customer: order.shippingAddress,
+    paymentMethod: order.paymentMethod,
+    paymentStatus: order.paymentStatus,
+    subtotal: order.subtotal,
+    discount: order.discount,
+    shippingFee: order.shippingFee,
+    tax: order.tax,
+    totalAmount: order.totalAmount,
+    packages: subOrders.map((s) => ({
+      subOrderNumber: s.subOrderNumber,
+      storeName: s.sellerId ? sellerMap.get(s.sellerId)?.storeName ?? "Vendor" : "Shopora Direct",
+      courierName: s.courierName,
+      trackingNumber: s.trackingNumber,
+      shippingFee: s.shippingFee,
+      items: items.filter((i) => i.subOrderId === s.id),
+    })),
+  };
+};
+
 export const OrderService = {
   quoteOrder,
   createOrder,
@@ -1138,7 +1375,12 @@ export const OrderService = {
   cancelOrderByCustomer,
   adminUpdateOrderStatus,
   getSellerSubOrders,
+  getSellerSubOrderById,
   updateSubOrderStatus,
   adminGetAllOrders,
   updatePaymentStatus,
+  releaseMaturedEscrow,
+  releaseSubOrderEscrowEarly,
+  getSellerEscrowHoldings,
+  getOrderInvoiceData,
 };

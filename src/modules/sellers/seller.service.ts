@@ -307,6 +307,8 @@ export const updateSellerProfile = async (userId: string, payload: any) => {
   if (payload.bankAccountNumber !== undefined) updateData.bankAccountNumber = payload.bankAccountNumber;
   if (payload.bankRouting !== undefined) updateData.bankRouting = payload.bankRouting;
   if (payload.bkashOrNagad !== undefined) updateData.bkashOrNagad = payload.bkashOrNagad;
+  if (payload.isHolidayMode !== undefined) updateData.isHolidayMode = Boolean(payload.isHolidayMode);
+  if (payload.holidayMessage !== undefined) updateData.holidayMessage = payload.holidayMessage || null;
 
   return await db.orm.public.SellerProfile.where({ id: seller.id }).update(updateData);
 };

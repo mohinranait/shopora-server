@@ -15,8 +15,10 @@ model User {
   wishlist       WishlistItem[]
   cartItems      CartItem[]
   notifications  Notification[]
-  returnRequests ReturnRequest[]
-  medias         Media[]
+  returnRequests    ReturnRequest[]
+  productQuestions  ProductQuestion[]          @relation("QuestionAsker")
+  answeredQuestions ProductQuestion[]          @relation("QuestionAnswerer")
+  medias            Media[]
   useMedias      UseMedia[]
   avatarId       String?
   avatar         UseMedia?                  @relation("UserAvatar", fields: [avatarId], references: [id], onDelete: SetNull)

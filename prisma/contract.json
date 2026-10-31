@@ -72,6 +72,10 @@
       "model": "ProductImage",
       "namespace": "public"
     },
+    "ProductQuestion": {
+      "model": "ProductQuestion",
+      "namespace": "public"
+    },
     "ProductReview": {
       "model": "ProductReview",
       "namespace": "public"
@@ -2286,6 +2290,16 @@
                   "kind": "scalar"
                 }
               },
+              "bundleProductIds": {
+                "many": {
+                  "elementNullable": false
+                },
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "categoryId": {
                 "nullable": false,
                 "type": {
@@ -2637,6 +2651,21 @@
                   "namespace": "public"
                 }
               },
+              "questions": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "productId"
+                  ]
+                },
+                "to": {
+                  "model": "ProductQuestion",
+                  "namespace": "public"
+                }
+              },
               "reviews": {
                 "cardinality": "1:N",
                 "on": {
@@ -2709,6 +2738,9 @@
                 },
                 "brandId": {
                   "column": "brandId"
+                },
+                "bundleProductIds": {
+                  "column": "bundleProductIds"
                 },
                 "categoryId": {
                   "column": "categoryId"
@@ -3132,6 +3164,166 @@
               },
               "namespaceId": "public",
               "table": "ProductImage"
+            }
+          },
+          "ProductQuestion": {
+            "fields": {
+              "answer": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "answeredAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "answeredBy": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "isApproved": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
+              "productId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "question": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "userId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "answeredByUser": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "answeredBy"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              },
+              "product": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "productId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Product",
+                  "namespace": "public"
+                }
+              },
+              "user": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "userId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "answer": {
+                  "column": "answer"
+                },
+                "answeredAt": {
+                  "column": "answeredAt"
+                },
+                "answeredBy": {
+                  "column": "answeredBy"
+                },
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "isApproved": {
+                  "column": "isApproved"
+                },
+                "productId": {
+                  "column": "productId"
+                },
+                "question": {
+                  "column": "question"
+                },
+                "updatedAt": {
+                  "column": "updatedAt"
+                },
+                "userId": {
+                  "column": "userId"
+                }
+              },
+              "namespaceId": "public",
+              "table": "ProductQuestion"
             }
           },
           "ProductReview": {
@@ -3911,10 +4103,24 @@
                   "kind": "scalar"
                 }
               },
+              "holidayMessage": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "id": {
                 "nullable": false,
                 "type": {
                   "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "isHolidayMode": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
                   "kind": "scalar"
                 }
               },
@@ -4177,8 +4383,14 @@
                 "createdAt": {
                   "column": "createdAt"
                 },
+                "holidayMessage": {
+                  "column": "holidayMessage"
+                },
                 "id": {
                   "column": "id"
+                },
+                "isHolidayMode": {
+                  "column": "isHolidayMode"
                 },
                 "isVerified": {
                   "column": "isVerified"
@@ -4607,6 +4819,13 @@
                   "kind": "scalar"
                 }
               },
+              "consignmentId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "courierName": {
                 "nullable": true,
                 "type": {
@@ -4618,6 +4837,27 @@
                 "nullable": false,
                 "type": {
                   "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "escrowHoldUntil": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "escrowReleasedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "escrowStatus": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
               },
@@ -4660,6 +4900,13 @@
                 "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "shippingCost": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/float8@1",
                   "kind": "scalar"
                 }
               },
@@ -4777,11 +5024,23 @@
                 "commissionRate": {
                   "column": "commissionRate"
                 },
+                "consignmentId": {
+                  "column": "consignmentId"
+                },
                 "courierName": {
                   "column": "courierName"
                 },
                 "createdAt": {
                   "column": "createdAt"
+                },
+                "escrowHoldUntil": {
+                  "column": "escrowHoldUntil"
+                },
+                "escrowReleasedAt": {
+                  "column": "escrowReleasedAt"
+                },
+                "escrowStatus": {
+                  "column": "escrowStatus"
                 },
                 "id": {
                   "column": "id"
@@ -4800,6 +5059,9 @@
                 },
                 "sellerId": {
                   "column": "sellerId"
+                },
+                "shippingCost": {
+                  "column": "shippingCost"
                 },
                 "shippingFee": {
                   "column": "shippingFee"
@@ -5246,6 +5508,21 @@
                   "namespace": "public"
                 }
               },
+              "answeredQuestions": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "answeredBy"
+                  ]
+                },
+                "to": {
+                  "model": "ProductQuestion",
+                  "namespace": "public"
+                }
+              },
               "avatar": {
                 "cardinality": "N:1",
                 "nullable": true,
@@ -5319,6 +5596,21 @@
                 },
                 "to": {
                   "model": "Order",
+                  "namespace": "public"
+                }
+              },
+              "productQuestions": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "userId"
+                  ]
+                },
+                "to": {
+                  "model": "ProductQuestion",
                   "namespace": "public"
                 }
               },
@@ -7351,6 +7643,11 @@
             "Product": {
               "checks": [
                 {
+                  "expression": "array_position(\"bundleProductIds\", NULL) IS NULL",
+                  "name": "Product_bundleProductIds_elem_not_null_417bfa6f",
+                  "prefix": "Product_bundleProductIds_elem_not_null"
+                },
+                {
                   "expression": "array_position(\"tags\", NULL) IS NULL",
                   "name": "Product_tags_elem_not_null_aecbe9e2",
                   "prefix": "Product_tags_elem_not_null"
@@ -7375,6 +7672,18 @@
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
                   "nullable": true
+                },
+                "bundleProductIds": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "default": {
+                    "kind": "literal",
+                    "value": []
+                  },
+                  "many": {
+                    "elementNullable": false
+                  },
+                  "nullable": false
                 },
                 "categoryId": {
                   "codecId": "pg/text@1",
@@ -8045,6 +8354,162 @@
                   ],
                   "name": "ProductImage_productId_idx_5858600a",
                   "prefix": "ProductImage_productId_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": []
+            },
+            "ProductQuestion": {
+              "columns": {
+                "answer": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "answeredAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true
+                },
+                "answeredBy": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "createdAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "isApproved": {
+                  "codecId": "pg/bool@1",
+                  "dataType": "pg/bool",
+                  "default": {
+                    "kind": "literal",
+                    "value": true
+                  },
+                  "nullable": false
+                },
+                "productId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "question": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "updatedAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": false
+                },
+                "userId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "index": {
+                    "name": "ProductQuestion_productId_idx_5858600a"
+                  },
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "productId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "ProductQuestion"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Product"
+                  }
+                },
+                {
+                  "index": {
+                    "name": "ProductQuestion_userId_idx_a489d58a"
+                  },
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "userId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "ProductQuestion"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  }
+                },
+                {
+                  "index": {
+                    "name": "ProductQuestion_answeredBy_idx_ea16a636"
+                  },
+                  "onDelete": "setNull",
+                  "source": {
+                    "columns": [
+                      "answeredBy"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "ProductQuestion"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "answeredBy"
+                  ],
+                  "name": "ProductQuestion_answeredBy_idx_ea16a636",
+                  "prefix": "ProductQuestion_answeredBy_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "productId"
+                  ],
+                  "name": "ProductQuestion_productId_idx_5858600a",
+                  "prefix": "ProductQuestion_productId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "userId"
+                  ],
+                  "name": "ProductQuestion_userId_idx_a489d58a",
+                  "prefix": "ProductQuestion_userId_idx",
                   "unique": false
                 }
               ],
@@ -8737,9 +9202,23 @@
                   },
                   "nullable": false
                 },
+                "holidayMessage": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
                 "id": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
+                  "nullable": false
+                },
+                "isHolidayMode": {
+                  "codecId": "pg/bool@1",
+                  "dataType": "pg/bool",
+                  "default": {
+                    "kind": "literal",
+                    "value": false
+                  },
                   "nullable": false
                 },
                 "isVerified": {
@@ -9240,6 +9719,11 @@
                   },
                   "nullable": false
                 },
+                "consignmentId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
                 "courierName": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
@@ -9251,6 +9735,25 @@
                   "default": {
                     "expression": "now()",
                     "kind": "function"
+                  },
+                  "nullable": false
+                },
+                "escrowHoldUntil": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true
+                },
+                "escrowReleasedAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true
+                },
+                "escrowStatus": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "default": {
+                    "kind": "literal",
+                    "value": "PENDING"
                   },
                   "nullable": false
                 },
@@ -9295,6 +9798,15 @@
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
                   "nullable": true
+                },
+                "shippingCost": {
+                  "codecId": "pg/float8@1",
+                  "dataType": "pg/float8",
+                  "default": {
+                    "kind": "literal",
+                    "value": 0
+                  },
+                  "nullable": false
                 },
                 "shippingFee": {
                   "codecId": "pg/float8@1",
@@ -9916,10 +10428,10 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "57a6f9554a518da7e6213b801623152e4e7528eca4632c417d50ca1f42ae8d11"
+    "storageHash": "e936ddebb308c2166032cc582eb7be1e7db7675deae318e7db08a97ff2800910"
   },
   "execution": {
-    "executionHash": "748057438caef4a8334e21b813995cbaf079f2e0e7b2ccacefc7ca375b65e388",
+    "executionHash": "5893d5883ad3defd495818abc9da068be774f01db5143bdcabede87852d91089",
     "mutations": {
       "defaults": [
         {
@@ -10256,6 +10768,32 @@
           "ref": {
             "entry": "ProductImage",
             "field": "id",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "uuidv4",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "ProductQuestion",
+            "field": "id",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "onUpdate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "ProductQuestion",
+            "field": "updatedAt",
             "namespace": "public"
           }
         },

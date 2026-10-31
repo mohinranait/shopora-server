@@ -1,4 +1,4 @@
-﻿import { Router } from "express";
+import { Router } from "express";
 import { OrderController } from "./order.controller.ts";
 import { validateRequest } from "../../middlewares/validate.ts";
 import {
@@ -54,11 +54,43 @@ router.get(
   OrderController.getSellerSubOrders
 );
 
+router.get(
+  "/seller/my-suborders/:id",
+  authGuard(USER_ROLES.SELLER),
+  OrderController.getSellerSubOrderById
+);
+
+router.get(
+  "/seller/my-escrow",
+  authGuard(USER_ROLES.SELLER),
+  OrderController.getSellerEscrowHoldings
+);
+
 router.patch(
   "/seller/suborder/:id/status",
   authGuard(USER_ROLES.SELLER, USER_ROLES.ADMIN),
   validateRequest(updateSubOrderStatusSchema),
   OrderController.updateSubOrderStatus
+);
+
+// Escrow settlement routes
+router.post(
+  "/escrow/release-matured",
+  authGuard(USER_ROLES.ADMIN),
+  OrderController.releaseMaturedEscrow
+);
+
+router.post(
+  "/suborders/:id/release-escrow",
+  authGuard(USER_ROLES.ADMIN),
+  OrderController.releaseSubOrderEscrowEarly
+);
+
+// Master invoice data route (Admin, Seller, or Customer owner)
+router.get(
+  "/:id/invoice",
+  optionalAuth(),
+  OrderController.getOrderInvoice
 );
 
 // Admin all orders management

@@ -45,6 +45,11 @@ model SubOrder {
   status           String                     @default("PENDING") // "PENDING" | "CONFIRMED" | "PROCESSING" | "SHIPPED" | "DELIVERED" | "CANCELLED" | "RETURNED"
   trackingNumber   String?
   courierName      String?
+  consignmentId    String?
+  shippingCost     Float                      @default(0.0)
+  escrowHoldUntil  TimestamptzString?
+  escrowStatus     String                     @default("PENDING") // "PENDING" | "HELD" | "RELEASED" | "REFUNDED"
+  escrowReleasedAt TimestamptzString?
   items            OrderItem[]
   createdAt        TimestamptzString          @default(now())
   updatedAt        temporal.updatedAtString()

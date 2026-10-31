@@ -646,6 +646,7 @@ export const createProduct = async (
       lowStockThreshold: payload.lowStockThreshold || 5,
       mainImageId: payload.mainImageId ?? payload.mainImageUseMediaId ?? null,
       tags: payload.tags || [],
+      bundleProductIds: payload.bundleProductIds || [],
       warranty: payload.warranty ?? null,
       weightKg: payload.weightKg ?? null,
       dimensions: payload.dimensions ?? null,
@@ -790,6 +791,7 @@ export const updateProduct = async (
     if (payload.status !== undefined) updateData.status = payload.status;
     if (payload.productType !== undefined) updateData.productType = payload.productType;
     if (payload.tags !== undefined) updateData.tags = payload.tags;
+    if (payload.bundleProductIds !== undefined) updateData.bundleProductIds = payload.bundleProductIds;
     if (payload.warranty !== undefined) updateData.warranty = payload.warranty;
     if (payload.weightKg !== undefined) updateData.weightKg = payload.weightKg;
     if (payload.dimensions !== undefined) updateData.dimensions = payload.dimensions;
@@ -1004,6 +1006,129 @@ export const deleteProduct = async (
   return { message: "Product deleted permanently" };
 };
 
+/**
+ * Instant Autocomplete Suggestions for live search
+ */
+export const getAutocompleteSuggestions = async (searchTerm: string) => {
+  const q = searchTerm.trim();
+  if (!q || q.length < 2) return { products: [], categories: [], brands: [] };
+
+  const pattern = `%${q}%`;
+  const [matchedProducts, matchedCategories, matchedBrands] = await Promise.all([
+    db.orm.public.Product
+      .where({
+        status: PRODUCT_STATUS.PUBLISHED,
+        approvalStatus: PRODUCT_APPROVAL_STATUS.APPROVED,
+      })
+      .where((p, { fns }) => fns.or(p.name.ilike(pattern), p.sku.ilike(pattern)))
+      .limit(6)
+      .all(),
+    db.orm.public.Category
+      .where((c) => c.name.ilike(pattern))
+      .limit(3)
+      .all(),
+    db.orm.public.Brand
+      .where((b) => b.name.ilike(pattern))
+      .limit(3)
+      .all(),
+  ]);
+
+  const useMediaIds = [...new Set(matchedProducts.map((p: any) => p.mainImageId ?? p.mainImageUseMediaId).filter((id): id is string => typeof id === "string" && Boolean(id)))];
+  const useMedias = useMediaIds.length ? await db.orm.public.UseMedia.where((um) => um.id.in(useMediaIds)).all() : [];
+  const mediaIds = useMedias.map((um) => um.mediaId);
+  const medias = mediaIds.length ? await db.orm.public.Media.where((m) => m.id.in(mediaIds)).all() : [];
+  const mediaMap = new Map(medias.map((m) => [m.id, m.url]));
+  const useMediaMap = new Map(useMedias.map((um) => [um.id, mediaMap.get(um.mediaId) ?? ""]));
+
+  return {
+    products: matchedProducts.map((p: any) => {
+      const mId = p.mainImageId ?? p.mainImageUseMediaId;
+      return {
+        id: p.id,
+        name: p.name,
+        slug: p.slug,
+        basePrice: p.basePrice,
+        comparePrice: p.comparePrice,
+        mainImage: (mId ? useMediaMap.get(mId) : null) ?? "",
+        stock: p.stock,
+      };
+    }),
+    categories: matchedCategories.map((c) => ({ id: c.id, name: c.name, slug: c.slug })),
+    brands: matchedBrands.map((b) => ({ id: b.id, name: b.name, slug: b.slug })),
+  };
+};
+
+/**
+ * Frequently Bought Together / Bundle recommendations
+ */
+export const getProductBundleRecommendations = async (productId: string) => {
+  const current = await db.orm.public.Product.where({ id: productId }).first();
+  if (!current) return { mainProduct: null, bundleItems: [], discountPercentage: 5, bundleTotal: 0, discountedTotal: 0 };
+
+  // Find companion products: First check explicit bundleProductIds selected by merchant/admin
+  let companions: any[] = [];
+  if (Array.isArray(current.bundleProductIds) && current.bundleProductIds.length > 0) {
+    companions = await db.orm.public.Product
+      .where((p) => p.id.in(current.bundleProductIds))
+      .where({
+        status: PRODUCT_STATUS.PUBLISHED,
+        approvalStatus: PRODUCT_APPROVAL_STATUS.APPROVED,
+      })
+      .all();
+  }
+
+  // Fallback to same category products if none were explicitly assigned
+  if (companions.length === 0) {
+    const allInCat = await db.orm.public.Product
+      .where({
+        status: PRODUCT_STATUS.PUBLISHED,
+        approvalStatus: PRODUCT_APPROVAL_STATUS.APPROVED,
+        categoryId: current.categoryId,
+      })
+      .limit(4)
+      .all();
+
+    companions = allInCat.filter((p) => p.id !== productId).slice(0, 2);
+  }
+
+  const allProds = [current, ...companions];
+  const useMediaIds = [...new Set(allProds.map((p: any) => p.mainImageId ?? p.mainImageUseMediaId).filter((id): id is string => typeof id === "string" && Boolean(id)))];
+  const useMedias = useMediaIds.length ? await db.orm.public.UseMedia.where((um) => um.id.in(useMediaIds)).all() : [];
+  const mediaIds = useMedias.map((um) => um.mediaId);
+  const medias = mediaIds.length ? await db.orm.public.Media.where((m) => m.id.in(mediaIds)).all() : [];
+  const mediaMap = new Map(medias.map((m) => [m.id, m.url]));
+  const useMediaMap = new Map(useMedias.map((um) => [um.id, mediaMap.get(um.mediaId) ?? ""]));
+
+  const formatItem = (p: any) => {
+    const mId = p.mainImageId ?? p.mainImageUseMediaId;
+    return {
+      id: p.id,
+      name: p.name,
+      slug: p.slug,
+      basePrice: p.basePrice,
+      mainImage: (mId ? useMediaMap.get(mId) : null) ?? "",
+      stock: p.stock,
+    };
+  };
+
+  const bundleItems = companions.map(formatItem);
+  const mainProduct = formatItem(current);
+  const bundleTotal = mainProduct.basePrice + bundleItems.reduce((acc, it) => acc + it.basePrice, 0);
+  const discountPercentage = 5;
+  const discountedTotal = Math.round(bundleTotal * (1 - discountPercentage / 100));
+
+  return {
+    mainProduct,
+    companionProducts: bundleItems,
+    bundleItems,
+    bundleDiscountPercent: discountPercentage,
+    discountPercentage,
+    bundleTotal,
+    discountedTotal,
+    savings: bundleTotal - discountedTotal,
+  };
+};
+
 export const ProductService = {
   getAllProducts,
   getProductFilters,
@@ -1013,4 +1138,6 @@ export const ProductService = {
   updateProduct,
   reviewProductApproval,
   deleteProduct,
+  getAutocompleteSuggestions,
+  getProductBundleRecommendations,
 };

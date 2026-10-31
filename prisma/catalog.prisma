@@ -60,6 +60,7 @@ model Product {
   variants            ProductVariant[]
   productAttributes   ProductAttribute[]
   reviews             ProductReview[]
+  questions           ProductQuestion[]
   orderItems          OrderItem[]
   wishlistItems       WishlistItem[]
   cartItems           CartItem[]
@@ -76,6 +77,7 @@ model Product {
   metaDescription     String?
   metaKeywords        String?
   tags                String[]
+  bundleProductIds    String[]                   @default([])
   warranty            String?
   weightKg            Float?
   createdAt           TimestamptzString          @default(now())
@@ -118,4 +120,20 @@ model ProductVariant {
   cartItems         CartItem[]
   createdAt         TimestamptzString              @default(now())
   updatedAt         temporal.updatedAtString()
+}
+
+model ProductQuestion {
+  id             String            @id @default(uuid())
+  productId      String
+  product        Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User              @relation("QuestionAsker", fields: [userId], references: [id], onDelete: Cascade)
+  question       String
+  answer         String?
+  answeredBy     String?           // User ID of responder
+  answeredByUser User?             @relation("QuestionAnswerer", fields: [answeredBy], references: [id], onDelete: SetNull)
+  answeredAt     TimestamptzString?
+  isApproved     Boolean           @default(true)
+  createdAt      TimestamptzString @default(now())
+  updatedAt      temporal.updatedAtString()
 }

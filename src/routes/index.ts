@@ -1,4 +1,4 @@
-﻿import { Router } from "express";
+import { Router } from "express";
 import { AuthRoutes } from "../modules/auth/auth.routes.ts";
 import { UserRoutes } from "../modules/users/user.routes.ts";
 import { CategoryRoutes } from "../modules/categories/category.routes.ts";
@@ -18,6 +18,8 @@ import { mediaRoutes } from "../modules/media/media.routes.ts";
 import { AttributeRoutes } from "../modules/attributes/attribute.routes.ts";
 import { SliderRoutes } from "../modules/sliders/slider.routes.ts";
 import { NotificationRoutes } from "../modules/notifications/notification.routes.ts";
+import { QuestionRoutes } from "../modules/questions/question.routes.ts";
+import { LogisticsRoutes } from "../modules/logistics/logistics.routes.ts";
 
 const router = Router();
 
@@ -34,6 +36,8 @@ const moduleRoutes = [
   { path: "/cart", route: CartRoutes },
   { path: "/wishlist", route: WishlistRoutes },
   { path: "/reviews", route: ReviewRoutes },
+  { path: "/questions", route: QuestionRoutes },
+  { path: "/logistics", route: LogisticsRoutes },
   { path: "/marketing", route: MarketingRoutes },
   { path: "/payouts", route: PayoutRoutes },
   { path: "/settings", route: SettingsRoutes },

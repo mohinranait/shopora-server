@@ -201,6 +201,30 @@ export const deleteProduct = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+export const getAutocomplete = catchAsync(async (req: Request, res: Response) => {
+  const query = (req.query.q as string) || "";
+  const result = await ProductService.getAutocompleteSuggestions(query);
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Autocomplete suggestions retrieved",
+    data: result,
+  });
+});
+
+export const getBundle = catchAsync(async (req: Request, res: Response) => {
+  const productId = req.params.id as string;
+  const result = await ProductService.getProductBundleRecommendations(productId);
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Bundle recommendations retrieved",
+    data: result,
+  });
+});
+
 export const ProductController = {
   getAllProducts,
   getProductFilters,
@@ -212,4 +236,6 @@ export const ProductController = {
   updateProduct,
   reviewProductApproval,
   deleteProduct,
+  getAutocomplete,
+  getBundle,
 };

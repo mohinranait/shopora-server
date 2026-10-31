@@ -135,6 +135,64 @@ export const updatePaymentStatus = catchAsync(async (req: Request, res: Response
   });
 });
 
+export const getSellerSubOrderById = catchAsync(async (req: Request, res: Response) => {
+  const subOrderId = req.params.id as string;
+  const result = await OrderService.getSellerSubOrderById(req.user!.id, subOrderId);
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Sub-order details retrieved",
+    data: result,
+  });
+});
+
+export const releaseMaturedEscrow = catchAsync(async (req: Request, res: Response) => {
+  const result = await OrderService.releaseMaturedEscrow();
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: `Matured escrow processing complete: ${result.releasedCount} sub-orders settled`,
+    data: result,
+  });
+});
+
+export const releaseSubOrderEscrowEarly = catchAsync(async (req: Request, res: Response) => {
+  const subOrderId = req.params.id as string;
+  const result = await OrderService.releaseSubOrderEscrowEarly(subOrderId, req.user!);
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: result.message,
+    data: result,
+  });
+});
+
+export const getSellerEscrowHoldings = catchAsync(async (req: Request, res: Response) => {
+  const result = await OrderService.getSellerEscrowHoldings(req.user!.id);
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Seller escrow holdings retrieved",
+    data: result,
+  });
+});
+
+export const getOrderInvoice = catchAsync(async (req: Request, res: Response) => {
+  const orderId = req.params.id as string;
+  const result = await OrderService.getOrderInvoiceData(orderId);
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Order invoice data retrieved",
+    data: result,
+  });
+});
+
 export const OrderController = {
   quoteOrder,
   createOrder,
@@ -143,7 +201,12 @@ export const OrderController = {
   cancelOrder,
   adminUpdateOrderStatus,
   getSellerSubOrders,
+  getSellerSubOrderById,
   updateSubOrderStatus,
   adminGetAllOrders,
   updatePaymentStatus,
+  releaseMaturedEscrow,
+  releaseSubOrderEscrowEarly,
+  getSellerEscrowHoldings,
+  getOrderInvoice,
 };

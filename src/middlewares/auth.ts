@@ -1,4 +1,4 @@
-﻿import type { Request, Response, NextFunction } from "express";
+import type { Request, Response, NextFunction } from "express";
 import { AppError } from "../errors/AppError.ts";
 import { verifyAccessToken, decodeToken, type IJwtUserPayload } from "../utils/token.ts";
 import { db } from "../config/db.ts";
@@ -24,20 +24,6 @@ export const authGuard = (...allowedRoles: string[]) => {
       const authHeader = req.headers.authorization;
 
       if (!authHeader || !authHeader.startsWith("Bearer ")) {
-        if (ENV.NODE_ENV === "development") {
-          const defaultAdmin = await db.orm.public.User.where({ role: USER_ROLES.ADMIN }).first();
-          if (defaultAdmin) {
-            req.user = {
-              id: defaultAdmin.id,
-              email: defaultAdmin.email,
-              role: defaultAdmin.role,
-              sellerId: null,
-            };
-            if (allowedRoles.length === 0 || allowedRoles.includes(defaultAdmin.role)) {
-              return next();
-            }
-          }
-        }
         throw new AppError("Authentication required: No bearer token provided", 401);
       }
 

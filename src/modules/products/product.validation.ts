@@ -76,6 +76,7 @@ export const createProductSchema = z.object({
     selectedAttributes: z.array(productSelectedAttributeSchema).optional(),
     variants: z.array(variantInputSchema).optional(),
     tags: z.array(z.string()).default([]).optional(),
+    bundleProductIds: z.array(z.string()).default([]).optional(),
     warranty: z.string().optional(),
     weightKg: z.number().positive().optional(),
     dimensions: z
@@ -119,6 +120,7 @@ export const updateProductSchema = z.object({
     variants: z.array(variantInputSchema).optional(),
     status: z.enum([PRODUCT_STATUS.PUBLISHED, PRODUCT_STATUS.UNPUBLISHED, PRODUCT_STATUS.ARCHIVED]).optional(),
     tags: z.array(z.string()).optional(),
+    bundleProductIds: z.array(z.string()).optional(),
     warranty: z.string().optional(),
     weightKg: z.number().positive().nullable().optional(),
     dimensions: z
