@@ -90,7 +90,11 @@ const resolveFilters = async (filters: IProductFilterOptions): Promise<IResolved
   const sellerTask = (async () => {
     if (!filters.sellerUserId) return;
     const seller = await db.orm.public.SellerProfile.where({ userId: filters.sellerUserId }).first();
-    if (seller) resolved.sellerProfileId = seller.id;
+    if (seller) {
+      resolved.sellerProfileId = seller.id;
+    } else {
+      resolved.unresolved = true;
+    }
   })();
 
   await Promise.all([categoryTask, brandTask, sellerTask]);
@@ -116,9 +120,14 @@ const buildProductQuery = (
   } else if (filters.sellerUserId) {
     if (resolved.sellerProfileId) {
       query = query.where({ sellerId: resolved.sellerProfileId });
+    } else {
+      query = query.where({ sellerId: "__NON_EXISTENT__" });
     }
     if (filters.approvalStatus) {
       query = query.where({ approvalStatus: filters.approvalStatus });
+    }
+    if (filters.status) {
+      query = query.where({ status: filters.status });
     }
   } else if (filters.isAdmin) {
     if (filters.approvalStatus) {
@@ -517,8 +526,10 @@ export const populateProductDetails = async (product: any, requestingUser?: any)
     .limit(10)
     .all();
 
+  const sanitizedProduct = isOwner || isAdmin ? product : { ...product, costPrice: undefined };
+
   return {
-    ...product,
+    ...sanitizedProduct,
     mainImageId: product.mainImageId ?? productMainId ?? null,
     mainImageUseMedia,
     mainImage: mainImageUseMedia?.media?.url ?? "",
@@ -852,8 +863,11 @@ export const updateProduct = async (
       }
     }
 
-    // Handle variants update if provided
-    if (Array.isArray(payload.variants)) {
+    // Handle variants update if product is VARIABLE
+    const isVariableProduct = payload.productType === PRODUCT_TYPE.VARIABLE || 
+      (payload.productType === undefined && product.productType === PRODUCT_TYPE.VARIABLE);
+
+    if (isVariableProduct && Array.isArray(payload.variants) && payload.variants.length > 0) {
       // Recalculate total stock from variants
       updateData.stock = payload.variants.reduce((acc: number, v: any) => acc + (v.stock || 0), 0);
       
@@ -928,8 +942,20 @@ export const updateProduct = async (
           }
         }
       }
-    } else if (payload.stock !== undefined) {
-      updateData.stock = payload.stock;
+    } else {
+      // For simple products, assign the stock directly from payload
+      if (payload.stock !== undefined) {
+        updateData.stock = payload.stock;
+      }
+
+      // If switching from variable to simple, remove obsolete variants
+      if (payload.productType === PRODUCT_TYPE.SIMPLE) {
+        const existingVariants = await tx.orm.public.ProductVariant.where({ productId: id }).all();
+        for (const exVar of existingVariants) {
+          await tx.orm.public.ProductVariantAttributeValue.where({ variantId: exVar.id }).delete();
+          await tx.orm.public.ProductVariant.where({ id: exVar.id }).delete();
+        }
+      }
     }
 
     return await tx.orm.public.Product.where({ id }).update(updateData);

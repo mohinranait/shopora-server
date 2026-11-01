@@ -418,7 +418,7 @@ export const adminReviewSellerApplication = async (
         ? `Congratulations! Your seller application for "${seller.storeName}" has been approved. You can now add and sell products on Shopora!`
         : `Your seller application was ${payload.status.toLowerCase()}. ${payload.rejectionReason || ""}`,
     type: "SYSTEM",
-    link: "/seller/dashboard",
+    link: "/seller/notifications",
   });
 
   return updatedSeller;
@@ -620,7 +620,7 @@ export const adminSendSellerNotice = async (sellerId: string, title: string, mes
     title,
     message,
     type: "SYSTEM",
-    link: "/seller/dashboard",
+    link: "/seller/notifications",
   });
 
   return { message: "Notice sent to seller successfully" };
