@@ -286,7 +286,7 @@ export const quoteOrder = async (items: OrderItemInput[], couponCode?: string) =
  * Checkout / Place Order with Multi-Vendor Splitting & Commission Accounting
  */
 export const createOrder = async (
-  userId: string | null,
+  userId: string | { id?: string } | null,
   payload: {
     items: OrderItemInput[];
     shippingAddress: any;
@@ -354,7 +354,7 @@ export const createOrder = async (
   // 5. Execute Order Placement in Database Transaction
   return await db.transaction(async (tx) => {
     // 5.0. Resolve or Auto-Create User linked by Phone Number
-    let resolvedUserId: string | null = userId;
+    let resolvedUserId: string | null = typeof userId === "object" && userId !== null ? (userId as any).id ?? null : userId;
 
     if (!resolvedUserId) {
       // Check if user already exists with this phone number
