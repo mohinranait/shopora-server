@@ -1,6 +1,7 @@
 import { db } from "../../config/db.ts";
 import { AppError } from "../../errors/AppError.ts";
 import { ORDER_STATUS, USER_ROLES } from "../../constants/index.ts";
+import { syncParentOrder } from "../orders/order.service.ts";
 
 export interface ICourierConsignment {
   consignmentId: string;
@@ -85,12 +86,15 @@ export const bookCourierConsignment = async (
   const trackingNumber = `ST-${randomSuffix}-BD`;
   const consignmentId = `CN-${Date.now().toString(36).toUpperCase()}-${randomSuffix.toString().slice(0, 4)}`;
 
-  // Update SubOrder with courier details and set status to SHIPPED
-  const updated = await db.orm.public.SubOrder.where({ id: subOrderId }).update({
-    trackingNumber,
-    courierName: requestedCourier,
-    consignmentId,
-    status: ORDER_STATUS.SHIPPED,
+  // Update SubOrder with courier details, set status to SHIPPED, and sync parent order
+  await db.transaction(async (tx) => {
+    await tx.orm.public.SubOrder.where({ id: subOrderId }).update({
+      trackingNumber,
+      courierName: requestedCourier,
+      consignmentId,
+      status: ORDER_STATUS.SHIPPED,
+    });
+    await syncParentOrder(tx, subOrder.orderId);
   });
 
   // Also notify customer
@@ -191,32 +195,58 @@ export const getPackagingSlipData = async (subOrderId: string, user: any) => {
     throw new AppError("Sub-order not found", 404);
   }
 
+  // Permission: Admin or the Seller who owns the SubOrder
+  const isAdmin = user?.role === USER_ROLES.ADMIN;
+  const isOwnerSeller = user?.role === USER_ROLES.SELLER && user?.sellerId && user.sellerId === subOrder.sellerId;
+  if (!isAdmin && !isOwnerSeller) {
+    throw new AppError("Forbidden: You cannot view this packaging slip", 403);
+  }
+
   const order = await db.orm.public.Order.where({ id: subOrder.orderId }).first();
   const items = await db.orm.public.OrderItem.where({ subOrderId: subOrder.id }).all();
   const seller = subOrder.sellerId
     ? await db.orm.public.SellerProfile.where({ id: subOrder.sellerId }).first()
     : null;
 
+  const destinationCity = order?.shippingAddress?.city || "Bangladesh";
+
   return {
     slipType: "MULTI_VENDOR_PACKAGING_SLIP",
     subOrderNumber: subOrder.subOrderNumber,
-    orderNumber: order?.orderNumber,
+    orderNumber: order?.orderNumber || "",
     date: subOrder.createdAt,
+    storeName: seller?.storeName || "Shopora Direct Official Store",
+    store: {
+      name: seller?.storeName || "Shopora Direct Official Store",
+      phone: seller?.phone || "+880 1700-000000",
+      address: seller?.businessAddress || "Dhaka, Bangladesh",
+    },
+    // Customer personal details are masked/hidden for privacy
+    customer: {
+      name: "Customer (Privacy Protected)",
+      phone: "Protected for Privacy",
+      address: `Courier Dispatched (${destinationCity})`,
+    },
+    financials: {
+      codAmount: order?.paymentMethod === "COD" ? subOrder.totalAmount : 0,
+      shippingFee: subOrder.shippingFee ?? 0,
+      itemsTotal: subOrder.subtotal ?? 0,
+    },
+    courier: {
+      name: subOrder.courierName || "Standard Shipping",
+      consignmentId: subOrder.consignmentId || "N/A",
+      trackingCode: subOrder.trackingNumber || subOrder.consignmentId || "N/A",
+    },
     courierName: subOrder.courierName || "Standard Shipping",
     trackingNumber: subOrder.trackingNumber || "N/A",
     consignmentId: subOrder.consignmentId || "N/A",
     paymentMethod: order?.paymentMethod,
     paymentStatus: order?.paymentStatus,
     amountToCollectCOD: order?.paymentMethod === "COD" ? subOrder.totalAmount : 0,
-    store: {
-      name: seller?.storeName || "Shopora Direct Official Store",
-      phone: seller?.phone || "+880 1700-000000",
-      address: seller?.businessAddress || "Dhaka, Bangladesh",
-    },
-    customer: order?.shippingAddress,
     items: items.map((i) => ({
       name: i.productName,
       variantTitle: i.variantTitle,
+      variantSku: i.sku || i.variantTitle || null,
       sku: i.sku,
       quantity: i.quantity,
       price: i.price,

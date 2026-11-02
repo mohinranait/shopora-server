@@ -750,7 +750,7 @@ const applySubOrderStatus = async (
 /**
  * Recompute the parent order's status (and COD payment) after sub-order changes
  */
-const syncParentOrder = async (tx: any, orderId: string) => {
+export const syncParentOrder = async (tx: any, orderId: string) => {
   const order = await tx.orm.public.Order.where({ id: orderId }).first();
   const subOrders = await tx.orm.public.SubOrder.where({ orderId }).all();
   const orderStatus = deriveOrderStatus(subOrders.map((s: any) => s.status));
@@ -1020,7 +1020,10 @@ export const getSellerSubOrders = async (userId: string, status?: string) => {
       ...so,
       items: items.filter((i) => i.subOrderId === so.id),
       orderNumber: parent?.orderNumber,
-      shippingAddress: parent?.shippingAddress,
+      // Customer personal information & address are kept hidden from sellers for privacy
+      shippingAddress: null,
+      destinationCity: parent?.shippingAddress?.city ?? null,
+      destinationState: parent?.shippingAddress?.state ?? null,
       paymentStatus: parent?.paymentStatus,
       paymentMethod: parent?.paymentMethod,
     };
@@ -1213,7 +1216,10 @@ export const getSellerSubOrderById = async (userId: string, subOrderId: string) 
     ...subOrder,
     items,
     orderNumber: parent?.orderNumber,
-    shippingAddress: parent?.shippingAddress,
+    // Customer personal information & address are kept hidden from sellers for privacy
+    shippingAddress: null,
+    destinationCity: parent?.shippingAddress?.city ?? null,
+    destinationState: parent?.shippingAddress?.state ?? null,
     paymentStatus: parent?.paymentStatus,
     paymentMethod: parent?.paymentMethod,
     totalItems: items.reduce((sum, i) => sum + i.quantity, 0),
@@ -1383,4 +1389,5 @@ export const OrderService = {
   releaseSubOrderEscrowEarly,
   getSellerEscrowHoldings,
   getOrderInvoiceData,
+  syncParentOrder,
 };
