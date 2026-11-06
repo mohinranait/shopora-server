@@ -1,57 +1,61 @@
 import { db } from "../../config/db.ts";
 import { AppError } from "../../errors/AppError.ts";
 import { slugify } from "../../utils/slugify.ts";
+import type {
+  ICategoryPopulated,
+  ICategoryTreeNode,
+  ICategoryFlatListItem,
+  ICategoryDetailResponse,
+  ICreateCategoryInput,
+  IUpdateCategoryInput,
+  ICategoryUpdateDbPayload,
+} from "./category.interface.ts";
 
 /**
- * Helper to populate useMedia and virtual image URL
+ * Format a category row with its native included useMedia and image URL
  */
-const populateCategoryMedia = async (cat: any) => {
-  let imageMedia: any = null;
-  const targetId = cat.imageId ?? cat.useMediaId;
-  if (targetId) {
-    const um = await db.orm.public.UseMedia.where({ id: targetId }).first();
-    if (um) {
-      const m = await db.orm.public.Media.where({ id: um.mediaId }).first();
-      imageMedia = { ...um, media: m };
-    }
-  }
-  return {
-    ...cat,
-    imageId: cat.imageId ?? targetId ?? null,
-    useMedia: imageMedia,
-    image: imageMedia?.media?.url ?? null,
-  };
-};
+const formatCategory = (cat: any): ICategoryPopulated => ({
+  id: cat.id,
+  name: cat.name,
+  slug: cat.slug,
+  description: cat.description,
+  imageId: cat.imageId,
+  icon: cat.icon,
+  parentId: cat.parentId,
+  displayOrder: cat.displayOrder,
+  isActive: cat.isActive,
+  createdAt: cat.createdAt,
+  updatedAt: cat.updatedAt,
+  useMedia: cat.image ?? null,
+  image: cat.image?.media?.url ?? null,
+});
 
 /**
- * Get all categories structured as a hierarchical tree
+ * Get all categories structured as a hierarchical tree using Prisma 8 native include
  */
-export const getCategoryTree = async () => {
+export const getCategoryTree = async (): Promise<ICategoryTreeNode[]> => {
   const allCategories = await db.orm.public.Category
     .where({ isActive: true })
     .orderBy((c) => c.displayOrder.asc())
+    .include("image", (u) => u.include("media"))
     .all();
 
-  // Populate useMedia for each category
-  const populated = await Promise.all(
-    allCategories.map(async (cat) => {
-      const pop = await populateCategoryMedia(cat);
-      return { ...pop, children: [] };
-    })
-  );
+  const categoryMap = new Map<string, ICategoryTreeNode>();
+  const rootCategories: ICategoryTreeNode[] = [];
 
-  // Build tree
-  const categoryMap = new Map<string, any>();
-  const rootCategories: any[] = [];
-
-  for (const cat of populated) {
-    categoryMap.set(cat.id, cat);
+  for (const cat of allCategories as any[]) {
+    categoryMap.set(cat.id, {
+      ...formatCategory(cat),
+      children: [],
+    });
   }
 
-  for (const cat of populated) {
+  for (const cat of allCategories) {
     const node = categoryMap.get(cat.id);
+    if (!node) continue;
+
     if (cat.parentId && categoryMap.has(cat.parentId)) {
-      categoryMap.get(cat.parentId).children.push(node);
+      categoryMap.get(cat.parentId)!.children.push(node);
     } else {
       rootCategories.push(node);
     }
@@ -61,77 +65,57 @@ export const getCategoryTree = async () => {
 };
 
 /**
- * Get all flat categories (e.g. for dropdowns and admin tables)
+ * Get all flat categories (with native included image and parent)
  */
-export const getAllCategories = async (includeInactive = false) => {
-  let categories;
-  if (includeInactive) {
-    categories = await db.orm.public.Category
-      .orderBy((c) => c.displayOrder.asc())
-      .all();
-  } else {
-    categories = await db.orm.public.Category
-      .where({ isActive: true })
-      .orderBy((c) => c.displayOrder.asc())
-      .all();
-  }
+export const getAllCategories = async (
+  includeInactive = false
+): Promise<ICategoryFlatListItem[]> => {
+  const query = includeInactive
+    ? db.orm.public.Category
+    : db.orm.public.Category.where({ isActive: true });
 
-  const categoryMap = new Map(categories.map((c) => [c.id, c]));
+  const categories = await query
+    .orderBy((c) => c.displayOrder.asc())
+    .include("image", (u) => u.include("media"))
+    .include("parent")
+    .all();
 
-  return await Promise.all(
-    categories.map(async (cat) => {
-      const pop = await populateCategoryMedia(cat);
-      const parentCat = cat.parentId ? categoryMap.get(cat.parentId) : null;
-      return {
-        ...pop,
-        parent: parentCat ? { id: parentCat.id, name: parentCat.name, slug: parentCat.slug } : null,
-      };
-    })
-  );
+  return (categories as any[]).map((cat) => ({
+    ...formatCategory(cat),
+    parent: cat.parent
+      ? { id: cat.parent.id, name: cat.parent.name, slug: cat.parent.slug }
+      : null,
+  }));
 };
 
 /**
- * Get category by slug with parent and children
+ * Get category by slug with native included parent and children
  */
-export const getCategoryBySlug = async (slug: string) => {
-  const category = await db.orm.public.Category.where({ slug }).first();
+export const getCategoryBySlug = async (slug: string): Promise<ICategoryDetailResponse> => {
+  const category: any = await db.orm.public.Category
+    .where({ slug })
+    .include("image", (u) => u.include("media"))
+    .include("parent", (p) => p.include("image", (u) => u.include("media")))
+    .include("children", (c) => c.include("image", (u) => u.include("media")))
+    .first();
+
   if (!category) {
     throw new AppError("Category not found", 404);
   }
 
-  const populated = await populateCategoryMedia(category);
-
-  const rawChildren = await db.orm.public.Category.where({ parentId: category.id }).all();
-  const children = await Promise.all(rawChildren.map((child) => populateCategoryMedia(child)));
-
-  let parent = null;
-  if (category.parentId) {
-    const rawParent = await db.orm.public.Category.where({ id: category.parentId }).first();
-    if (rawParent) {
-      parent = await populateCategoryMedia(rawParent);
-    }
-  }
-
   return {
-    ...populated,
-    parent,
-    children,
+    ...formatCategory(category),
+    parent: category.parent ? formatCategory(category.parent) : null,
+    children: (category.children || []).map(formatCategory),
   };
 };
 
 /**
  * Create a new Category
  */
-export const createCategory = async (payload: {
-  name: string;
-  description?: string;
-  imageId?: string | null;
-  useMediaId?: string | null;
-  icon?: string;
-  parentId?: string | null;
-  displayOrder?: number;
-  isActive?: boolean;
-}) => {
+export const createCategory = async (
+  payload: ICreateCategoryInput
+): Promise<ICategoryPopulated> => {
   let slug = slugify(payload.name);
   const existing = await db.orm.public.Category.where({ slug }).first();
   if (existing) {
@@ -156,7 +140,7 @@ export const createCategory = async (payload: {
     isActive: payload.isActive ?? true,
   });
 
-  return await populateCategoryMedia(category);
+  return await getCategoryBySlug(category.slug);
 };
 
 /**
@@ -164,23 +148,14 @@ export const createCategory = async (payload: {
  */
 export const updateCategory = async (
   id: string,
-  payload: {
-    name?: string;
-    description?: string;
-    imageId?: string | null;
-    useMediaId?: string | null;
-    icon?: string;
-    parentId?: string | null;
-    displayOrder?: number;
-    isActive?: boolean;
-  }
-) => {
+  payload: IUpdateCategoryInput
+): Promise<ICategoryPopulated> => {
   const existing = await db.orm.public.Category.where({ id }).first();
   if (!existing) {
     throw new AppError("Category not found", 404);
   }
 
-  const updateData: any = {};
+  const updateData: ICategoryUpdateDbPayload = {};
   if (payload.name !== undefined) {
     updateData.name = payload.name;
     updateData.slug = slugify(payload.name);
@@ -200,7 +175,11 @@ export const updateCategory = async (
   }
 
   const updated = await db.orm.public.Category.where({ id }).update(updateData);
-  return await populateCategoryMedia(updated);
+  if (!updated) {
+    throw new AppError("Category not found", 404);
+  }
+
+  return await getCategoryBySlug(updated.slug);
 };
 
 /**

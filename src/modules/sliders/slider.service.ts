@@ -1,64 +1,80 @@
 import { db } from "../../config/db.ts";
 import { AppError } from "../../errors/AppError.ts";
+import type {
+  ISliderPopulated,
+  ICreateSliderInput,
+  IUpdateSliderInput,
+} from "./slider.interface.ts";
 
 /**
- * Helper: Populate slider media
+ * Format a slider row with its native included desktop and mobile media
  */
-const populateSliderMedia = async (slider: any) => {
-  let useMedia: any = null;
-  const targetImageId = slider.imageId ?? slider.useMediaId;
-  if (targetImageId) {
-    const um = await db.orm.public.UseMedia.where({ id: targetImageId }).first();
-    if (um) {
-      const m = await db.orm.public.Media.where({ id: um.mediaId }).first();
-      useMedia = { ...um, media: m };
-    }
-  }
+const formatSlider = (slider: any): ISliderPopulated => ({
+  id: slider.id,
+  title: slider.title,
+  subtitle: slider.subtitle,
+  description: slider.description,
+  badgeText: slider.badgeText,
+  type: slider.type,
+  linkUrl: slider.linkUrl,
+  buttonText: slider.buttonText,
+  bgGradient: slider.bgGradient,
+  bgColor: slider.bgColor,
+  textColor: slider.textColor,
+  displayOrder: slider.displayOrder,
+  isActive: slider.isActive,
+  imageId: slider.imageId,
+  mobileImageId: slider.mobileImageId,
+  startDate: slider.startDate,
+  endDate: slider.endDate,
+  createdAt: slider.createdAt,
+  updatedAt: slider.updatedAt,
+  useMedia: slider.image ?? null,
+  mobileUseMedia: slider.mobileImage ?? null,
+  image: slider.image ?? null,
+  mobileImage: slider.mobileImage ?? null,
+  imageUrl: slider.image?.media?.url ?? null,
+  mobileImageUrl: slider.mobileImage?.media?.url ?? null,
+});
 
-  let mobileUseMedia: any = null;
-  const targetMobileImageId = slider.mobileImageId ?? slider.mobileUseMediaId;
-  if (targetMobileImageId) {
-    const mum = await db.orm.public.UseMedia.where({ id: targetMobileImageId }).first();
-    if (mum) {
-      const mm = await db.orm.public.Media.where({ id: mum.mediaId }).first();
-      mobileUseMedia = { ...mum, media: mm };
-    }
-  }
+/**
+ * Get all sliders using Prisma 8 native relational include
+ */
+export const getSliders = async (includeInactive = false): Promise<ISliderPopulated[]> => {
+  const query = !includeInactive
+    ? db.orm.public.Slider.where({ isActive: true })
+    : db.orm.public.Slider;
 
-  return {
-    ...slider,
-    imageId: slider.imageId ?? targetImageId ?? null,
-    mobileImageId: slider.mobileImageId ?? targetMobileImageId ?? null,
-    useMedia,
-    mobileUseMedia,
-    image: useMedia,
-    mobileImage: mobileUseMedia,
-    imageUrl: useMedia?.media?.url ?? null,
-    mobileImageUrl: mobileUseMedia?.media?.url ?? null,
-  };
+  const rows = await query
+    .orderBy((s) => s.displayOrder.asc())
+    .include("image", (u) => u.include("media"))
+    .include("mobileImage", (u) => u.include("media"))
+    .all();
+
+  return (rows as any[]).map(formatSlider);
 };
 
-export const getSliders = async (includeInactive = false) => {
-  let query = db.orm.public.Slider;
-  let rows;
-  if (!includeInactive) {
-    rows = await query.where({ isActive: true }).orderBy((s) => s.displayOrder.asc()).all();
-  } else {
-    rows = await query.orderBy((s) => s.displayOrder.asc()).all();
-  }
+/**
+ * Get single slider by ID using native relational include
+ */
+export const getSliderById = async (id: string): Promise<ISliderPopulated> => {
+  const slider = await db.orm.public.Slider
+    .where({ id })
+    .include("image", (u) => u.include("media"))
+    .include("mobileImage", (u) => u.include("media"))
+    .first();
 
-  return await Promise.all(rows.map((slider) => populateSliderMedia(slider)));
-};
-
-export const getSliderById = async (id: string) => {
-  const slider = await db.orm.public.Slider.where({ id }).first();
   if (!slider) {
     throw new AppError("Slider not found", 404);
   }
-  return await populateSliderMedia(slider);
+
+  return formatSlider(slider);
 };
 
-export const createSlider = async (payload: any) => {
+/**
+ * Create a new slider
+ */
+export const createSlider = async (payload: ICreateSliderInput): Promise<ISliderPopulated> => {
   const slider = await db.orm.public.Slider.create({
     type: payload.type || "IMAGE_BG_CONTENT",
     title: payload.title ?? null,
@@ -78,16 +94,22 @@ export const createSlider = async (payload: any) => {
     endDate: payload.endDate ?? null,
   });
 
-  return await populateSliderMedia(slider);
+  return await getSliderById(slider.id);
 };
 
-export const updateSlider = async (id: string, payload: any) => {
+/**
+ * Update an existing slider
+ */
+export const updateSlider = async (
+  id: string,
+  payload: IUpdateSliderInput
+): Promise<ISliderPopulated> => {
   const existing = await db.orm.public.Slider.where({ id }).first();
   if (!existing) {
     throw new AppError("Slider not found", 404);
   }
 
-  const updateData: any = {};
+  const updateData: Record<string, any> = {};
   if (payload.type !== undefined) updateData.type = payload.type;
   if (payload.title !== undefined) updateData.title = payload.title;
   if (payload.subtitle !== undefined) updateData.subtitle = payload.subtitle;
@@ -110,9 +132,16 @@ export const updateSlider = async (id: string, payload: any) => {
   if (payload.endDate !== undefined) updateData.endDate = payload.endDate;
 
   const updated = await db.orm.public.Slider.where({ id }).update(updateData);
-  return await populateSliderMedia(updated);
+  if (!updated) {
+    throw new AppError("Slider not found", 404);
+  }
+
+  return await getSliderById(updated.id);
 };
 
+/**
+ * Delete a slider
+ */
 export const deleteSlider = async (id: string) => {
   const existing = await db.orm.public.Slider.where({ id }).first();
   if (!existing) {

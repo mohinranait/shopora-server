@@ -7,12 +7,24 @@ import {
   ORDER_STATUS,
 } from "../../constants/index.ts";
 import { slugify } from "../../utils/slugify.ts";
+import type { IUseMediaWithMedia, IMediaRecord } from "../brands/brand.interface.ts";
+import type {
+  IPublicStoreFilters,
+  IUpdateSellerProfilePayload,
+  ISellerDashboardOverview,
+} from "./seller.interface.ts";
+
+export type { IPublicStoreFilters };
 
 /**
  * Get public store front of a seller by slug
  */
 export const getStoreBySlug = async (storeSlug: string) => {
-  const seller = await db.orm.public.SellerProfile.where({ storeSlug }).first();
+  const seller: any = await db.orm.public.SellerProfile
+    .where({ storeSlug })
+    .include("logo", (u) => u.include("media"))
+    .include("banner", (u) => u.include("media"))
+    .first();
   if (!seller) {
     throw new AppError("Seller store not found", 404);
   }
@@ -29,69 +41,23 @@ export const getStoreBySlug = async (storeSlug: string) => {
     .orderBy((p) => p.createdAt.desc())
     .all();
 
-  let logoUseMedia: any = null;
-  const sellerLogoId = seller.logoId;
-  if (sellerLogoId) {
-    const um = await db.orm.public.UseMedia.where({ id: sellerLogoId }).first();
-    if (um) {
-      const m = await db.orm.public.Media.where({ id: um.mediaId }).first();
-      logoUseMedia = { ...um, media: m };
-    }
-  }
-
-  let bannerUseMedia: any = null;
-  const sellerBannerId = seller.bannerId;
-  if (sellerBannerId) {
-    const um = await db.orm.public.UseMedia.where({ id: sellerBannerId }).first();
-    if (um) {
-      const m = await db.orm.public.Media.where({ id: um.mediaId }).first();
-      bannerUseMedia = { ...um, media: m };
-    }
-  }
-
   return {
     store: {
       id: seller.id,
       storeName: seller.storeName,
       storeSlug: seller.storeSlug,
-      storeLogo: logoUseMedia?.media?.url ?? null,
-      logoUseMedia,
-      storeBanner: bannerUseMedia?.media?.url ?? null,
-      bannerUseMedia,
+      storeLogo: seller.logo?.media?.url ?? null,
+      logoUseMedia: seller.logo ?? null,
+      storeBanner: seller.banner?.media?.url ?? null,
+      bannerUseMedia: seller.banner ?? null,
       storeDescription: seller.storeDescription,
+      phone: seller.phone,
       businessAddress: seller.businessAddress,
       isVerified: seller.isVerified,
       createdAt: seller.createdAt,
     },
     products,
   };
-};
-
-export interface IPublicStoreFilters {
-  search?: string;
-  sortBy?: "popular" | "rating" | "products" | "newest" | "name";
-  verifiedOnly?: boolean;
-  page?: number;
-  limit?: number;
-}
-
-/**
- * Resolve logo/banner UseMedia -> Media urls for a batch of sellers in two queries
- */
-const resolveStoreMedia = async (sellers: any[]) => {
-  const useMediaIds = [
-    ...new Set(
-      sellers.flatMap((s) => [s.logoId ?? s.logoUseMediaId, s.bannerId ?? s.bannerUseMediaId]).filter((id): id is string => typeof id === "string" && Boolean(id))
-    ),
-  ];
-  if (useMediaIds.length === 0) return new Map<string, string>();
-  const useMedias = await db.orm.public.UseMedia.where((u) => u.id.in(useMediaIds)).select("id", "mediaId").all();
-  const mediaIds = [...new Set(useMedias.map((u) => u.mediaId))];
-  const medias = mediaIds.length
-    ? await db.orm.public.Media.where((m) => m.id.in(mediaIds)).select("id", "url").all()
-    : [];
-  const mediaUrl = new Map(medias.map((m) => [m.id, m.url]));
-  return new Map(useMedias.map((u) => [u.id, mediaUrl.get(u.mediaId) ?? ""]));
 };
 
 /**
@@ -123,44 +89,6 @@ const getStoreStats = async (sellerIds: string[]) => {
   );
 };
 
-const toPublicStore = (
-  seller: any,
-  mediaMap: Map<string, string>,
-  stats?: { productCount: number; totalSold: number; reviewCount: number; rating: number }
-) => {
-  const targetLogoId = seller.logoId ?? seller.logoUseMediaId;
-  const targetBannerId = seller.bannerId ?? seller.bannerUseMediaId;
-  return {
-    id: seller.id,
-    storeName: seller.storeName,
-    storeSlug: seller.storeSlug,
-    logoId: targetLogoId ?? null,
-    bannerId: targetBannerId ?? null,
-    storeLogo: (targetLogoId && mediaMap.get(targetLogoId)) || null,
-    storeBanner: (targetBannerId && mediaMap.get(targetBannerId)) || null,
-    storeDescription: seller.storeDescription ?? null,
-    businessAddress: seller.businessAddress ?? null,
-    isVerified: Boolean(seller.isVerified),
-    createdAt: seller.createdAt,
-    productCount: stats?.productCount ?? 0,
-    totalSold: stats?.totalSold ?? 0,
-    reviewCount: stats?.reviewCount ?? 0,
-    rating: stats?.rating ?? 0,
-  };
-};
-
-const PUBLIC_STORE_FIELDS = [
-  "id",
-  "storeName",
-  "storeSlug",
-  "storeDescription",
-  "businessAddress",
-  "isVerified",
-  "createdAt",
-  "logoId",
-  "bannerId",
-] as const;
-
 /**
  * Public directory of approved vendor stores with live stats
  */
@@ -180,13 +108,30 @@ export const getPublicStores = async (filters: IPublicStoreFilters) => {
   }
 
   // Store counts are small, so stats-based sorting happens in memory after one stats query
-  const sellers = await query.select(...PUBLIC_STORE_FIELDS).all();
-  const [stats, mediaMap] = await Promise.all([
-    getStoreStats(sellers.map((s) => s.id)),
-    resolveStoreMedia(sellers),
-  ]);
+  const sellers: any[] = await query
+    .include("logo", (u) => u.include("media"))
+    .include("banner", (u) => u.include("media"))
+    .all();
 
-  const stores = sellers.map((s) => toPublicStore(s, mediaMap, stats.get(s.id)));
+  const stats = await getStoreStats(sellers.map((s) => s.id));
+
+  const stores = sellers.map((s) => ({
+    id: s.id,
+    storeName: s.storeName,
+    storeSlug: s.storeSlug,
+    logoId: s.logoId ?? null,
+    bannerId: s.bannerId ?? null,
+    storeLogo: s.logo?.media?.url ?? null,
+    storeBanner: s.banner?.media?.url ?? null,
+    storeDescription: s.storeDescription ?? null,
+    businessAddress: s.businessAddress ?? null,
+    isVerified: Boolean(s.isVerified),
+    createdAt: s.createdAt,
+    productCount: stats.get(s.id)?.productCount ?? 0,
+    totalSold: stats.get(s.id)?.totalSold ?? 0,
+    reviewCount: stats.get(s.id)?.reviewCount ?? 0,
+    rating: stats.get(s.id)?.rating ?? 0,
+  }));
   const sortBy = filters.sortBy ?? "popular";
   stores.sort((a, b) => {
     switch (sortBy) {
@@ -215,12 +160,36 @@ export const getPublicStores = async (filters: IPublicStoreFilters) => {
  * separately via /products?sellerId=... so they can be filtered and paginated)
  */
 export const getPublicStoreBySlug = async (storeSlug: string) => {
-  const seller = await db.orm.public.SellerProfile.where({ storeSlug }).select(...PUBLIC_STORE_FIELDS, "status").first();
+  const seller: any = await db.orm.public.SellerProfile
+    .where({ storeSlug })
+    .include("logo", (u) => u.include("media"))
+    .include("banner", (u) => u.include("media"))
+    .first();
+
   if (!seller || seller.status !== SELLER_STATUS.APPROVED) {
     throw new AppError("Seller store not found", 404);
   }
-  const [stats, mediaMap] = await Promise.all([getStoreStats([seller.id]), resolveStoreMedia([seller])]);
-  return toPublicStore(seller, mediaMap, stats.get(seller.id));
+
+  const stats = await getStoreStats([seller.id]);
+  const sStats = stats.get(seller.id);
+
+  return {
+    id: seller.id,
+    storeName: seller.storeName,
+    storeSlug: seller.storeSlug,
+    logoId: seller.logoId ?? null,
+    bannerId: seller.bannerId ?? null,
+    storeLogo: seller.logo?.media?.url ?? null,
+    storeBanner: seller.banner?.media?.url ?? null,
+    storeDescription: seller.storeDescription ?? null,
+    businessAddress: seller.businessAddress ?? null,
+    isVerified: Boolean(seller.isVerified),
+    createdAt: seller.createdAt,
+    productCount: sStats?.productCount ?? 0,
+    totalSold: sStats?.totalSold ?? 0,
+    reviewCount: sStats?.reviewCount ?? 0,
+    rating: sStats?.rating ?? 0,
+  };
 };
 
 /**
@@ -346,7 +315,10 @@ export const getSellerDashboardStats = async (userId: string) => {
 /**
  * Seller update their own store profile
  */
-export const updateSellerProfile = async (userId: string, payload: any) => {
+export const updateSellerProfile = async (
+  userId: string,
+  payload: IUpdateSellerProfilePayload
+) => {
   const seller = await db.orm.public.SellerProfile.where({ userId }).first();
   if (!seller) {
     throw new AppError("Seller profile not found", 404);
@@ -385,54 +357,39 @@ export const adminGetAllSellers = async (status?: string) => {
     query = query.where({ status });
   }
 
-  const sellers = await query.orderBy((s) => s.createdAt.desc()).all();
+  const sellers: any[] = await query
+    .orderBy((s) => s.createdAt.desc())
+    .include("user")
+    .include("wallet")
+    .include("logo", (u) => u.include("media"))
+    .include("banner", (u) => u.include("media"))
+    .all();
 
-  // Populate user email, wallet, and media
-  const populated = await Promise.all(
-    sellers.map(async (seller) => {
-      const user = await db.orm.public.User.where({ id: seller.userId }).first();
-      const wallet = await db.orm.public.SellerWallet.where({ sellerId: seller.id }).first();
-      const productCount = await db.orm.public.Product
-        .where({ sellerId: seller.id })
-        .aggregate((a) => ({ count: a.count() }));
+  const sellerIds = sellers.map((s) => s.id);
+  const productCountGroups = sellerIds.length
+    ? await db.orm.public.Product
+        .where((p) => p.sellerId.in(sellerIds))
+        .groupBy("sellerId")
+        .aggregate((a) => ({ count: a.count() }))
+    : [];
 
-      let logoUseMedia: any = null;
-      const targetLogoId = seller.logoId;
-      if (targetLogoId) {
-        const um = await db.orm.public.UseMedia.where({ id: targetLogoId }).first();
-        if (um) {
-          const m = await db.orm.public.Media.where({ id: um.mediaId }).first();
-          logoUseMedia = { ...um, media: m };
-        }
-      }
-
-      let bannerUseMedia: any = null;
-      const targetBannerId = seller.bannerId;
-      if (targetBannerId) {
-        const um = await db.orm.public.UseMedia.where({ id: targetBannerId }).first();
-        if (um) {
-          const m = await db.orm.public.Media.where({ id: um.mediaId }).first();
-          bannerUseMedia = { ...um, media: m };
-        }
-      }
-
-      return {
-        ...seller,
-        logoId: targetLogoId ?? null,
-        bannerId: targetBannerId ?? null,
-        logoUseMedia,
-        bannerUseMedia,
-        storeLogo: logoUseMedia?.media?.url ?? null,
-        storeBanner: bannerUseMedia?.media?.url ?? null,
-        userEmail: user?.email,
-        userName: user?.name,
-        wallet,
-        productCount: productCount.count,
-      };
-    })
+  const countMap = new Map<string, number>(
+    productCountGroups.map((g) => [g.sellerId as string, Number(g.count) || 0])
   );
 
-  return populated;
+  return sellers.map((seller) => ({
+    ...seller,
+    userEmail: seller.user?.email || null,
+    userName: seller.user?.name || null,
+    userPhone: seller.user?.phone || null,
+    walletBalance: seller.wallet?.currentBalance ?? 0,
+    wallet: seller.wallet ?? null,
+    productCount: countMap.get(seller.id) ?? 0,
+    storeLogo: seller.logo?.media?.url ?? null,
+    storeBanner: seller.banner?.media?.url ?? null,
+    logoUseMedia: seller.logo ?? null,
+    bannerUseMedia: seller.banner ?? null,
+  }));
 };
 
 /**

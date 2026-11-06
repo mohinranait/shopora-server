@@ -9,39 +9,18 @@ import {
   SELLER_STATUS,
 } from "../../constants/index.ts";
 
-/**
- * Filter options interface for querying products
- */
-export interface IProductFilterOptions {
-  search?: string;
-  category?: string;
-  brand?: string; // single or comma-separated brand slugs / ids
-  sellerId?: string;
-  isPlatformOwned?: boolean;
-  minPrice?: number;
-  maxPrice?: number;
-  minRating?: number;
-  inStock?: boolean;
-  isFreeShipping?: boolean;
-  isFeatured?: boolean;
-  isTrending?: boolean;
-  sortBy?: "newest" | "price_asc" | "price_desc" | "popular" | "top_rated";
-  page?: number;
-  limit?: number;
-  approvalStatus?: string;
-  status?: string;
-  sellerUserId?: string; // When seller requests their own products
-  isAdmin?: boolean;
-}
+import type {
+  IProductFilterOptions,
+  IResolvedFilters,
+  FacetKey,
+  IProductAuthUser,
+  IProductCreateInput,
+  IProductUpdateInput,
+  IProductVariantInput,
+  IProductDetail,
+} from "./product.interface.ts";
 
-type FacetKey = "category" | "brand" | "price";
-
-interface IResolvedFilters {
-  categoryIds?: string[]; // selected category + all of its descendants
-  brandIds?: string[];
-  sellerProfileId?: string;
-  unresolved: boolean; // a category/brand was requested but doesn't exist -> no results
-}
+export type { IProductFilterOptions };
 
 const splitList = (value?: string) =>
   (value ?? "")
@@ -353,171 +332,114 @@ export const getProductFilters = async (filters: IProductFilterOptions) => {
 /**
  * Helper: Populate full product relations (category, brand, seller, media, images, attributes, variants, reviews)
  */
-export const populateProductDetails = async (product: any, requestingUser?: any) => {
+export const populateProductDetails = async (rawProduct: any, requestingUser?: any) => {
   // If product is not approved or not published, allow only its seller or admin to view
   const isOwner =
     requestingUser &&
     requestingUser.role === USER_ROLES.SELLER &&
-    requestingUser.sellerId === product.sellerId;
+    requestingUser.sellerId &&
+    requestingUser.sellerId === rawProduct.sellerId;
   const isAdmin = requestingUser && requestingUser.role === USER_ROLES.ADMIN;
 
   if (
     !isAdmin &&
     !isOwner &&
-    (product.approvalStatus !== PRODUCT_APPROVAL_STATUS.APPROVED ||
-      product.status !== PRODUCT_STATUS.PUBLISHED)
+    (rawProduct.approvalStatus !== PRODUCT_APPROVAL_STATUS.APPROVED ||
+      rawProduct.status !== PRODUCT_STATUS.PUBLISHED)
   ) {
     throw new AppError("This product is currently unavailable", 404);
   }
 
-  // Load relations
-  const category = await db.orm.public.Category.where({ id: product.categoryId }).first();
-  const brand = product.brandId
-    ? await db.orm.public.Brand.where({ id: product.brandId }).first()
-    : null;
-  const seller = product.sellerId
-    ? await db.orm.public.SellerProfile.where({ id: product.sellerId }).first()
-    : null;
-  let sellerLogo: string | null = null;
-  const sellerLogoId = (seller as any)?.logoId ?? (seller as any)?.logoUseMediaId;
-  if (sellerLogoId) {
-    const um = await db.orm.public.UseMedia.where({ id: sellerLogoId }).first();
-    if (um) {
-      const m = await db.orm.public.Media.where({ id: um.mediaId }).first();
-      sellerLogo = m?.url ?? null;
-    }
-  }
+  // 1. Fetch Product with category, brand, seller, and mainImage in ONE native include query
+  const product: any = await db.orm.public.Product
+    .where({ id: rawProduct.id })
+    .include("category")
+    .include("brand", (b) => b.include("logo", (u) => u.include("media")))
+    .include("seller", (s) => s.include("logo", (u) => u.include("media")))
+    .include("mainImage", (u) => u.include("media"))
+    .first();
 
-  let mainImageUseMedia: any = null;
-  const productMainId = product.mainImageId ?? product.mainImageUseMediaId;
-  if (productMainId) {
-    const um = await db.orm.public.UseMedia.where({ id: productMainId }).first();
-    if (um) {
-      const m = await db.orm.public.Media.where({ id: um.mediaId }).first();
-      mainImageUseMedia = { ...um, media: m };
-    }
-  }
-
-  const rawImages = await db.orm.public.ProductImage
+  // 2. Fetch gallery images with their media in ONE native include query
+  const rawImages: any[] = await db.orm.public.ProductImage
     .where({ productId: product.id })
     .orderBy((img) => img.displayOrder.asc())
+    .include("image", (u) => u.include("media"))
     .all();
 
-  const images = await Promise.all(
-    rawImages.map(async (img: any) => {
-      let useMedia: any = null;
-      const imgTargetId = img.imageId ?? img.useMediaId;
-      if (imgTargetId) {
-        const um = await db.orm.public.UseMedia.where({ id: imgTargetId }).first();
-        if (um) {
-          const m = await db.orm.public.Media.where({ id: um.mediaId }).first();
-          useMedia = { ...um, media: m };
-        }
-      }
-      return {
-        ...img,
-        imageId: img.imageId ?? imgTargetId ?? null,
-        useMedia,
-        url: useMedia?.media?.url ?? "",
-      };
-    })
-  );
+  const images: any[] = rawImages.map((img) => ({
+    id: img.id,
+    productId: img.productId,
+    imageId: img.imageId,
+    displayOrder: img.displayOrder,
+    isPrimary: img.isPrimary,
+    createdAt: img.createdAt,
+    useMedia: img.image ?? null,
+    url: img.image?.media?.url ?? "",
+  }));
 
-  // Load selectedAttributes (both simple specification attributes and variation attributes)
-  const rawProductAttributes = await db.orm.public.ProductAttribute
+  // 3. Fetch selectedAttributes with attribute and attributeValue in ONE native include query
+  const rawProductAttributes: any[] = await db.orm.public.ProductAttribute
     .where({ productId: product.id })
+    .include("attribute")
+    .include("values", (v) => v.include("attributeValue"))
     .all();
 
-  const selectedAttributes = await Promise.all(
-    rawProductAttributes.map(async (pa) => {
-      const attribute = await db.orm.public.Attribute.where({ id: pa.attributeId }).first();
-      const rawPav = await db.orm.public.ProductAttributeValue
-        .where({ productAttributeId: pa.id })
-        .all();
+  const selectedAttributes: any[] = rawProductAttributes.map((pa) => ({
+    id: pa.id,
+    attributeId: pa.attributeId,
+    name: pa.attribute?.name || "",
+    slug: pa.attribute?.slug || "",
+    type: pa.attribute?.type || "SELECT",
+    description: pa.attribute?.description || null,
+    isVariation: pa.isVariation,
+    values: (pa.values || []).map((pav: any) => ({
+      id: pav.id,
+      attributeValueId: pav.attributeValue?.id || pav.attributeValueId || null,
+      value: pav.attributeValue?.value || pav.customValue || "",
+      customValue: pav.customValue ?? null,
+      colorCode: pav.attributeValue?.colorCode || null,
+      displayOrder: pav.attributeValue?.displayOrder || 0,
+    })),
+  }));
 
-      const values = await Promise.all(
-        rawPav.map(async (pav) => {
-          if (pav.attributeValueId) {
-            const av = await db.orm.public.AttributeValue.where({ id: pav.attributeValueId }).first();
-            return {
-              id: pav.id,
-              attributeValueId: av?.id || pav.attributeValueId,
-              value: av?.value || "",
-              colorCode: av?.colorCode || null,
-              displayOrder: av?.displayOrder || 0,
-            };
-          }
-          return {
-            id: pav.id,
-            attributeValueId: null,
-            value: pav.customValue || "",
-            customValue: pav.customValue,
-            colorCode: null,
-            displayOrder: 0,
-          };
-        })
-      );
-
-      return {
-        id: pa.id,
-        attributeId: pa.attributeId,
-        name: attribute?.name || "",
-        slug: attribute?.slug || "",
-        type: attribute?.type || "SELECT",
-        description: attribute?.description || null,
-        isVariation: pa.isVariation,
-        values,
-      };
-    })
-  );
-
-  const rawVariants = await db.orm.public.ProductVariant
+  // 4. Fetch variants with image, media and all attribute values in ONE native include query
+  const rawVariants: any[] = await db.orm.public.ProductVariant
     .where({ productId: product.id })
+    .include("image", (u) => u.include("media"))
+    .include("attributeValues", (av) => av.include("attribute").include("attributeValue"))
     .all();
 
-  const variants = await Promise.all(
-    rawVariants.map(async (v: any) => {
-      let useMedia: any = null;
-      const vTargetId = v.imageId ?? v.useMediaId;
-      if (vTargetId) {
-        const um = await db.orm.public.UseMedia.where({ id: vTargetId }).first();
-        if (um) {
-          const m = await db.orm.public.Media.where({ id: um.mediaId }).first();
-          useMedia = { ...um, media: m };
-        }
-      }
-
-      // Load relational variant attribute values
-      const rawVav = await db.orm.public.ProductVariantAttributeValue
-        .where({ variantId: v.id })
-        .all();
-
-      const attributeValues = await Promise.all(
-        rawVav.map(async (vav) => {
-          const attr = await db.orm.public.Attribute.where({ id: vav.attributeId }).first();
-          const av = await db.orm.public.AttributeValue.where({ id: vav.attributeValueId }).first();
-          return {
-            id: vav.id,
-            attributeId: vav.attributeId,
-            attributeName: attr?.name || "",
-            attributeSlug: attr?.slug || "",
-            attributeValueId: vav.attributeValueId,
-            value: av?.value || "",
-            colorCode: av?.colorCode || null,
-          };
-        })
-      );
-
-      return {
-        ...v,
-        imageId: v.imageId ?? vTargetId ?? null,
-        useMedia,
-        image: useMedia?.media?.url ?? null,
-        attributeValues,
-        attributeValueIds: rawVav.map((x) => x.attributeValueId),
-      };
-    })
-  );
+  const variants: any[] = rawVariants.map((v) => ({
+    id: v.id,
+    productId: v.productId,
+    sku: v.sku,
+    title: v.title,
+    price: v.price,
+    comparePrice: v.comparePrice,
+    costPrice: isOwner || isAdmin ? v.costPrice : undefined,
+    stock: v.stock,
+    lowStockThreshold: v.lowStockThreshold,
+    imageId: v.imageId,
+    barcode: v.barcode,
+    weightKg: v.weightKg,
+    dimensions: v.dimensions,
+    isDefault: v.isDefault,
+    isActive: v.isActive,
+    createdAt: v.createdAt,
+    updatedAt: v.updatedAt,
+    useMedia: v.image ?? null,
+    image: v.image?.media?.url ?? null,
+    attributeValues: (v.attributeValues || []).map((vav: any) => ({
+      id: vav.id,
+      attributeId: vav.attributeId,
+      attributeName: vav.attribute?.name || "",
+      attributeSlug: vav.attribute?.slug || "",
+      attributeValueId: vav.attributeValueId,
+      value: vav.attributeValue?.value || "",
+      colorCode: vav.attributeValue?.colorCode || null,
+    })),
+    attributeValueIds: (v.attributeValues || []).map((x: any) => x.attributeValueId),
+  }));
 
   const reviews = await db.orm.public.ProductReview
     .where({ productId: product.id })
@@ -530,19 +452,29 @@ export const populateProductDetails = async (product: any, requestingUser?: any)
 
   return {
     ...sanitizedProduct,
-    mainImageId: product.mainImageId ?? productMainId ?? null,
-    mainImageUseMedia,
-    mainImage: mainImageUseMedia?.media?.url ?? "",
-    image: mainImageUseMedia?.media?.url ?? "",
-    category,
-    brand,
-    seller: seller
+    mainImageId: product.mainImageId,
+    mainImageUseMedia: product.mainImage ?? null,
+    mainUseMedia: product.mainImage ?? null,
+    mainImage: product.mainImage?.media?.url ?? "",
+    image: product.mainImage?.media?.url ?? "",
+    category: product.category
+      ? { id: product.category.id, name: product.category.name, slug: product.category.slug }
+      : null,
+    brand: product.brand
       ? {
-          id: seller.id,
-          storeName: seller.storeName,
-          storeSlug: seller.storeSlug,
-          storeLogo: sellerLogo,
-          phone: seller.phone,
+          id: product.brand.id,
+          name: product.brand.name,
+          slug: product.brand.slug,
+          logo: product.brand.logo?.media?.url ?? null,
+        }
+      : null,
+    seller: product.seller
+      ? {
+          id: product.seller.id,
+          storeName: product.seller.storeName,
+          storeSlug: product.seller.storeSlug,
+          storeLogo: product.seller.logo?.media?.url ?? null,
+          phone: product.seller.phone,
         }
       : null,
     images,
@@ -578,8 +510,8 @@ export const getProductById = async (id: string, requestingUser?: any) => {
  * Create a new product (Platform-owned if Admin, or Vendor-owned if Seller)
  */
 export const createProduct = async (
-  user: { id: string; role: string; sellerId?: string | null },
-  payload: any
+  user: IProductAuthUser,
+  payload: IProductCreateInput
 ) => {
   // Validate category
   const category = await db.orm.public.Category.where({ id: payload.categoryId }).first();
@@ -631,7 +563,7 @@ export const createProduct = async (
   // Calculate total stock if variable product
   let calculatedStock = payload.stock || 0;
   if (payload.productType === PRODUCT_TYPE.VARIABLE && Array.isArray(payload.variants) && payload.variants.length > 0) {
-    calculatedStock = payload.variants.reduce((acc: number, v: any) => acc + (v.stock || 0), 0);
+    calculatedStock = payload.variants.reduce((acc: number, v: IProductVariantInput) => acc + (v.stock || 0), 0);
   }
 
   // Transaction to create product, gallery images and variants
@@ -767,8 +699,8 @@ export const createProduct = async (
  */
 export const updateProduct = async (
   id: string,
-  user: { id: string; role: string; sellerId?: string | null },
-  payload: any
+  user: IProductAuthUser,
+  payload: IProductUpdateInput
 ) => {
   const product = await db.orm.public.Product.where({ id }).first();
   if (!product) {
@@ -1004,7 +936,7 @@ export const reviewProductApproval = async (
  */
 export const deleteProduct = async (
   id: string,
-  user: { id: string; role: string; sellerId?: string | null }
+  user: IProductAuthUser
 ) => {
   const product = await db.orm.public.Product.where({ id }).first();
   if (!product) {

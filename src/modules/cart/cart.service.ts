@@ -47,67 +47,26 @@ export const getCart = async (userId: string | null, sessionId?: string) => {
     return { items: [], subtotal: 0, totalItems: 0 };
   }
 
-  const items = await query.orderBy((c) => c.createdAt.desc()).all();
+  const items: any[] = await query
+    .orderBy((c) => c.createdAt.desc())
+    .include("product", (p) =>
+      p
+        .include("mainImage", (u) => u.include("media"))
+        .include("seller", (s) => s.include("logo", (u) => u.include("media")))
+    )
+    .include("variant", (v) => v.include("image", (u) => u.include("media")))
+    .all();
+
   if (items.length === 0) {
     return { items: [], subtotal: 0, totalItems: 0 };
   }
-
-  const productIds = [...new Set(items.map((i) => i.productId))];
-  const variantIds = [...new Set(items.map((i) => i.variantId).filter((id): id is string => id != null))];
-
-  const [products, variants] = await Promise.all([
-    db.orm.public.Product.where((p) => p.id.in(productIds)).all(),
-    variantIds.length ? db.orm.public.ProductVariant.where((v) => v.id.in(variantIds)).all() : [],
-  ]);
-
-  const sellerIds = [...new Set(products.map((p) => p.sellerId).filter((id): id is string => typeof id === "string" && Boolean(id)))];
-  const sellers = sellerIds.length
-    ? await db.orm.public.SellerProfile.where((s) => s.id.in(sellerIds))
-        .select("id", "storeName", "storeSlug", "logoId", "isVerified")
-        .all()
-    : [];
-
-  // Batch-load UseMedia for products, variants, and sellers
-  const allUseMediaIds = [
-    ...new Set([
-      ...products.map((p: any) => p.mainImageId ?? p.mainImageUseMediaId),
-      ...variants.map((v: any) => v.imageId ?? v.useMediaId),
-      ...sellers.map((s: any) => s.logoId ?? s.logoUseMediaId),
-    ].filter((id): id is string => typeof id === "string" && Boolean(id)))
-  ];
-
-  const useMedias = allUseMediaIds.length > 0
-    ? await db.orm.public.UseMedia.where((um) => um.id.in(allUseMediaIds)).all()
-    : [];
-  const allMediaIds = [...new Set(useMedias.map((um) => um.mediaId))];
-  const medias = allMediaIds.length > 0
-    ? await db.orm.public.Media.where((m) => m.id.in(allMediaIds)).all()
-    : [];
-  const mediaUrlMap = new Map(medias.map((m) => [m.id, m.url]));
-  const useMediaUrlMap = new Map(useMedias.map((um) => [um.id, mediaUrlMap.get(um.mediaId) ?? ""]));
-
-  const productMap = new Map(products.map((p) => [p.id, p]));
-  const variantMap = new Map(variants.map((v) => [v.id, v]));
-  const sellerMap = new Map(
-    sellers.map((s: any) => {
-      const sLogoId = s.logoId ?? s.logoUseMediaId;
-      return [
-        s.id,
-        {
-          ...s,
-          logoId: sLogoId ?? null,
-          storeLogo: (sLogoId ? useMediaUrlMap.get(sLogoId) : null) ?? null,
-        },
-      ];
-    })
-  );
 
   let subtotal = 0;
   let totalItems = 0;
 
   const populated = items.map((item) => {
-    const product = productMap.get(item.productId);
-    const variant = item.variantId ? variantMap.get(item.variantId) ?? null : null;
+    const product = item.product;
+    const variant = item.variant;
     const isAvailable =
       !!product &&
       product.approvalStatus === PRODUCT_APPROVAL_STATUS.APPROVED &&
@@ -126,11 +85,19 @@ export const getCart = async (userId: string | null, sessionId?: string) => {
       totalItems += item.quantity;
     }
 
-    const seller = product?.sellerId ? sellerMap.get(product.sellerId) ?? null : null;
-    const pMainId = (product as any)?.mainImageId ?? (product as any)?.mainImageUseMediaId;
-    const vImgId = (variant as any)?.imageId ?? (variant as any)?.useMediaId;
-    const mainImageUrl = pMainId ? useMediaUrlMap.get(pMainId) ?? "" : "";
-    const variantImageUrl = vImgId ? useMediaUrlMap.get(vImgId) ?? null : null;
+    const seller = product?.seller
+      ? {
+          id: product.seller.id,
+          storeName: product.seller.storeName,
+          storeSlug: product.seller.storeSlug,
+          isVerified: product.seller.isVerified,
+          logoId: product.seller.logoId ?? null,
+          storeLogo: product.seller.logo?.media?.url ?? null,
+        }
+      : null;
+
+    const mainImageUrl = product?.mainImage?.media?.url ?? "";
+    const variantImageUrl = variant?.image?.media?.url ?? null;
 
     return {
       id: item.id,
@@ -143,8 +110,8 @@ export const getCart = async (userId: string | null, sessionId?: string) => {
             name: product.name,
             slug: product.slug,
             mainImage: mainImageUrl,
-            mainImageId: pMainId ?? null,
-            mainImageUseMediaId: pMainId ?? null,
+            mainImageId: product.mainImageId ?? null,
+            mainImageUseMediaId: product.mainImageId ?? null,
             basePrice: product.basePrice,
             stock: product.stock,
             isPlatformOwned: product.isPlatformOwned,
@@ -159,8 +126,8 @@ export const getCart = async (userId: string | null, sessionId?: string) => {
             price: variant.price,
             stock: variant.stock,
             image: variantImageUrl,
-            imageId: vImgId ?? null,
-            useMediaId: vImgId ?? null,
+            imageId: variant.imageId ?? null,
+            useMediaId: variant.imageId ?? null,
             attributes: variant.attributes,
           }
         : null,

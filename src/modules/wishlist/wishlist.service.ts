@@ -32,50 +32,39 @@ export const toggleWishlistItem = async (userId: string, productId: string) => {
  * Get all Wishlist items for a user
  */
 export const getUserWishlist = async (userId: string) => {
-  const items = await db.orm.public.WishlistItem
+  const items: any[] = await db.orm.public.WishlistItem
     .where({ userId })
     .orderBy((w) => w.createdAt.desc())
+    .include("product", (p) => p.include("mainImage", (u) => u.include("media")))
     .all();
 
-  const populated = await Promise.all(
-    items.map(async (item) => {
-      const product = await db.orm.public.Product.where({ id: item.productId }).first();
-      let mainImage: string | null = null;
-      const pMainId = (product as any)?.mainImageId ?? (product as any)?.mainImageUseMediaId;
-      if (pMainId) {
-        const um = await db.orm.public.UseMedia.where({ id: pMainId }).first();
-        if (um) {
-          const m = await db.orm.public.Media.where({ id: um.mediaId }).first();
-          mainImage = m?.url ?? null;
-        }
-      }
+  return items
+    .filter((item) => item.product != null)
+    .map((item) => {
+      const product = item.product;
+      const mainImageUrl = product.mainImage?.media?.url ?? null;
 
       return {
         id: item.id,
         productId: item.productId,
         createdAt: item.createdAt,
-        product: product
-          ? {
-              id: product.id,
-              name: product.name,
-              slug: product.slug,
-              productType: product.productType,
-              mainImageId: pMainId ?? null,
-              mainImageUseMediaId: pMainId ?? null,
-              mainImage,
-              basePrice: product.basePrice,
-              comparePrice: product.comparePrice,
-              stock: product.stock,
-              ratingAverage: product.ratingAverage,
-              ratingCount: product.ratingCount,
-              status: product.status,
-            }
-          : null,
+        product: {
+          id: product.id,
+          name: product.name,
+          slug: product.slug,
+          productType: product.productType,
+          mainImageId: product.mainImageId ?? null,
+          mainImageUseMediaId: product.mainImageId ?? null,
+          mainImage: mainImageUrl,
+          basePrice: product.basePrice,
+          comparePrice: product.comparePrice,
+          stock: product.stock,
+          ratingAverage: product.ratingAverage,
+          ratingCount: product.ratingCount,
+          status: product.status,
+        },
       };
-    })
-  );
-
-  return populated.filter((item) => item.product !== null);
+    });
 };
 
 /**

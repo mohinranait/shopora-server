@@ -76,40 +76,25 @@ export const createReview = async (
  * Get all reviews for a product
  */
 export const getProductReviews = async (productId: string) => {
-  const reviews = await db.orm.public.ProductReview
+  const reviews: any[] = await db.orm.public.ProductReview
     .where({ productId })
     .where({ isApproved: true })
     .orderBy((r) => r.createdAt.desc())
+    .include("user", (u) => u.include("avatar", (a) => a.include("media")))
     .all();
 
-  const populated = await Promise.all(
-    reviews.map(async (rev) => {
-      const user = await db.orm.public.User.where({ id: rev.userId }).first();
-      let userAvatar: string | null = null;
-      const uAvatarId = (user as any)?.avatarId ?? (user as any)?.avatarUseMediaId;
-      if (uAvatarId) {
-        const um = await db.orm.public.UseMedia.where({ id: uAvatarId }).first();
-        if (um) {
-          const m = await db.orm.public.Media.where({ id: um.mediaId }).first();
-          userAvatar = m?.url ?? null;
+  return reviews.map((rev) => ({
+    ...rev,
+    user: rev.user
+      ? {
+          id: rev.user.id,
+          name: rev.user.name,
+          avatar: rev.user.avatar?.media?.url ?? null,
+          avatarId: rev.user.avatarId ?? null,
+          avatarUseMediaId: rev.user.avatarId ?? null,
         }
-      }
-      return {
-        ...rev,
-        user: user
-          ? {
-              id: user.id,
-              name: user.name,
-              avatar: userAvatar,
-              avatarId: uAvatarId ?? null,
-              avatarUseMediaId: uAvatarId ?? null,
-            }
-          : null,
-      };
-    })
-  );
-
-  return populated;
+      : null,
+  }));
 };
 
 /**

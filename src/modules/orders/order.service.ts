@@ -16,28 +16,17 @@ import {
 import { ENV } from "../../config/env.ts";
 import { getAllSettings } from "../settings/settings.service.ts";
 
-type OrderItemInput = { productId: string; variantId?: string | null; quantity: number };
+import type {
+  IOrderItemInput,
+  IShippingAddress,
+  IPricedLine,
+  ICreateOrderPayload,
+  IOrderRequester,
+} from "./order.interface.ts";
+
+export type { IOrderItemInput, IPricedLine };
 
 export const SHIPPING_RULES = { freeShippingThreshold: 1500, flatFee: 70 } as const;
-
-interface IPricedLine {
-  product: any;
-  selectedVariant: any;
-  productId: string;
-  variantId: string | null;
-  sellerId: string | null;
-  isPlatformOwned: boolean;
-  productName: string;
-  variantTitle: string | null;
-  productImage: string | null;
-  sku: string;
-  price: number;
-  comparePrice: number | null;
-  costPrice?: number | null;
-  quantity: number;
-  totalPrice: number;
-  isFreeShipping: boolean;
-}
 
 /**
  * Validate a coupon against the priced lines. Never throws: returns why it doesn't apply.
@@ -77,7 +66,7 @@ const evaluateCoupon = async (code: string, lines: IPricedLine[]) => {
  * shipping rules. Shared by checkout and the cart/checkout quote endpoint so the
  * totals a customer sees are exactly what gets charged.
  */
-export const priceOrder = async (items: OrderItemInput[], couponCode?: string) => {
+export const priceOrder = async (items: IOrderItemInput[], couponCode?: string) => {
   const productIds = [...new Set(items.map((i) => i.productId))];
   const variantIds = [...new Set(items.map((i) => i.variantId).filter((id): id is string => typeof id === "string" && Boolean(id)))];
   const [products, variants] = await Promise.all([
@@ -253,7 +242,7 @@ export const priceOrder = async (items: OrderItemInput[], couponCode?: string) =
 /**
  * Public price quote for the cart / checkout summary
  */
-export const quoteOrder = async (items: OrderItemInput[], couponCode?: string) => {
+export const quoteOrder = async (items: IOrderItemInput[], couponCode?: string) => {
   const priced = await priceOrder(items, couponCode);
   const settings: Record<string, any> = await getAllSettings().catch(() => ({} as Record<string, any>));
 
@@ -291,16 +280,7 @@ export const quoteOrder = async (items: OrderItemInput[], couponCode?: string) =
  */
 export const createOrder = async (
   userId: string | { id?: string } | null,
-  payload: {
-    items: OrderItemInput[];
-    shippingAddress: any;
-    billingAddress?: any;
-    paymentMethod: string;
-    couponCode?: string;
-    notes?: string;
-    guestEmail?: string;
-    guestPhone?: string;
-  },
+  payload: ICreateOrderPayload,
   sessionId?: string
 ) => {
   if (payload.items.length === 0) {
@@ -434,14 +414,14 @@ export const createOrder = async (
       userId: resolvedUserId,
       guestEmail: payload.guestEmail ?? null,
       guestPhone: normalizedPhone,
-      shippingAddress: {
+      shippingAddress: ({
         ...payload.shippingAddress,
         phone: normalizedPhone,
-      },
-      billingAddress: payload.billingAddress ?? {
+      } as any),
+      billingAddress: ((payload.billingAddress ?? {
         ...payload.shippingAddress,
         phone: normalizedPhone,
-      },
+      }) as any),
       subtotal,
       discount,
       shippingFee,
@@ -591,7 +571,7 @@ export const createOrder = async (
  * Order lifecycle helpers
  * ============================================================ */
 
-type Requester = { id: string; role: string; sellerId?: string | null } | null | undefined;
+type Requester = IOrderRequester | null | undefined;
 
 /** Forward-only fulfilment pipeline; CANCELLED / RETURNED are side exits */
 const STATUS_RANK: Record<string, number> = {
@@ -1008,31 +988,23 @@ export const getSellerSubOrders = async (userId: string, status?: string) => {
     query = query.where({ status });
   }
 
-  const subOrders = await query.orderBy((o) => o.createdAt.desc()).all();
-  if (subOrders.length === 0) return [];
+  const subOrders: any[] = await query
+    .orderBy((o) => o.createdAt.desc())
+    .include("order")
+    .include("items")
+    .all();
 
-  const ids = subOrders.map((s) => s.id);
-  const orderIds = [...new Set(subOrders.map((s) => s.orderId))];
-  const [items, parents] = await Promise.all([
-    db.orm.public.OrderItem.where((i) => i.subOrderId.in(ids)).all(),
-    db.orm.public.Order.where((o) => o.id.in(orderIds)).all(),
-  ]);
-  const parentMap = new Map(parents.map((o) => [o.id, o]));
-
-  return subOrders.map((so) => {
-    const parent = parentMap.get(so.orderId);
-    return {
-      ...so,
-      items: items.filter((i) => i.subOrderId === so.id),
-      orderNumber: parent?.orderNumber,
-      // Customer personal information & address are kept hidden from sellers for privacy
-      shippingAddress: null,
-      destinationCity: (parent?.shippingAddress as any)?.city ?? null,
-      destinationState: (parent?.shippingAddress as any)?.state ?? null,
-      paymentStatus: parent?.paymentStatus,
-      paymentMethod: parent?.paymentMethod,
-    };
-  });
+  return subOrders.map((so) => ({
+    ...so,
+    items: so.items || [],
+    orderNumber: so.order?.orderNumber,
+    // Customer personal information & address are kept hidden from sellers for privacy
+    shippingAddress: null,
+    destinationCity: (so.order?.shippingAddress as any)?.city ?? null,
+    destinationState: (so.order?.shippingAddress as any)?.state ?? null,
+    paymentStatus: so.order?.paymentStatus,
+    paymentMethod: so.order?.paymentMethod,
+  }));
 };
 
 /* ============================================================
@@ -1207,27 +1179,28 @@ export const getSellerSubOrderById = async (userId: string, subOrderId: string) 
     throw new AppError("Seller profile not found", 404);
   }
 
-  const subOrder = await db.orm.public.SubOrder.where({ id: subOrderId, sellerId: seller.id }).first();
+  const subOrder: any = await db.orm.public.SubOrder
+    .where({ id: subOrderId, sellerId: seller.id })
+    .include("order")
+    .include("items")
+    .first();
+
   if (!subOrder) {
     throw new AppError("Sub-order not found", 404);
   }
 
-  const [parent, items] = await Promise.all([
-    db.orm.public.Order.where({ id: subOrder.orderId }).first(),
-    db.orm.public.OrderItem.where({ subOrderId: subOrder.id }).all(),
-  ]);
-
+  const items = subOrder.items || [];
   return {
     ...subOrder,
     items,
-    orderNumber: parent?.orderNumber,
+    orderNumber: subOrder.order?.orderNumber,
     // Customer personal information & address are kept hidden from sellers for privacy
     shippingAddress: null,
-    destinationCity: (parent?.shippingAddress as any)?.city ?? null,
-    destinationState: (parent?.shippingAddress as any)?.state ?? null,
-    paymentStatus: parent?.paymentStatus,
-    paymentMethod: parent?.paymentMethod,
-    totalItems: items.reduce((sum, i) => sum + i.quantity, 0),
+    destinationCity: (subOrder.order?.shippingAddress as any)?.city ?? null,
+    destinationState: (subOrder.order?.shippingAddress as any)?.state ?? null,
+    paymentStatus: subOrder.order?.paymentStatus,
+    paymentMethod: subOrder.order?.paymentMethod,
+    totalItems: items.reduce((sum: number, i: any) => sum + i.quantity, 0),
   };
 };
 
