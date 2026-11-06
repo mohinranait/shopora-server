@@ -19,8 +19,8 @@ export interface ICategoryRecord {
 }
 
 export interface ICategoryPopulated extends ICategoryRecord {
-  useMedia: IUseMediaWithMedia | null;
-  image: string | null;
+  image?: IUseMediaWithMedia | any;
+  useMedia?: IUseMediaWithMedia | null;
 }
 
 export interface ICategoryTreeNode extends ICategoryPopulated {

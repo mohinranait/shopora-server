@@ -224,13 +224,13 @@ export interface IProductDetail {
   isTrending: boolean;
   createdAt: string;
   updatedAt: string;
-  category: { id: string; name: string; slug: string } | null;
-  brand: { id: string; name: string; slug: string; logo: string | null } | null;
-  seller: { id: string; storeName: string; storeSlug: string; logo: string | null } | null;
-  mainImage: string;
-  mainUseMedia: IUseMediaWithMedia | null;
-  images: IProductImageDetail[];
-  selectedAttributes: IProductSelectedAttributeDetail[];
-  variants: IProductVariantDetail[];
+  category: any;
+  brand: any;
+  seller: any;
+  mainImage: any;
+  mainUseMedia?: IUseMediaWithMedia | null;
+  images: any[];
+  selectedAttributes: any[];
+  variants: any[];
   reviews: any[];
 }

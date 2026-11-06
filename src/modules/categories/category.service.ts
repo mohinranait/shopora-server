@@ -12,52 +12,28 @@ import type {
 } from "./category.interface.ts";
 
 /**
- * Format a category row with its native included useMedia and image URL
- */
-const formatCategory = (cat: any): ICategoryPopulated => ({
-  id: cat.id,
-  name: cat.name,
-  slug: cat.slug,
-  description: cat.description,
-  imageId: cat.imageId,
-  icon: cat.icon,
-  parentId: cat.parentId,
-  displayOrder: cat.displayOrder,
-  isActive: cat.isActive,
-  createdAt: cat.createdAt,
-  updatedAt: cat.updatedAt,
-  useMedia: cat.image ?? null,
-  image: cat.image?.media?.url ?? null,
-});
-
-/**
  * Get all categories structured as a hierarchical tree using Prisma 8 native include
  */
-export const getCategoryTree = async (): Promise<ICategoryTreeNode[]> => {
+export const getCategoryTree = async (): Promise<any[]> => {
   const allCategories = await db.orm.public.Category
     .where({ isActive: true })
     .orderBy((c) => c.displayOrder.asc())
     .include("image", (u) => u.include("media"))
     .all();
 
-  const categoryMap = new Map<string, ICategoryTreeNode>();
-  const rootCategories: ICategoryTreeNode[] = [];
+  const categoryMap = new Map<string, any>();
+  const rootCategories: any[] = [];
 
   for (const cat of allCategories as any[]) {
-    categoryMap.set(cat.id, {
-      ...formatCategory(cat),
-      children: [],
-    });
+    cat.children = [];
+    categoryMap.set(cat.id, cat);
   }
 
-  for (const cat of allCategories) {
-    const node = categoryMap.get(cat.id);
-    if (!node) continue;
-
+  for (const cat of allCategories as any[]) {
     if (cat.parentId && categoryMap.has(cat.parentId)) {
-      categoryMap.get(cat.parentId)!.children.push(node);
+      categoryMap.get(cat.parentId).children.push(cat);
     } else {
-      rootCategories.push(node);
+      rootCategories.push(cat);
     }
   }
 
@@ -69,29 +45,22 @@ export const getCategoryTree = async (): Promise<ICategoryTreeNode[]> => {
  */
 export const getAllCategories = async (
   includeInactive = false
-): Promise<ICategoryFlatListItem[]> => {
+): Promise<any[]> => {
   const query = includeInactive
     ? db.orm.public.Category
     : db.orm.public.Category.where({ isActive: true });
 
-  const categories = await query
+  return await query
     .orderBy((c) => c.displayOrder.asc())
     .include("image", (u) => u.include("media"))
     .include("parent")
-    .all();
-
-  return (categories as any[]).map((cat) => ({
-    ...formatCategory(cat),
-    parent: cat.parent
-      ? { id: cat.parent.id, name: cat.parent.name, slug: cat.parent.slug }
-      : null,
-  }));
+    .all() as any[];
 };
 
 /**
  * Get category by slug with native included parent and children
  */
-export const getCategoryBySlug = async (slug: string): Promise<ICategoryDetailResponse> => {
+export const getCategoryBySlug = async (slug: string): Promise<any> => {
   const category: any = await db.orm.public.Category
     .where({ slug })
     .include("image", (u) => u.include("media"))
@@ -103,11 +72,7 @@ export const getCategoryBySlug = async (slug: string): Promise<ICategoryDetailRe
     throw new AppError("Category not found", 404);
   }
 
-  return {
-    ...formatCategory(category),
-    parent: category.parent ? formatCategory(category.parent) : null,
-    children: (category.children || []).map(formatCategory),
-  };
+  return category;
 };
 
 /**

@@ -192,67 +192,24 @@ export const getAllProducts = async (filters: IProductFilterOptions) => {
     sorted = query.orderBy([(p) => p.createdAt.desc(), (p) => p.id.desc()]);
   }
 
-  // Count and page fetch run in parallel
+  // Count and page fetch run in parallel using Prisma 8 native relational include
   const [countResult, products] = await Promise.all([
     query.aggregate((a) => ({ total: a.count() })),
-    sorted.limit(limit).offset(offset).all(),
+    sorted
+      .limit(limit)
+      .offset(offset)
+      .include("mainImage", (u) => u.include("media"))
+      .include("category")
+      .include("brand", (b) => b.include("logo", (u) => u.include("media")))
+      .include("seller", (s) => s.include("logo", (u) => u.include("media")))
+      .all(),
   ]);
   const total = Number(countResult.total) || 0;
 
-  // Batch-load relations (one query per relation instead of per product)
-  const uniq = (ids: (string | null | undefined)[]) =>
-    [...new Set(ids.filter((id): id is string => typeof id === "string" && Boolean(id)))];
-  const categoryIds = uniq(products.map((p) => p.categoryId));
-  const brandIds = uniq(products.map((p) => p.brandId));
-  const sellerIds = uniq(products.map((p) => p.sellerId));
-  const useMediaIds = uniq(products.map((p: any) => p.mainImageId ?? p.mainImageUseMediaId));
-
-  const [categories, brands, sellers, useMedias] = await Promise.all([
-    categoryIds.length
-      ? db.orm.public.Category.where((c) => c.id.in(categoryIds)).select("id", "name", "slug").all()
-      : [],
-    brandIds.length
-      ? db.orm.public.Brand.where((b) => b.id.in(brandIds)).select("id", "name", "slug").all()
-      : [],
-    sellerIds.length
-      ? db.orm.public.SellerProfile.where((s) => s.id.in(sellerIds))
-          .select("id", "storeName", "storeSlug", "logoId")
-          .all()
-      : [],
-    useMediaIds.length ? db.orm.public.UseMedia.where((u) => u.id.in(useMediaIds)).all() : [],
-  ]);
-
-  const mediaIds = uniq(useMedias.map((u) => u.mediaId));
-  const medias = mediaIds.length
-    ? await db.orm.public.Media.where((m) => m.id.in(mediaIds)).all()
-    : [];
-
-  const categoryMap = new Map(categories.map((c) => [c.id, c]));
-  const brandMap = new Map(brands.map((b) => [b.id, b]));
-  const sellerMap = new Map(sellers.map((s) => [s.id, s]));
-  const mediaMap = new Map(medias.map((m) => [m.id, m]));
-  const useMediaMap = new Map(
-    useMedias.map((u) => [u.id, { ...u, media: mediaMap.get(u.mediaId) ?? null }])
-  );
-
-  const populatedProducts = products.map((prod: any) => {
+  const populatedProducts = (products as any[]).map((prod: any) => {
     // Public listings don't need the long description or internal cost price
     const { description, costPrice, ...rest } = prod;
-    const base = isPublic ? rest : prod;
-    const targetMainId = prod.mainImageId ?? prod.mainImageUseMediaId;
-    const mainMedia = targetMainId
-      ? useMediaMap.get(targetMainId) ?? null
-      : null;
-    return {
-      ...base,
-      mainImageId: prod.mainImageId ?? targetMainId ?? null,
-      mainImageUseMedia: mainMedia,
-      mainImage: mainMedia?.media?.url ?? "",
-      image: mainMedia?.media?.url ?? "",
-      category: categoryMap.get(prod.categoryId) ?? null,
-      brand: prod.brandId ? brandMap.get(prod.brandId) ?? null : null,
-      seller: prod.sellerId ? sellerMap.get(prod.sellerId) ?? null : null,
-    };
+    return isPublic ? rest : prod;
   });
 
   return {
@@ -360,22 +317,11 @@ export const populateProductDetails = async (rawProduct: any, requestingUser?: a
     .first();
 
   // 2. Fetch gallery images with their media in ONE native include query
-  const rawImages: any[] = await db.orm.public.ProductImage
+  const images: any[] = await db.orm.public.ProductImage
     .where({ productId: product.id })
     .orderBy((img) => img.displayOrder.asc())
     .include("image", (u) => u.include("media"))
     .all();
-
-  const images: any[] = rawImages.map((img) => ({
-    id: img.id,
-    productId: img.productId,
-    imageId: img.imageId,
-    displayOrder: img.displayOrder,
-    isPrimary: img.isPrimary,
-    createdAt: img.createdAt,
-    useMedia: img.image ?? null,
-    url: img.image?.media?.url ?? "",
-  }));
 
   // 3. Fetch selectedAttributes with attribute and attributeValue in ONE native include query
   const rawProductAttributes: any[] = await db.orm.public.ProductAttribute
@@ -427,8 +373,8 @@ export const populateProductDetails = async (rawProduct: any, requestingUser?: a
     isActive: v.isActive,
     createdAt: v.createdAt,
     updatedAt: v.updatedAt,
+    image: v.image ?? null,
     useMedia: v.image ?? null,
-    image: v.image?.media?.url ?? null,
     attributeValues: (v.attributeValues || []).map((vav: any) => ({
       id: vav.id,
       attributeId: vav.attributeId,
@@ -452,31 +398,6 @@ export const populateProductDetails = async (rawProduct: any, requestingUser?: a
 
   return {
     ...sanitizedProduct,
-    mainImageId: product.mainImageId,
-    mainImageUseMedia: product.mainImage ?? null,
-    mainUseMedia: product.mainImage ?? null,
-    mainImage: product.mainImage?.media?.url ?? "",
-    image: product.mainImage?.media?.url ?? "",
-    category: product.category
-      ? { id: product.category.id, name: product.category.name, slug: product.category.slug }
-      : null,
-    brand: product.brand
-      ? {
-          id: product.brand.id,
-          name: product.brand.name,
-          slug: product.brand.slug,
-          logo: product.brand.logo?.media?.url ?? null,
-        }
-      : null,
-    seller: product.seller
-      ? {
-          id: product.seller.id,
-          storeName: product.seller.storeName,
-          storeSlug: product.seller.storeSlug,
-          storeLogo: product.seller.logo?.media?.url ?? null,
-          phone: product.seller.phone,
-        }
-      : null,
     images,
     selectedAttributes,
     variants,

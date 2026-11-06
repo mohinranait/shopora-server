@@ -9,42 +9,23 @@ import type {
 } from "./brand.interface.ts";
 
 /**
- * Format a brand with its native included logo & media relations
- */
-const formatBrand = (b: any): IBrandPopulated => ({
-  id: b.id,
-  name: b.name,
-  slug: b.slug,
-  description: b.description,
-  website: b.website,
-  logoId: b.logoId,
-  isActive: b.isActive,
-  createdAt: b.createdAt,
-  updatedAt: b.updatedAt,
-  useMedia: b.logo ?? null,
-  logo: b.logo?.media?.url ?? null,
-});
-
-/**
  * Get all brands using Prisma 8 native relational include
  */
-export const getAllBrands = async (includeInactive = false): Promise<IBrandPopulated[]> => {
+export const getAllBrands = async (includeInactive = false): Promise<any[]> => {
   const query = includeInactive
     ? db.orm.public.Brand
     : db.orm.public.Brand.where({ isActive: true });
 
-  const brands = await query
+  return await query
     .orderBy((b) => b.name.asc())
     .include("logo", (u) => u.include("media"))
     .all();
-
-  return brands.map(formatBrand);
 };
 
 /**
  * Get brand by slug using Prisma 8 native relational include
  */
-export const getBrandBySlug = async (slug: string): Promise<IBrandPopulated> => {
+export const getBrandBySlug = async (slug: string): Promise<any> => {
   const brand = await db.orm.public.Brand
     .where({ slug })
     .include("logo", (u) => u.include("media"))
@@ -53,7 +34,7 @@ export const getBrandBySlug = async (slug: string): Promise<IBrandPopulated> => 
   if (!brand) {
     throw new AppError("Brand not found", 404);
   }
-  return formatBrand(brand);
+  return brand;
 };
 
 /**

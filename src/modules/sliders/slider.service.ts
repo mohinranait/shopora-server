@@ -7,57 +7,24 @@ import type {
 } from "./slider.interface.ts";
 
 /**
- * Format a slider row with its native included desktop and mobile media
- */
-const formatSlider = (slider: any): ISliderPopulated => ({
-  id: slider.id,
-  title: slider.title,
-  subtitle: slider.subtitle,
-  description: slider.description,
-  badgeText: slider.badgeText,
-  type: slider.type,
-  linkUrl: slider.linkUrl,
-  buttonText: slider.buttonText,
-  bgGradient: slider.bgGradient,
-  bgColor: slider.bgColor,
-  textColor: slider.textColor,
-  displayOrder: slider.displayOrder,
-  isActive: slider.isActive,
-  imageId: slider.imageId,
-  mobileImageId: slider.mobileImageId,
-  startDate: slider.startDate,
-  endDate: slider.endDate,
-  createdAt: slider.createdAt,
-  updatedAt: slider.updatedAt,
-  useMedia: slider.image ?? null,
-  mobileUseMedia: slider.mobileImage ?? null,
-  image: slider.image ?? null,
-  mobileImage: slider.mobileImage ?? null,
-  imageUrl: slider.image?.media?.url ?? null,
-  mobileImageUrl: slider.mobileImage?.media?.url ?? null,
-});
-
-/**
  * Get all sliders using Prisma 8 native relational include
  */
-export const getSliders = async (includeInactive = false): Promise<ISliderPopulated[]> => {
+export const getSliders = async (includeInactive = false): Promise<any[]> => {
   const query = !includeInactive
     ? db.orm.public.Slider.where({ isActive: true })
     : db.orm.public.Slider;
 
-  const rows = await query
+  return await query
     .orderBy((s) => s.displayOrder.asc())
     .include("image", (u) => u.include("media"))
     .include("mobileImage", (u) => u.include("media"))
-    .all();
-
-  return (rows as any[]).map(formatSlider);
+    .all() as any[];
 };
 
 /**
  * Get single slider by ID using native relational include
  */
-export const getSliderById = async (id: string): Promise<ISliderPopulated> => {
+export const getSliderById = async (id: string): Promise<any> => {
   const slider = await db.orm.public.Slider
     .where({ id })
     .include("image", (u) => u.include("media"))
@@ -68,7 +35,7 @@ export const getSliderById = async (id: string): Promise<ISliderPopulated> => {
     throw new AppError("Slider not found", 404);
   }
 
-  return formatSlider(slider);
+  return slider;
 };
 
 /**

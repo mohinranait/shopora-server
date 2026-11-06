@@ -121,6 +121,8 @@ export const getPublicStores = async (filters: IPublicStoreFilters) => {
     storeSlug: s.storeSlug,
     logoId: s.logoId ?? null,
     bannerId: s.bannerId ?? null,
+    logo: s.logo ?? null,
+    banner: s.banner ?? null,
     storeLogo: s.logo?.media?.url ?? null,
     storeBanner: s.banner?.media?.url ?? null,
     storeDescription: s.storeDescription ?? null,

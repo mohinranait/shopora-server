@@ -40,8 +40,8 @@ export interface IBrandRecord {
 }
 
 export interface IBrandPopulated extends IBrandRecord {
-  useMedia: IUseMediaWithMedia | null;
-  logo: string | null;
+  logo?: IUseMediaWithMedia | any;
+  useMedia?: IUseMediaWithMedia | null;
 }
 
 export interface ICreateBrandInput {

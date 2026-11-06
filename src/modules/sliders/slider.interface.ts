@@ -27,12 +27,12 @@ export interface ISliderRecord {
 }
 
 export interface ISliderPopulated extends ISliderRecord {
-  useMedia: IUseMediaWithMedia | null;
-  mobileUseMedia: IUseMediaWithMedia | null;
-  image: IUseMediaWithMedia | null;
-  mobileImage: IUseMediaWithMedia | null;
-  imageUrl: string | null;
-  mobileImageUrl: string | null;
+  useMedia?: IUseMediaWithMedia | null;
+  mobileUseMedia?: IUseMediaWithMedia | null;
+  image?: IUseMediaWithMedia | any;
+  mobileImage?: IUseMediaWithMedia | any;
+  imageUrl?: string | null;
+  mobileImageUrl?: string | null;
 }
 
 export interface ICreateSliderInput {
