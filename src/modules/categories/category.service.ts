@@ -76,7 +76,18 @@ export const getAllCategories = async (includeInactive = false) => {
       .all();
   }
 
-  return await Promise.all(categories.map((cat) => populateCategoryMedia(cat)));
+  const categoryMap = new Map(categories.map((c) => [c.id, c]));
+
+  return await Promise.all(
+    categories.map(async (cat) => {
+      const pop = await populateCategoryMedia(cat);
+      const parentCat = cat.parentId ? categoryMap.get(cat.parentId) : null;
+      return {
+        ...pop,
+        parent: parentCat ? { id: parentCat.id, name: parentCat.name, slug: parentCat.slug } : null,
+      };
+    })
+  );
 };
 
 /**
