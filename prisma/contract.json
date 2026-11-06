@@ -1900,6 +1900,13 @@
           },
           "OrderItem": {
             "fields": {
+              "costPrice": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/float8@1",
+                  "kind": "scalar"
+                }
+              },
               "createdAt": {
                 "nullable": false,
                 "type": {
@@ -2082,6 +2089,9 @@
             },
             "storage": {
               "fields": {
+                "costPrice": {
+                  "column": "costPrice"
+                },
                 "createdAt": {
                   "column": "createdAt"
                 },
@@ -7337,6 +7347,11 @@
             },
             "OrderItem": {
               "columns": {
+                "costPrice": {
+                  "codecId": "pg/float8@1",
+                  "dataType": "pg/float8",
+                  "nullable": true
+                },
                 "createdAt": {
                   "codecId": "pg/timestamptz-string@1",
                   "dataType": "pg/timestamptz",
@@ -10428,7 +10443,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "e936ddebb308c2166032cc582eb7be1e7db7675deae318e7db08a97ff2800910"
+    "storageHash": "e4307d621e04df83822f4967691f48a62b7275ae3d876a198cbdd76b34981a5a"
   },
   "execution": {
     "executionHash": "5893d5883ad3defd495818abc9da068be774f01db5143bdcabede87852d91089",

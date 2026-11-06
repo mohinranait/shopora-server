@@ -208,7 +208,7 @@ export const getPackagingSlipData = async (subOrderId: string, user: any) => {
     ? await db.orm.public.SellerProfile.where({ id: subOrder.sellerId }).first()
     : null;
 
-  const destinationCity = order?.shippingAddress?.city || "Bangladesh";
+  const destinationCity = (order?.shippingAddress as any)?.city || "Bangladesh";
 
   return {
     slipType: "MULTI_VENDOR_PACKAGING_SLIP",

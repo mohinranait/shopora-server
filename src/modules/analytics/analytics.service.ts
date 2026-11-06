@@ -60,10 +60,78 @@ export const getAdminPlatformAnalytics = async () => {
     .limit(6)
     .all();
 
+  // 6. Active Stock Investment & Net Profit Calculations
+  const allProducts = await db.orm.public.Product.all();
+  const allVariants = await db.orm.public.ProductVariant.all();
+  const variantMapByProduct = new Map<string, any[]>();
+  for (const v of allVariants) {
+    const list = variantMapByProduct.get(v.productId) || [];
+    list.push(v);
+    variantMapByProduct.set(v.productId, list);
+  }
+
+  let platformInventoryInvestment = 0;
+  let totalCatalogInvestment = 0;
+
+  for (const p of allProducts) {
+    const pVars = variantMapByProduct.get(p.id) || [];
+    let pInvest = 0;
+    if (p.productType === "VARIABLE" && pVars.length > 0) {
+      for (const v of pVars) {
+        const vCost = typeof v.costPrice === "number" ? v.costPrice : (typeof p.costPrice === "number" ? p.costPrice : 0);
+        pInvest += (v.stock || 0) * vCost;
+      }
+    } else {
+      const pCost = typeof p.costPrice === "number" ? p.costPrice : 0;
+      pInvest += (p.stock || 0) * pCost;
+    }
+
+    totalCatalogInvestment += pInvest;
+    if (p.isPlatformOwned || !p.sellerId) {
+      platformInventoryInvestment += pInvest;
+    }
+  }
+
+  // Calculate Net Profit from delivered order items
+  const deliveredSubOrders = await db.orm.public.SubOrder
+    .where({ status: ORDER_STATUS.DELIVERED })
+    .all();
+  const deliveredSubOrderIds = new Set(deliveredSubOrders.map((so) => so.id));
+
+  const allOrderItems = await db.orm.public.OrderItem.all();
+  let directSalesRevenue = 0;
+  let directSalesCost = 0;
+  let directSalesProfit = 0;
+
+  for (const it of allOrderItems) {
+    if (it.subOrderId && deliveredSubOrderIds.has(it.subOrderId)) {
+      if (!it.sellerId) {
+        // Platform-owned direct item
+        const itemRevenue = (it.price || 0) * (it.quantity || 1);
+        const itemCost = (it.costPrice || 0) * (it.quantity || 1);
+        directSalesRevenue += itemRevenue;
+        directSalesCost += itemCost;
+        directSalesProfit += (itemRevenue - itemCost);
+      }
+    }
+  }
+
+  const platformCommissionTotal = commissionAgg.total ?? 0;
+  const grossSalesTotal = revenueAgg.total ?? 0;
+  const netPlatformProfit = directSalesProfit + platformCommissionTotal;
+  const profitMarginPercent = grossSalesTotal > 0 ? (netPlatformProfit / grossSalesTotal) * 100 : 0;
+
   return {
     revenue: {
-      grossSales: revenueAgg.total ?? 0,
-      platformCommission: commissionAgg.total ?? 0,
+      grossSales: grossSalesTotal,
+      platformCommission: platformCommissionTotal,
+      directSalesProfit,
+      directSalesRevenue,
+      directSalesCost,
+      netPlatformProfit,
+      profitMarginPercent: Math.round(profitMarginPercent * 10) / 10,
+      activeStockInvestment: platformInventoryInvestment,
+      totalCatalogInvestment,
     },
     orders: {
       total: totalOrdersCount.count,

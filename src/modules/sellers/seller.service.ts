@@ -1,6 +1,11 @@
 import { db } from "../../config/db.ts";
 import { AppError } from "../../errors/AppError.ts";
-import { SELLER_STATUS, PRODUCT_APPROVAL_STATUS, PRODUCT_STATUS } from "../../constants/index.ts";
+import {
+  SELLER_STATUS,
+  PRODUCT_APPROVAL_STATUS,
+  PRODUCT_STATUS,
+  ORDER_STATUS,
+} from "../../constants/index.ts";
 import { slugify } from "../../utils/slugify.ts";
 
 /**
@@ -262,6 +267,59 @@ export const getSellerDashboardStats = async (userId: string) => {
     .limit(5)
     .all();
 
+  // Active Stock Investment for this seller
+  const sellerProducts = await db.orm.public.Product.where({ sellerId: seller.id }).all();
+  const sellerProductIds = sellerProducts.map((p) => p.id);
+  const sellerVariants = sellerProductIds.length > 0
+    ? await db.orm.public.ProductVariant.where((v) => v.productId.in(sellerProductIds)).all()
+    : [];
+  const variantMapByProduct = new Map<string, any[]>();
+  for (const v of sellerVariants) {
+    const list = variantMapByProduct.get(v.productId) || [];
+    list.push(v);
+    variantMapByProduct.set(v.productId, list);
+  }
+
+  let activeStockInvestment = 0;
+  for (const p of sellerProducts) {
+    const pVars = variantMapByProduct.get(p.id) || [];
+    if (p.productType === "VARIABLE" && pVars.length > 0) {
+      for (const v of pVars) {
+        const vCost = typeof v.costPrice === "number" ? v.costPrice : (typeof p.costPrice === "number" ? p.costPrice : 0);
+        activeStockInvestment += (v.stock || 0) * vCost;
+      }
+    } else {
+      const pCost = typeof p.costPrice === "number" ? p.costPrice : 0;
+      activeStockInvestment += (p.stock || 0) * pCost;
+    }
+  }
+
+  // Delivered SubOrders performance
+  const deliveredSubOrders = await db.orm.public.SubOrder
+    .where({ sellerId: seller.id })
+    .where({ status: ORDER_STATUS.DELIVERED })
+    .all();
+  const deliveredSubOrderIds = new Set(deliveredSubOrders.map((so) => so.id));
+
+  // OrderItems for this seller in delivered orders
+  const sellerDeliveredItems = deliveredSubOrderIds.size > 0
+    ? await db.orm.public.OrderItem.where({ sellerId: seller.id }).all()
+    : [];
+
+  let sellerGrossSales = 0;
+  let sellerCostOfGoods = 0;
+  for (const it of sellerDeliveredItems) {
+    if (it.subOrderId && deliveredSubOrderIds.has(it.subOrderId)) {
+      sellerGrossSales += (it.price || 0) * (it.quantity || 1);
+      sellerCostOfGoods += (it.costPrice || 0) * (it.quantity || 1);
+    }
+  }
+
+  const sellerNetEarnings = wallet?.totalEarnings ?? 0;
+  // Net Profit for Seller = (Seller Earnings after platform commission) - Cost of Goods Sold
+  const netProfit = Math.max(0, sellerNetEarnings - sellerCostOfGoods);
+  const profitMarginPercent = sellerGrossSales > 0 ? (netProfit / sellerGrossSales) * 100 : 0;
+
   return {
     profile: seller,
     wallet,
@@ -275,6 +333,11 @@ export const getSellerDashboardStats = async (userId: string) => {
       pendingBalance: wallet?.pendingBalance ?? 0,
       totalEarnings: wallet?.totalEarnings ?? 0,
       totalCommissionPaid: wallet?.totalCommissionPaid ?? 0,
+      activeStockInvestment,
+      grossSales: sellerGrossSales,
+      costOfGoodsSold: sellerCostOfGoods,
+      netProfit,
+      profitMarginPercent: Math.round(profitMarginPercent * 10) / 10,
     },
     recentOrders,
   };

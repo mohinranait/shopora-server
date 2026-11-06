@@ -399,7 +399,7 @@ async function runAudit() {
     try {
       await ProductService.updateProduct(
         testProduct.id,
-        { id: rogueReg.user.id, role: USER_ROLES.SELLER, sellerId: rogueProfile.id },
+        { id: rogueReg.user.id, role: USER_ROLES.SELLER, sellerId: rogueProfile!.id },
         { name: "Hacked Product Name" }
       );
     } catch {
@@ -412,7 +412,7 @@ async function runAudit() {
       await ProductService.deleteProduct(testProduct.id, {
         id: rogueReg.user.id,
         role: USER_ROLES.SELLER,
-        sellerId: rogueProfile.id,
+        sellerId: rogueProfile!.id,
       });
     } catch {
       blockedDelete = true;
@@ -424,7 +424,7 @@ async function runAudit() {
     try {
       await OrderService.updateSubOrderStatus(
         subOrders[0].id,
-        { id: rogueReg.user.id, role: USER_ROLES.SELLER, sellerId: rogueProfile.id },
+        { id: rogueReg.user.id, role: USER_ROLES.SELLER, sellerId: rogueProfile!.id },
         { status: "CANCELLED" }
       );
     } catch {

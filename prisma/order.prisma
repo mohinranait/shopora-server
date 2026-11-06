@@ -71,6 +71,7 @@ model OrderItem {
   productImage   String?
   sku            String?
   price          Float
+  costPrice      Float?
   quantity       Int
   totalPrice     Float
   returnRequests ReturnRequest[]

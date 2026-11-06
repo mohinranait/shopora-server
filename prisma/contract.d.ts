@@ -18,7 +18,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'e936ddebb308c2166032cc582eb7be1e7db7675deae318e7db08a97ff2800910'>;
+  StorageHashBase<'e4307d621e04df83822f4967691f48a62b7275ae3d876a198cbdd76b34981a5a'>;
 export type ExecutionHash =
   ExecutionHashBase<'5893d5883ad3defd495818abc9da068be774f01db5143bdcabede87852d91089'>;
 export type ProfileHash =
@@ -380,6 +380,7 @@ export type FieldOutputTypes = {
       readonly userId: CodecTypes['pg/text@1']['output'] | null;
     };
     readonly OrderItem: {
+      readonly costPrice: CodecTypes['pg/float8@1']['output'] | null;
       readonly createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
       readonly id: CodecTypes['pg/text@1']['output'];
       readonly orderId: CodecTypes['pg/text@1']['output'];
@@ -816,6 +817,7 @@ export type FieldInputTypes = {
       readonly userId: CodecTypes['pg/text@1']['input'] | null;
     };
     readonly OrderItem: {
+      readonly costPrice: CodecTypes['pg/float8@1']['input'] | null;
       readonly createdAt: CodecTypes['pg/timestamptz-string@1']['input'];
       readonly id: CodecTypes['pg/text@1']['input'];
       readonly orderId: CodecTypes['pg/text@1']['input'];
@@ -1252,6 +1254,7 @@ export type StorageColumnTypes = {
       readonly userId: CodecTypes['pg/text@1']['output'] | null;
     };
     readonly OrderItem: {
+      readonly costPrice: CodecTypes['pg/float8@1']['output'] | null;
       readonly createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
       readonly id: CodecTypes['pg/text@1']['output'];
       readonly orderId: CodecTypes['pg/text@1']['output'];
@@ -1688,6 +1691,7 @@ export type StorageColumnInputTypes = {
       readonly userId: CodecTypes['pg/text@1']['input'] | null;
     };
     readonly OrderItem: {
+      readonly costPrice: CodecTypes['pg/float8@1']['input'] | null;
       readonly createdAt: CodecTypes['pg/timestamptz-string@1']['input'];
       readonly id: CodecTypes['pg/text@1']['input'];
       readonly orderId: CodecTypes['pg/text@1']['input'];
@@ -2161,6 +2165,7 @@ export namespace Models {
     readonly [RelationKeys]?: 'items' | 'returnRequests' | 'subOrders' | 'user';
   };
   export type public_OrderItem = {
+    costPrice: CodecTypes['pg/float8@1']['output'] | null;
     createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
     id: CodecTypes['pg/text@1']['output'];
     orderId: CodecTypes['pg/text@1']['output'];
@@ -3872,6 +3877,12 @@ type ContractBase = Omit<
             };
             readonly OrderItem: {
               columns: {
+                readonly costPrice: {
+                  readonly dataType: 'pg/float8';
+                  readonly codecId: 'pg/float8@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
                 readonly createdAt: {
                   readonly dataType: 'pg/timestamptz';
                   readonly codecId: 'pg/timestamptz-string@1';
@@ -7746,6 +7757,10 @@ type ContractBase = Omit<
           };
           readonly OrderItem: {
             readonly fields: {
+              readonly costPrice: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/float8@1' };
+              };
               readonly createdAt: {
                 readonly nullable: false;
                 readonly type: {
@@ -7871,6 +7886,7 @@ type ContractBase = Omit<
               readonly table: 'OrderItem';
               readonly namespaceId: 'public';
               readonly fields: {
+                readonly costPrice: { readonly column: 'costPrice' };
                 readonly createdAt: { readonly column: 'createdAt' };
                 readonly id: { readonly column: 'id' };
                 readonly orderId: { readonly column: 'orderId' };

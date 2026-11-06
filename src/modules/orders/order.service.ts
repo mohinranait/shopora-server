@@ -33,6 +33,7 @@ interface IPricedLine {
   sku: string;
   price: number;
   comparePrice: number | null;
+  costPrice?: number | null;
   quantity: number;
   totalPrice: number;
   isFreeShipping: boolean;
@@ -119,6 +120,7 @@ export const priceOrder = async (items: OrderItemInput[], couponCode?: string) =
     let selectedVariant: any = null;
     let unitPrice = product.basePrice;
     let comparePrice = product.comparePrice ?? null;
+    let costPrice = product.costPrice ?? null;
     let stock = product.stock;
     let variantTitle: string | null = null;
     let sku = product.sku;
@@ -131,6 +133,7 @@ export const priceOrder = async (items: OrderItemInput[], couponCode?: string) =
       }
       unitPrice = selectedVariant.price;
       comparePrice = selectedVariant.comparePrice ?? null;
+      costPrice = selectedVariant.costPrice ?? product.costPrice ?? null;
       stock = selectedVariant.stock;
       variantTitle = selectedVariant.title;
       sku = selectedVariant.sku;
@@ -163,6 +166,7 @@ export const priceOrder = async (items: OrderItemInput[], couponCode?: string) =
       sku,
       price: unitPrice,
       comparePrice,
+      costPrice,
       quantity: item.quantity,
       totalPrice: unitPrice * item.quantity,
       isFreeShipping: Boolean(product.isFreeShipping),
@@ -512,6 +516,7 @@ export const createOrder = async (
           productImage: it.productImage,
           sku: it.sku,
           price: it.price,
+          costPrice: it.costPrice ?? null,
           quantity: it.quantity,
           totalPrice: it.totalPrice,
         });
@@ -1022,8 +1027,8 @@ export const getSellerSubOrders = async (userId: string, status?: string) => {
       orderNumber: parent?.orderNumber,
       // Customer personal information & address are kept hidden from sellers for privacy
       shippingAddress: null,
-      destinationCity: parent?.shippingAddress?.city ?? null,
-      destinationState: parent?.shippingAddress?.state ?? null,
+      destinationCity: (parent?.shippingAddress as any)?.city ?? null,
+      destinationState: (parent?.shippingAddress as any)?.state ?? null,
       paymentStatus: parent?.paymentStatus,
       paymentMethod: parent?.paymentMethod,
     };
@@ -1218,8 +1223,8 @@ export const getSellerSubOrderById = async (userId: string, subOrderId: string) 
     orderNumber: parent?.orderNumber,
     // Customer personal information & address are kept hidden from sellers for privacy
     shippingAddress: null,
-    destinationCity: parent?.shippingAddress?.city ?? null,
-    destinationState: parent?.shippingAddress?.state ?? null,
+    destinationCity: (parent?.shippingAddress as any)?.city ?? null,
+    destinationState: (parent?.shippingAddress as any)?.state ?? null,
     paymentStatus: parent?.paymentStatus,
     paymentMethod: parent?.paymentMethod,
     totalItems: items.reduce((sum, i) => sum + i.quantity, 0),
