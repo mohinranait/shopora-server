@@ -8,6 +8,7 @@
     "audit": "npx tsx src/scripts/audit_360.ts",
     "contract:emit": "prisma contract emit",
     "seed": "node src/scripts/seed.ts",
+    "db:clean": "node src/scripts/clean_db.ts",
     "dev": "node --watch --watch-path=src --watch-path=.env src/index.ts",
     "start": "node src/index.ts"
   },
