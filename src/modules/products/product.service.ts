@@ -131,6 +131,9 @@ const buildProductQuery = (
   if (filters.isPlatformOwned !== undefined) {
     query = query.where({ isPlatformOwned: filters.isPlatformOwned });
   }
+  if (filters.isLowStock) {
+    query = query.where((p) => p.stock.lte(p.lowStockThreshold));
+  }
   if (filters.isFeatured !== undefined) {
     query = query.where({ isFeatured: filters.isFeatured });
   }

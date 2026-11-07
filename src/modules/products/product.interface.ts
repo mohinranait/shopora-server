@@ -24,6 +24,7 @@ export interface IProductFilterOptions {
   status?: string;
   sellerUserId?: string; // When seller requests their own products
   isAdmin?: boolean;
+  isLowStock?: boolean;
 }
 
 export type FacetKey = "category" | "brand" | "price";

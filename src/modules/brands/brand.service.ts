@@ -6,20 +6,69 @@ import type {
   ICreateBrandInput,
   IUpdateBrandInput,
   IBrandUpdateDbPayload,
+  IBrandFilterOptions,
 } from "./brand.interface.ts";
 
 /**
- * Get all brands using Prisma 8 native relational include
+ * Get all brands using Prisma 8 native relational include with server-side pagination & filtering
  */
-export const getAllBrands = async (includeInactive = false): Promise<any[]> => {
-  const query = includeInactive
-    ? db.orm.public.Brand
-    : db.orm.public.Brand.where({ isActive: true });
+export const getAllBrands = async (
+  options: IBrandFilterOptions | boolean = false
+): Promise<{ brands: any[]; meta: { page: number; limit: number; total: number; totalPages: number } }> => {
+  const opts: IBrandFilterOptions =
+    typeof options === "boolean" ? { includeInactive: options } : options || {};
 
-  return await query
-    .orderBy((b) => b.name.asc())
-    .include("logo", (u) => u.include("media"))
-    .all();
+  let query = db.orm.public.Brand;
+
+  if (opts.status === "active") {
+    query = query.where({ isActive: true });
+  } else if (opts.status === "inactive") {
+    query = query.where({ isActive: false });
+  } else if (!opts.includeInactive && opts.status !== "all") {
+    query = query.where({ isActive: true });
+  }
+
+  if (opts.search?.trim()) {
+    const pattern = `%${opts.search.trim()}%`;
+    query = query.where((b, { fns }) =>
+      fns.or(b.name.ilike(pattern), b.slug.ilike(pattern))
+    );
+  }
+
+  const countResult = await query.aggregate((a) => ({ total: a.count() }));
+  const total = Number(countResult.total) || 0;
+
+  let sortedQuery = query.orderBy((b) => b.name.asc());
+
+  if (opts.limit !== undefined) {
+    const page = opts.page ? Math.max(1, Number(opts.page)) : 1;
+    const limit = Math.max(1, Number(opts.limit));
+    const offset = (page - 1) * limit;
+
+    sortedQuery = sortedQuery.limit(limit).offset(offset);
+
+    const brands = await sortedQuery.include("logo", (u) => u.include("media")).all();
+    return {
+      brands,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit) || 1,
+      },
+    };
+  }
+
+  const brands = await sortedQuery.include("logo", (u) => u.include("media")).all();
+  return {
+    brands,
+    meta: {
+      page: 1,
+      limit: total,
+      total,
+      totalPages: 1,
+    },
+  };
 };
 
 /**

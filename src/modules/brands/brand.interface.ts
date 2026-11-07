@@ -70,3 +70,11 @@ export interface IBrandUpdateDbPayload {
   website?: string | null;
   isActive?: boolean;
 }
+
+export interface IBrandFilterOptions {
+  includeInactive?: boolean;
+  status?: "all" | "active" | "inactive";
+  search?: string;
+  page?: number;
+  limit?: number;
+}

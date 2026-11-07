@@ -4,6 +4,7 @@ import { sendResponse } from "../../utils/sendResponse.ts";
 import { ProductService, type IProductFilterOptions } from "./product.service.ts";
 import { USER_ROLES } from "../../constants/index.ts";
 import { AppError } from "../../errors/AppError.ts";
+import { db } from "../../config/db.ts";
 
 /**
  * Get all products with filters and search
@@ -95,21 +96,48 @@ export const getSellerProducts = catchAsync(async (req: Request, res: Response) 
   const query = req.query as any;
 
   const filters: IProductFilterOptions = {
-    search: query.search,
-    approvalStatus: query.approvalStatus,
-    status: query.status,
+    search: query.search ? String(query.search).trim() : undefined,
+    approvalStatus: query.approvalStatus ? String(query.approvalStatus) : undefined,
+    status: query.status ? String(query.status) : undefined,
+    isLowStock:
+      query.isLowStock !== undefined && query.isLowStock !== ""
+        ? query.isLowStock === "true" || query.isLowStock === true
+        : undefined,
     sellerUserId: req.user!.id,
     page: query.page ? Number(query.page) : 1,
-    limit: query.limit ? Number(query.limit) : 20,
+    limit: query.limit ? Number(query.limit) : 10,
   };
 
   const result = await ProductService.getAllProducts(filters);
+
+  // Compute live tab counts for Seller's products
+  const seller = await db.orm.public.SellerProfile.where({ userId: req.user!.id }).first();
+  let counts = { all: 0, approved: 0, pending: 0, rejected: 0, lowStock: 0 };
+  if (seller) {
+    const [totalAll, totalApproved, totalPending, totalRejected, totalLowStock] = await Promise.all([
+      db.orm.public.Product.where({ sellerId: seller.id }).aggregate((a) => ({ count: a.count() })),
+      db.orm.public.Product.where({ sellerId: seller.id, approvalStatus: "APPROVED" }).aggregate((a) => ({ count: a.count() })),
+      db.orm.public.Product.where({ sellerId: seller.id, approvalStatus: "PENDING" }).aggregate((a) => ({ count: a.count() })),
+      db.orm.public.Product.where({ sellerId: seller.id, approvalStatus: "REJECTED" }).aggregate((a) => ({ count: a.count() })),
+      db.orm.public.Product.where({ sellerId: seller.id }).where((p) => p.stock.lte(p.lowStockThreshold)).aggregate((a) => ({ count: a.count() })),
+    ]);
+    counts = {
+      all: Number(totalAll.count) || 0,
+      approved: Number(totalApproved.count) || 0,
+      pending: Number(totalPending.count) || 0,
+      rejected: Number(totalRejected.count) || 0,
+      lowStock: Number(totalLowStock.count) || 0,
+    };
+  }
 
   sendResponse(res, {
     statusCode: 200,
     success: true,
     message: "Seller products retrieved successfully",
-    meta: result.meta,
+    meta: {
+      ...result.meta,
+      counts,
+    },
     data: result.products,
   });
 });
@@ -121,21 +149,47 @@ export const getAdminProducts = catchAsync(async (req: Request, res: Response) =
   const query = req.query as any;
 
   const filters: IProductFilterOptions = {
-    search: query.search,
-    approvalStatus: query.approvalStatus,
-    status: query.status,
+    search: query.search ? String(query.search).trim() : undefined,
+    approvalStatus: query.approvalStatus ? String(query.approvalStatus) : undefined,
+    status: query.status ? String(query.status) : undefined,
+    isPlatformOwned:
+      query.isPlatformOwned !== undefined && query.isPlatformOwned !== ""
+        ? query.isPlatformOwned === "true" || query.isPlatformOwned === true
+        : undefined,
+    isLowStock:
+      query.isLowStock !== undefined && query.isLowStock !== ""
+        ? query.isLowStock === "true" || query.isLowStock === true
+        : undefined,
     isAdmin: true,
     page: query.page ? Number(query.page) : 1,
-    limit: query.limit ? Number(query.limit) : 20,
+    limit: query.limit ? Number(query.limit) : 10,
   };
 
   const result = await ProductService.getAllProducts(filters);
+
+  // Compute live tab counts for Admin dashboard
+  const [totalAll, totalPlatform, totalVendor, totalPending, totalLowStock] = await Promise.all([
+    db.orm.public.Product.aggregate((a) => ({ count: a.count() })),
+    db.orm.public.Product.where({ isPlatformOwned: true }).aggregate((a) => ({ count: a.count() })),
+    db.orm.public.Product.where({ isPlatformOwned: false }).aggregate((a) => ({ count: a.count() })),
+    db.orm.public.Product.where({ approvalStatus: "PENDING" }).aggregate((a) => ({ count: a.count() })),
+    db.orm.public.Product.where((p) => p.stock.lte(p.lowStockThreshold)).aggregate((a) => ({ count: a.count() })),
+  ]);
 
   sendResponse(res, {
     statusCode: 200,
     success: true,
     message: "Admin products retrieved successfully",
-    meta: result.meta,
+    meta: {
+      ...result.meta,
+      counts: {
+        all: Number(totalAll.count) || 0,
+        platform: Number(totalPlatform.count) || 0,
+        vendor: Number(totalVendor.count) || 0,
+        pending: Number(totalPending.count) || 0,
+        lowStock: Number(totalLowStock.count) || 0,
+      },
+    },
     data: result.products,
   });
 });

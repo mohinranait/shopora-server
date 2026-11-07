@@ -1,4 +1,4 @@
-﻿import type { Response } from "express";
+import type { Response } from "express";
 
 export interface IApiResponse<T> {
   statusCode: number;
@@ -9,6 +9,9 @@ export interface IApiResponse<T> {
     limit?: number;
     total?: number;
     totalPage?: number;
+    totalPages?: number;
+    counts?: Record<string, number>;
+    [key: string]: unknown;
   };
   data?: T;
 }
