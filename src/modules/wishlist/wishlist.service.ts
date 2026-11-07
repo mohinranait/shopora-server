@@ -42,7 +42,6 @@ export const getUserWishlist = async (userId: string) => {
     .filter((item) => item.product != null)
     .map((item) => {
       const product = item.product;
-      const mainImageUrl = product.mainImage?.media?.url ?? null;
 
       return {
         id: item.id,
@@ -54,8 +53,7 @@ export const getUserWishlist = async (userId: string) => {
           slug: product.slug,
           productType: product.productType,
           mainImageId: product.mainImageId ?? null,
-          mainImageUseMediaId: product.mainImageId ?? null,
-          mainImage: mainImageUrl,
+          mainImage: product.mainImage ?? null,
           basePrice: product.basePrice,
           comparePrice: product.comparePrice,
           stock: product.stock,
