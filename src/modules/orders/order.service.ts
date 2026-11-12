@@ -502,16 +502,7 @@ export const createOrder = async (
         });
 
         // 5.3. Deduct stock and increment totalSold
-        if (it.variantId) {
-          await tx.orm.public.ProductVariant.where({ id: it.variantId }).update({
-            stock: Math.max(0, it.selectedVariant.stock - it.quantity),
-          });
-        }
-
-        await tx.orm.public.Product.where({ id: it.productId }).update({
-          stock: Math.max(0, it.product.stock - it.quantity),
-          totalSold: it.product.totalSold + it.quantity,
-        });
+        await deductStock(tx, { ...it, variantId: it.selectedVariant ? it.variantId : null });
       }
 
       // Notify Seller if third-party vendor
@@ -530,9 +521,7 @@ export const createOrder = async (
     }
 
     if (priced.coupon) {
-      await tx.orm.public.Coupon.where({ id: priced.coupon.id }).update({
-        usedCount: priced.coupon.usedCount + 1,
-      });
+      await claimCouponUse(tx, priced.coupon.id);
     }
 
     await notify(
@@ -629,23 +618,74 @@ const deriveOrderStatus = (statuses: string[]) => {
   return Object.keys(STATUS_RANK)[minRank];
 };
 
+/**
+ * Atomically deduct stock for one order line. The `stock >= qty` guard runs in the
+ * same UPDATE, so two concurrent checkouts can never both take the last unit.
+ */
+const deductStock = async (tx: any, it: { productId: string; variantId?: string | null; quantity: number; productName: string; variantTitle?: string | null }) => {
+  const qty = it.quantity;
+  const label = `"${it.productName}${it.variantTitle ? ` (${it.variantTitle})` : ""}"`;
+
+  if (it.variantId) {
+    const { affectedRows } = await tx.execute(
+      db.raw.sql`UPDATE "ProductVariant" SET "stock" = "stock" - ${qty} WHERE "id" = ${it.variantId} AND "stock" >= ${qty}`
+        .affectedCount()
+        .build()
+    );
+    if (affectedRows === 0) throw new AppError(`${label} just went out of stock. Please update your cart.`, 409);
+
+    // Variant stock is the source of truth; the product-level counter is kept as a floor-at-zero aggregate
+    await tx.execute(
+      db.raw.sql`UPDATE "Product" SET "stock" = GREATEST("stock" - ${qty}, 0), "totalSold" = "totalSold" + ${qty} WHERE "id" = ${it.productId}`
+        .affectedCount()
+        .build()
+    );
+    return;
+  }
+
+  const { affectedRows } = await tx.execute(
+    db.raw.sql`UPDATE "Product" SET "stock" = "stock" - ${qty}, "totalSold" = "totalSold" + ${qty} WHERE "id" = ${it.productId} AND "stock" >= ${qty}`
+      .affectedCount()
+      .build()
+  );
+  if (affectedRows === 0) throw new AppError(`${label} just went out of stock. Please update your cart.`, 409);
+};
+
 /** Put stock back (and undo units sold) for a set of order items */
 const restoreStock = async (tx: any, items: any[]) => {
   for (const it of items) {
     if (it.variantId) {
-      const variant = await tx.orm.public.ProductVariant.where({ id: it.variantId }).first();
-      if (variant) {
-        await tx.orm.public.ProductVariant.where({ id: it.variantId }).update({ stock: variant.stock + it.quantity });
-      }
+      await tx.execute(
+        db.raw.sql`UPDATE "ProductVariant" SET "stock" = "stock" + ${it.quantity} WHERE "id" = ${it.variantId}`
+          .affectedCount()
+          .build()
+      );
     }
-    const product = await tx.orm.public.Product.where({ id: it.productId }).first();
-    if (product) {
-      await tx.orm.public.Product.where({ id: it.productId }).update({
-        stock: product.stock + it.quantity,
-        totalSold: Math.max(0, product.totalSold - it.quantity),
-      });
-    }
+    await tx.execute(
+      db.raw.sql`UPDATE "Product" SET "stock" = "stock" + ${it.quantity}, "totalSold" = GREATEST("totalSold" - ${it.quantity}, 0) WHERE "id" = ${it.productId}`
+        .affectedCount()
+        .build()
+    );
   }
+};
+
+/** Atomically count one coupon use, refusing if the usage limit was reached concurrently */
+const claimCouponUse = async (tx: any, couponId: string) => {
+  const { affectedRows } = await tx.execute(
+    db.raw.sql`UPDATE "Coupon" SET "usedCount" = "usedCount" + 1 WHERE "id" = ${couponId} AND ("usageLimit" IS NULL OR "usedCount" < "usageLimit")`
+      .affectedCount()
+      .build()
+  );
+  if (affectedRows === 0) throw new AppError("This coupon has reached its usage limit", 409);
+};
+
+/** Give a coupon use back (order cancelled) */
+const releaseCouponUse = async (tx: any, couponCode: string) => {
+  await tx.execute(
+    db.raw.sql`UPDATE "Coupon" SET "usedCount" = GREATEST("usedCount" - 1, 0) WHERE "code" = ${couponCode}`
+      .affectedCount()
+      .build()
+  );
 };
 
 const notify = async (tx: any, userId: string | null | undefined, title: string, message: string, link: string) => {
@@ -959,10 +999,7 @@ export const cancelOrderByCustomer = async (
       }
     }
     if (order.couponCode) {
-      const coupon = await tx.orm.public.Coupon.where({ code: order.couponCode }).first();
-      if (coupon && coupon.usedCount > 0) {
-        await tx.orm.public.Coupon.where({ id: coupon.id }).update({ usedCount: coupon.usedCount - 1 });
-      }
+      await releaseCouponUse(tx, order.couponCode);
     }
     await syncParentOrder(tx, order.id);
   });
@@ -1078,10 +1115,7 @@ export const adminUpdateOrderStatus = async (
       }
     }
     if (payload.status === ORDER_STATUS.CANCELLED && order.couponCode) {
-      const coupon = await tx.orm.public.Coupon.where({ code: order.couponCode }).first();
-      if (coupon && coupon.usedCount > 0) {
-        await tx.orm.public.Coupon.where({ id: coupon.id }).update({ usedCount: coupon.usedCount - 1 });
-      }
+      await releaseCouponUse(tx, order.couponCode);
     }
     await syncParentOrder(tx, order.id);
   });

@@ -1,5 +1,6 @@
 ﻿import multer from "multer";
 import type { Request, Response, NextFunction } from "express";
+import { AppError } from "../errors/AppError.ts";
 
 /**
  * Set up Multer for handling file uploads in memory buffer
@@ -17,7 +18,7 @@ export const upload = multer({
     if (file.mimetype.startsWith("image/")) {
       cb(null, true);
     } else {
-      cb(new Error("Only image files (jpeg, png, webp, gif, svg, etc.) are allowed!"));
+      cb(new AppError("Only image files (jpeg, png, webp, gif, svg, etc.) are allowed!", 400));
     }
   },
 });

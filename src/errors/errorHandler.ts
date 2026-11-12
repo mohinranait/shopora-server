@@ -24,7 +24,7 @@ export const notFoundHandler = (req: Request, res: Response, _next: NextFunction
  */
 export const globalErrorHandler = (
   err: any,
-  _req: Request,
+  req: Request,
   res: Response,
   _next: NextFunction
 ) => {
@@ -59,7 +59,7 @@ export const globalErrorHandler = (
     errorSources = [
       {
         path: "",
-        message: err.message || "A unique constraint was violated.",
+        message: "A record with the same unique value already exists.",
       },
     ];
   }
@@ -74,7 +74,13 @@ export const globalErrorHandler = (
       },
     ];
   }
-  // 5. Standard JS Error
+  // 5. Client errors raised by body-parser etc. (malformed JSON, payload too large)
+  else if (typeof err?.status === "number" && err.status >= 400 && err.status < 500) {
+    statusCode = err.status;
+    message = err.expose ? err.message : "Bad request";
+    errorSources = [{ path: "", message }];
+  }
+  // 6. Standard JS Error
   else if (err instanceof Error) {
     message = err.message;
     errorSources = [
@@ -85,11 +91,22 @@ export const globalErrorHandler = (
     ];
   }
 
+  const isDev = ENV.NODE_ENV === "development";
+
+  // Unexpected errors: log server-side, never leak internals (SQL, stack, paths) to clients
+  if (statusCode >= 500) {
+    console.error(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`, err);
+    if (!isDev) {
+      message = "Something went wrong on the server!";
+      errorSources = [];
+    }
+  }
+
   // Send structured JSON error response
   res.status(statusCode).json({
     success: false,
     message,
     errorSources: errorSources.length > 0 ? errorSources : undefined,
-    stack: ENV.NODE_ENV === "development" ? err?.stack : undefined,
+    stack: isDev ? err?.stack : undefined,
   });
 };
