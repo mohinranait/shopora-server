@@ -1,4 +1,4 @@
-﻿import multer from "multer";
+import multer from "multer";
 import type { Request, Response, NextFunction } from "express";
 import { AppError } from "../errors/AppError.ts";
 
@@ -12,6 +12,7 @@ export const upload = multer({
   storage: storage,
   limits: {
     fileSize: 15 * 1024 * 1024, // 15MB limit per image
+    files: 10, // upload.any() accepts any field, so cap how many files one request can buffer in memory
   },
   fileFilter: (_req, file, cb) => {
     // Validate image mimetype

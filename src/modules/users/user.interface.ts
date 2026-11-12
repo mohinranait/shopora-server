@@ -70,7 +70,7 @@ export interface IAdminUserListItem extends IAuthUser, IUserAvatarFields {
   defaultAddress: any | null;
 }
 
-export interface IAdminUsersMeta {
+export type IAdminUsersMeta = {
   page: number;
   limit: number;
   total: number;
@@ -80,7 +80,7 @@ export interface IAdminUsersMeta {
     activeCustomers: number;
     verifiedCustomers: number;
   };
-}
+};
 
 export interface IAdminUsersResponse {
   users: IAdminUserListItem[];

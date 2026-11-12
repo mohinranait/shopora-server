@@ -12,7 +12,8 @@
     "dev": "node --watch --watch-path=src --watch-path=.env src/index.ts",
     "start": "node src/index.ts",
     "db:extensions": "node src/scripts/db_extensions.ts",
-    "db:update": "npm run db:extensions && prisma db update"
+    "db:update": "npm run db:extensions && prisma db update",
+    "typecheck": "tsc --noEmit -p ."
   },
   "keywords": [],
   "author": "",
@@ -26,10 +27,13 @@
     "@types/pg": "^8.23.1",
     "bcryptjs": "^3.0.3",
     "cloudinary": "^2.11.0",
+    "compression": "^1.8.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^18.0.8",
     "express": "^5.3.0",
+    "express-rate-limit": "^8.1.0",
+    "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
     "morgan": "^1.12.1",
     "multer": "^2.4.0",
@@ -39,6 +43,7 @@
   "devDependencies": {
     "@prisma/cli-engine": "^0.7.0",
     "@types/bcryptjs": "^2.4.6",
+    "@types/compression": "^1.8.1",
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
@@ -47,6 +52,10 @@
     "@types/multer": "^2.3.0",
     "@types/node": "^26.6.5",
     "prisma": "^8.0.0-rc.23",
-    "puppeteer-core": "^25.16.0"
+    "puppeteer-core": "^25.16.0",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=24"
   }
 }

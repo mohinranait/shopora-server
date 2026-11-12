@@ -30,7 +30,11 @@ export const ENV = {
   
   // Default Platform Business Settings
   DEFAULT_COMMISSION_RATE: Number(process.env.DEFAULT_COMMISSION_RATE) || 10.0, // 10% default platform commission
-  CLIENT_URL: process.env.CLIENT_URL || "http://localhost:3000",
+  CLIENT_URL: required("CLIENT_URL", "http://localhost:3000"),
+  // Extra allowed CORS origins, comma separated (e.g. admin or preview domains)
+  CORS_ORIGINS: (process.env.CORS_ORIGINS || "").split(",").map((o) => o.trim()).filter(Boolean),
+  // Number of reverse proxies in front of the app (Nginx, load balancer). Needed for real client IPs.
+  TRUST_PROXY: Number(process.env.TRUST_PROXY ?? (isProduction ? 1 : 0)),
 
   // Cloudinary Image Storage Configuration
   cloudinary_name: process.env.CLOUDINARY_NAME || process.env.CLOUDINARY_CLOUD_NAME || "",
