@@ -1,4 +1,4 @@
-﻿import { Router } from "express";
+import { Router } from "express";
 import { NotificationController } from "./notification.controller.ts";
 import { authGuard } from "../../middlewares/auth.ts";
 
@@ -9,6 +9,9 @@ router.use(authGuard());
 
 // Get my notifications (paginated, filterable by isRead & type)
 router.get("/", NotificationController.getMyNotifications);
+
+// Create a notification
+router.post("/", NotificationController.createNotification);
 
 // Get unread notifications count for badges
 router.get("/unread-count", NotificationController.getUnreadCount);

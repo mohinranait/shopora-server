@@ -106,6 +106,27 @@ export const clearReadNotifications = catchAsync(
   }
 );
 
+export const createNotification = catchAsync(
+  async (req: Request, res: Response) => {
+    const userId = req.user!.id;
+
+    const result = await NotificationService.createNotification({
+      userId: req.body.userId || userId,
+      title: req.body.title,
+      message: req.body.message,
+      type: req.body.type || "SYSTEM",
+      link: req.body.link || null,
+    });
+
+    sendResponse(res, {
+      statusCode: 201,
+      success: true,
+      message: "Notification created successfully",
+      data: result,
+    });
+  }
+);
+
 export const NotificationController = {
   getMyNotifications,
   getUnreadCount,
@@ -113,4 +134,5 @@ export const NotificationController = {
   markAllAsRead,
   deleteNotification,
   clearReadNotifications,
+  createNotification,
 };

@@ -6,7 +6,13 @@ import { AppError } from "../../errors/AppError.ts";
  */
 export const updateProfile = async (
   userId: string,
-  payload: { name?: string; phone?: string; avatarId?: string | null; avatarUseMediaId?: string | null }
+  payload: {
+    name?: string;
+    phone?: string;
+    avatar?: string | null;
+    avatarId?: string | null;
+    avatarUseMediaId?: string | null;
+  }
 ) => {
   const user = await db.orm.public.User.where({ id: userId }).first();
   if (!user) {
@@ -16,8 +22,31 @@ export const updateProfile = async (
   const updateData: any = {};
   if (payload.name !== undefined) updateData.name = payload.name;
   if (payload.phone !== undefined) updateData.phone = payload.phone;
+
   if (payload.avatarId !== undefined || payload.avatarUseMediaId !== undefined) {
     updateData.avatarId = payload.avatarId !== undefined ? payload.avatarId : payload.avatarUseMediaId;
+  } else if (payload.avatar !== undefined) {
+    if (!payload.avatar || payload.avatar.trim() === "") {
+      updateData.avatarId = null;
+    } else {
+      let media = await db.orm.public.Media.where({ url: payload.avatar }).first();
+      if (!media) {
+        media = await db.orm.public.Media.create({
+          url: payload.avatar,
+          publicId: `avatar_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+          userId,
+        });
+      }
+      let useMedia = await db.orm.public.UseMedia.where({ mediaId: media.id, userId }).first();
+      if (!useMedia) {
+        useMedia = await db.orm.public.UseMedia.create({
+          mediaId: media.id,
+          userId,
+          alt: `${payload.name || user.name || "User"} Avatar`,
+        });
+      }
+      updateData.avatarId = useMedia.id;
+    }
   }
 
   const updated = await db.orm.public.User.where({ id: userId }).update(updateData);
@@ -45,6 +74,10 @@ export const updateProfile = async (
     avatarId: targetAvatarId ?? null,
     avatarUseMediaId: targetAvatarId ?? null,
     avatarUseMedia,
+    isActive: updated.isActive,
+    isVerified: updated.isVerified,
+    createdAt: updated.createdAt,
+    updatedAt: updated.updatedAt,
   };
 };
 
