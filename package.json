@@ -10,7 +10,9 @@
     "seed": "node src/scripts/seed.ts",
     "db:clean": "node src/scripts/clean_db.ts",
     "dev": "node --watch --watch-path=src --watch-path=.env src/index.ts",
-    "start": "node src/index.ts"
+    "start": "node src/index.ts",
+    "db:extensions": "node src/scripts/db_extensions.ts",
+    "db:update": "npm run db:extensions && prisma db update"
   },
   "keywords": [],
   "author": "",

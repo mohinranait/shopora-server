@@ -15,6 +15,9 @@ model Category {
   products     Product[]
   createdAt    TimestamptzString          @default(now())
   updatedAt    temporal.updatedAtString()
+
+  @@index([parentId])
+  @@index([isActive, displayOrder])
 }
 
 model Brand {
@@ -82,6 +85,18 @@ model Product {
   weightKg            Float?
   createdAt           TimestamptzString          @default(now())
   updatedAt           temporal.updatedAtString()
+
+  @@index([categoryId])
+  @@index([brandId])
+  @@index([sellerId, createdAt])
+  @@index([approvalStatus, status, createdAt])
+  @@index([approvalStatus, status, totalSold])
+  @@index([approvalStatus, status, basePrice])
+  @@index([mainImageId])
+  // Trigram indexes for ILIKE '%term%' search (needs: CREATE EXTENSION pg_trgm)
+  @@index(expression: sql`"name" gin_trgm_ops`, type: "gin", name: "product_name_trgm")
+  @@index(expression: sql`"sku" gin_trgm_ops`, type: "gin", name: "product_sku_trgm")
+  @@index(expression: sql`"shortDescription" gin_trgm_ops`, type: "gin", name: "product_short_desc_trgm")
 }
 
 model ProductImage {
@@ -94,6 +109,9 @@ model ProductImage {
   imageId      String?
   image        UseMedia?         @relation(fields: [imageId], references: [id], onDelete: Cascade)
   createdAt    TimestamptzString @default(now())
+
+  @@index([productId, displayOrder])
+  @@index([imageId])
 }
 
 model ProductVariant {
@@ -120,6 +138,9 @@ model ProductVariant {
   cartItems         CartItem[]
   createdAt         TimestamptzString              @default(now())
   updatedAt         temporal.updatedAtString()
+
+  @@index([productId])
+  @@index([imageId])
 }
 
 model ProductQuestion {
@@ -136,4 +157,7 @@ model ProductQuestion {
   isApproved     Boolean           @default(true)
   createdAt      TimestamptzString @default(now())
   updatedAt      temporal.updatedAtString()
+
+  @@index([productId, createdAt])
+  @@index([userId])
 }

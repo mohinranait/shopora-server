@@ -15,6 +15,9 @@ model Media {
   seller           SellerProfile?    @relation(fields: [sellerId], references: [id], onDelete: SetNull)
   useMedias        UseMedia[]
   createdAt        TimestamptzString @default(now())
+
+  @@index([userId, createdAt])
+  @@index([sellerId])
 }
 
 model UseMedia {
@@ -44,4 +47,7 @@ model UseMedia {
 
   createdAt       TimestamptzString          @default(now())
   updatedAt       temporal.updatedAtString()
+
+  @@index([mediaId])
+  @@index([userId])
 }

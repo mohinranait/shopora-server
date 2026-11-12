@@ -12,6 +12,13 @@ declare global {
   }
 }
 
+/** Fetch only what auth needs: role/active flags plus the seller profile id, in one query */
+const loadAuthUser = (id: string) =>
+  db.orm.public.User.where({ id })
+    .select("id", "role", "isActive")
+    .include("sellerProfile", (sp) => sp.select("id"))
+    .first();
+
 /**
  * Authentication & Role Guard Middleware
  * @param allowedRoles List of roles permitted to access the route
@@ -38,8 +45,8 @@ export const authGuard = (...allowedRoles: string[]) => {
         throw new AppError("Invalid or expired authentication token", 401);
       }
 
-      // Check if user still exists and is active
-      const user = await db.orm.public.User.where({ id: decoded.id }).first();
+      // Check if user still exists and is active (seller profile joined in the same query)
+      const user = await loadAuthUser(decoded.id);
       if (!user) {
         throw new AppError("User account no longer exists", 401);
       }
@@ -50,8 +57,7 @@ export const authGuard = (...allowedRoles: string[]) => {
 
       // Attach sellerId if user is a seller
       if (user.role === "SELLER") {
-        const sellerProfile = await db.orm.public.SellerProfile.where({ userId: user.id }).first();
-        decoded.sellerId = sellerProfile ? sellerProfile.id : null;
+        decoded.sellerId = user.sellerProfile?.id ?? null;
       }
 
       // Check role authorization
@@ -83,11 +89,10 @@ export const optionalAuth = () => {
         if (token) {
           try {
             const decoded = verifyAccessToken(token);
-            const user = await db.orm.public.User.where({ id: decoded.id }).first();
+            const user = await loadAuthUser(decoded.id);
             if (user && user.isActive) {
               if (user.role === "SELLER") {
-                const sellerProfile = await db.orm.public.SellerProfile.where({ userId: user.id }).first();
-                decoded.sellerId = sellerProfile ? sellerProfile.id : null;
+                decoded.sellerId = user.sellerProfile?.id ?? null;
               }
               req.user = decoded;
             }

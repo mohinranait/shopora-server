@@ -24,6 +24,9 @@ model User {
   avatar         UseMedia?                  @relation("UserAvatar", fields: [avatarId], references: [id], onDelete: SetNull)
   createdAt      TimestamptzString          @default(now())
   updatedAt      temporal.updatedAtString()
+
+  @@index([phone])
+  @@index([role, isActive])
 }
 
 model Address {
@@ -41,4 +44,6 @@ model Address {
   type          String                     @default("SHIPPING") // "SHIPPING" | "BILLING"
   createdAt     TimestamptzString          @default(now())
   updatedAt     temporal.updatedAtString()
+
+  @@index([userId])
 }

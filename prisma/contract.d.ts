@@ -18,7 +18,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'e4307d621e04df83822f4967691f48a62b7275ae3d876a198cbdd76b34981a5a'>;
+  StorageHashBase<'5ef170ec70796306b26ccc3fcde66541c10d7e09b586965efa0c69c297222a9b'>;
 export type ExecutionHash =
   ExecutionHashBase<'5893d5883ad3defd495818abc9da068be774f01db5143bdcabede87852d91089'>;
 export type ProfileHash =
@@ -3040,6 +3040,12 @@ type ContractBase = Omit<
                   readonly columns: readonly ['mobileImageId'];
                   readonly unique: false;
                 },
+                {
+                  readonly name: 'Banner_position_isActive_displayOrder_idx_d9dd82b4';
+                  readonly prefix: 'Banner_position_isActive_displayOrder_idx';
+                  readonly columns: readonly ['position', 'isActive', 'displayOrder'];
+                  readonly unique: false;
+                },
               ];
               foreignKeys: readonly [
                 {
@@ -3221,6 +3227,12 @@ type ContractBase = Omit<
                   readonly unique: false;
                 },
                 {
+                  readonly name: 'CartItem_sessionId_idx_29f415d4';
+                  readonly prefix: 'CartItem_sessionId_idx';
+                  readonly columns: readonly ['sessionId'];
+                  readonly unique: false;
+                },
+                {
                   readonly name: 'CartItem_userId_idx_a489d58a';
                   readonly prefix: 'CartItem_userId_idx';
                   readonly columns: readonly ['userId'];
@@ -3360,6 +3372,12 @@ type ContractBase = Omit<
                   readonly unique: false;
                 },
                 {
+                  readonly name: 'Category_isActive_displayOrder_idx_9399faee';
+                  readonly prefix: 'Category_isActive_displayOrder_idx';
+                  readonly columns: readonly ['isActive', 'displayOrder'];
+                  readonly unique: false;
+                },
+                {
                   readonly name: 'Category_parentId_idx_6a68f597';
                   readonly prefix: 'Category_parentId_idx';
                   readonly columns: readonly ['parentId'];
@@ -3495,7 +3513,14 @@ type ContractBase = Omit<
               };
               primaryKey: { readonly columns: readonly ['id'] };
               uniques: readonly [{ readonly columns: readonly ['code'] }];
-              indexes: readonly [];
+              indexes: readonly [
+                {
+                  readonly name: 'Coupon_sellerId_idx_d71255f2';
+                  readonly prefix: 'Coupon_sellerId_idx';
+                  readonly columns: readonly ['sellerId'];
+                  readonly unique: false;
+                },
+              ];
               foreignKeys: readonly [];
             };
             readonly Media: {
@@ -3581,6 +3606,12 @@ type ContractBase = Omit<
                   readonly name: 'Media_sellerId_idx_d71255f2';
                   readonly prefix: 'Media_sellerId_idx';
                   readonly columns: readonly ['sellerId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'Media_userId_createdAt_idx_f726f04a';
+                  readonly prefix: 'Media_userId_createdAt_idx';
+                  readonly columns: readonly ['userId', 'createdAt'];
                   readonly unique: false;
                 },
                 {
@@ -3684,6 +3715,12 @@ type ContractBase = Omit<
                   readonly name: 'Notification_userId_idx_a489d58a';
                   readonly prefix: 'Notification_userId_idx';
                   readonly columns: readonly ['userId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'Notification_userId_isRead_createdAt_idx_33778255';
+                  readonly prefix: 'Notification_userId_isRead_createdAt_idx';
+                  readonly columns: readonly ['userId', 'isRead', 'createdAt'];
                   readonly unique: false;
                 },
               ];
@@ -3854,6 +3891,36 @@ type ContractBase = Omit<
               uniques: readonly [{ readonly columns: readonly ['orderNumber'] }];
               indexes: readonly [
                 {
+                  readonly name: 'Order_createdAt_idx_9575dbd7';
+                  readonly prefix: 'Order_createdAt_idx';
+                  readonly columns: readonly ['createdAt'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'Order_guestPhone_idx_cb137f06';
+                  readonly prefix: 'Order_guestPhone_idx';
+                  readonly columns: readonly ['guestPhone'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'Order_orderStatus_createdAt_idx_ea0aa662';
+                  readonly prefix: 'Order_orderStatus_createdAt_idx';
+                  readonly columns: readonly ['orderStatus', 'createdAt'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'Order_paymentStatus_idx_6874c030';
+                  readonly prefix: 'Order_paymentStatus_idx';
+                  readonly columns: readonly ['paymentStatus'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'Order_userId_createdAt_idx_f726f04a';
+                  readonly prefix: 'Order_userId_createdAt_idx';
+                  readonly columns: readonly ['userId', 'createdAt'];
+                  readonly unique: false;
+                },
+                {
                   readonly name: 'Order_userId_idx_a489d58a';
                   readonly prefix: 'Order_userId_idx';
                   readonly columns: readonly ['userId'];
@@ -3982,6 +4049,12 @@ type ContractBase = Omit<
                   readonly name: 'OrderItem_productId_idx_5858600a';
                   readonly prefix: 'OrderItem_productId_idx';
                   readonly columns: readonly ['productId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'OrderItem_sellerId_idx_d71255f2';
+                  readonly prefix: 'OrderItem_sellerId_idx';
+                  readonly columns: readonly ['sellerId'];
                   readonly unique: false;
                 },
                 {
@@ -4126,9 +4199,21 @@ type ContractBase = Omit<
               uniques: readonly [];
               indexes: readonly [
                 {
+                  readonly name: 'PayoutRequest_sellerId_createdAt_idx_a21eaac1';
+                  readonly prefix: 'PayoutRequest_sellerId_createdAt_idx';
+                  readonly columns: readonly ['sellerId', 'createdAt'];
+                  readonly unique: false;
+                },
+                {
                   readonly name: 'PayoutRequest_sellerId_idx_d71255f2';
                   readonly prefix: 'PayoutRequest_sellerId_idx';
                   readonly columns: readonly ['sellerId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'PayoutRequest_status_idx_e98638ab';
+                  readonly prefix: 'PayoutRequest_status_idx';
+                  readonly columns: readonly ['status'];
                   readonly unique: false;
                 },
               ];
@@ -4442,6 +4527,24 @@ type ContractBase = Omit<
               ];
               indexes: readonly [
                 {
+                  readonly name: 'Product_approvalStatus_status_basePrice_idx_db78f7cb';
+                  readonly prefix: 'Product_approvalStatus_status_basePrice_idx';
+                  readonly columns: readonly ['approvalStatus', 'status', 'basePrice'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'Product_approvalStatus_status_createdAt_idx_ecc94f4f';
+                  readonly prefix: 'Product_approvalStatus_status_createdAt_idx';
+                  readonly columns: readonly ['approvalStatus', 'status', 'createdAt'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'Product_approvalStatus_status_totalSold_idx_94682523';
+                  readonly prefix: 'Product_approvalStatus_status_totalSold_idx';
+                  readonly columns: readonly ['approvalStatus', 'status', 'totalSold'];
+                  readonly unique: false;
+                },
+                {
                   readonly name: 'Product_brandId_idx_02e95397';
                   readonly prefix: 'Product_brandId_idx';
                   readonly columns: readonly ['brandId'];
@@ -4460,10 +4563,37 @@ type ContractBase = Omit<
                   readonly unique: false;
                 },
                 {
+                  readonly name: 'Product_sellerId_createdAt_idx_a21eaac1';
+                  readonly prefix: 'Product_sellerId_createdAt_idx';
+                  readonly columns: readonly ['sellerId', 'createdAt'];
+                  readonly unique: false;
+                },
+                {
                   readonly name: 'Product_sellerId_idx_d71255f2';
                   readonly prefix: 'Product_sellerId_idx';
                   readonly columns: readonly ['sellerId'];
                   readonly unique: false;
+                },
+                {
+                  readonly name: 'product_name_trgm_a9e31182';
+                  readonly prefix: 'product_name_trgm';
+                  readonly expression: '"name" gin_trgm_ops';
+                  readonly unique: false;
+                  readonly type: 'gin';
+                },
+                {
+                  readonly name: 'product_short_desc_trgm_7af4f81d';
+                  readonly prefix: 'product_short_desc_trgm';
+                  readonly expression: '"shortDescription" gin_trgm_ops';
+                  readonly unique: false;
+                  readonly type: 'gin';
+                },
+                {
+                  readonly name: 'product_sku_trgm_b34a624a';
+                  readonly prefix: 'product_sku_trgm';
+                  readonly expression: '"sku" gin_trgm_ops';
+                  readonly unique: false;
+                  readonly type: 'gin';
                 },
               ];
               foreignKeys: readonly [
@@ -4739,6 +4869,12 @@ type ContractBase = Omit<
                   readonly unique: false;
                 },
                 {
+                  readonly name: 'ProductImage_productId_displayOrder_idx_9879f395';
+                  readonly prefix: 'ProductImage_productId_displayOrder_idx';
+                  readonly columns: readonly ['productId', 'displayOrder'];
+                  readonly unique: false;
+                },
+                {
                   readonly name: 'ProductImage_productId_idx_5858600a';
                   readonly prefix: 'ProductImage_productId_idx';
                   readonly columns: readonly ['productId'];
@@ -4847,6 +4983,12 @@ type ContractBase = Omit<
                   readonly name: 'ProductQuestion_answeredBy_idx_ea16a636';
                   readonly prefix: 'ProductQuestion_answeredBy_idx';
                   readonly columns: readonly ['answeredBy'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'ProductQuestion_productId_createdAt_idx_58d1a09b';
+                  readonly prefix: 'ProductQuestion_productId_createdAt_idx';
+                  readonly columns: readonly ['productId', 'createdAt'];
                   readonly unique: false;
                 },
                 {
@@ -4982,6 +5124,12 @@ type ContractBase = Omit<
               primaryKey: { readonly columns: readonly ['id'] };
               uniques: readonly [];
               indexes: readonly [
+                {
+                  readonly name: 'ProductReview_productId_createdAt_idx_58d1a09b';
+                  readonly prefix: 'ProductReview_productId_createdAt_idx';
+                  readonly columns: readonly ['productId', 'createdAt'];
+                  readonly unique: false;
+                },
                 {
                   readonly name: 'ProductReview_productId_idx_5858600a';
                   readonly prefix: 'ProductReview_productId_idx';
@@ -5384,6 +5532,18 @@ type ContractBase = Omit<
                   readonly unique: false;
                 },
                 {
+                  readonly name: 'ReturnRequest_status_idx_e98638ab';
+                  readonly prefix: 'ReturnRequest_status_idx';
+                  readonly columns: readonly ['status'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'ReturnRequest_userId_createdAt_idx_f726f04a';
+                  readonly prefix: 'ReturnRequest_userId_createdAt_idx';
+                  readonly columns: readonly ['userId', 'createdAt'];
+                  readonly unique: false;
+                },
+                {
                   readonly name: 'ReturnRequest_userId_idx_a489d58a';
                   readonly prefix: 'ReturnRequest_userId_idx';
                   readonly columns: readonly ['userId'];
@@ -5606,6 +5766,12 @@ type ContractBase = Omit<
                   readonly name: 'SellerProfile_logoId_idx_7e02a476';
                   readonly prefix: 'SellerProfile_logoId_idx';
                   readonly columns: readonly ['logoId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'SellerProfile_status_idx_e98638ab';
+                  readonly prefix: 'SellerProfile_status_idx';
+                  readonly columns: readonly ['status'];
                   readonly unique: false;
                 },
               ];
@@ -5892,6 +6058,12 @@ type ContractBase = Omit<
                   readonly unique: false;
                 },
                 {
+                  readonly name: 'Slider_isActive_displayOrder_idx_9399faee';
+                  readonly prefix: 'Slider_isActive_displayOrder_idx';
+                  readonly columns: readonly ['isActive', 'displayOrder'];
+                  readonly unique: false;
+                },
+                {
                   readonly name: 'Slider_mobileImageId_idx_47a4ac51';
                   readonly prefix: 'Slider_mobileImageId_idx';
                   readonly columns: readonly ['mobileImageId'];
@@ -6120,6 +6292,24 @@ type ContractBase = Omit<
                   readonly name: 'SubOrder_sellerId_idx_d71255f2';
                   readonly prefix: 'SubOrder_sellerId_idx';
                   readonly columns: readonly ['sellerId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'SubOrder_sellerId_status_createdAt_idx_7f95605c';
+                  readonly prefix: 'SubOrder_sellerId_status_createdAt_idx';
+                  readonly columns: readonly ['sellerId', 'status', 'createdAt'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'SubOrder_status_idx_e98638ab';
+                  readonly prefix: 'SubOrder_status_idx';
+                  readonly columns: readonly ['status'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'SubOrder_trackingNumber_idx_abd2abb3';
+                  readonly prefix: 'SubOrder_trackingNumber_idx';
+                  readonly columns: readonly ['trackingNumber'];
                   readonly unique: false;
                 },
               ];
@@ -6354,6 +6544,18 @@ type ContractBase = Omit<
                   readonly columns: readonly ['avatarId'];
                   readonly unique: false;
                 },
+                {
+                  readonly name: 'User_phone_idx_8db23f45';
+                  readonly prefix: 'User_phone_idx';
+                  readonly columns: readonly ['phone'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'User_role_isActive_idx_d369089a';
+                  readonly prefix: 'User_role_isActive_idx';
+                  readonly columns: readonly ['role', 'isActive'];
+                  readonly unique: false;
+                },
               ];
               foreignKeys: readonly [
                 {
@@ -6419,6 +6621,12 @@ type ContractBase = Omit<
               primaryKey: { readonly columns: readonly ['id'] };
               uniques: readonly [];
               indexes: readonly [
+                {
+                  readonly name: 'WalletTransaction_walletId_createdAt_idx_5931d2fb';
+                  readonly prefix: 'WalletTransaction_walletId_createdAt_idx';
+                  readonly columns: readonly ['walletId', 'createdAt'];
+                  readonly unique: false;
+                },
                 {
                   readonly name: 'WalletTransaction_walletId_idx_2e003173';
                   readonly prefix: 'WalletTransaction_walletId_idx';
@@ -6530,6 +6738,12 @@ type ContractBase = Omit<
                   readonly name: 'WishlistItem_userId_idx_a489d58a';
                   readonly prefix: 'WishlistItem_userId_idx';
                   readonly columns: readonly ['userId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'WishlistItem_userId_productId_idx_787f1db3';
+                  readonly prefix: 'WishlistItem_userId_productId_idx';
+                  readonly columns: readonly ['userId', 'productId'];
                   readonly unique: false;
                 },
               ];

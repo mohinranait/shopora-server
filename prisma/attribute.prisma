@@ -25,6 +25,8 @@ model AttributeValue {
   productAttributeValues ProductAttributeValue[]
   variantAttributeValues ProductVariantAttributeValue[]
   createdAt              TimestamptzString              @default(now())
+
+  @@index([attributeId])
 }
 
 model ProductAttribute {
@@ -36,6 +38,9 @@ model ProductAttribute {
   isVariation Boolean                 @default(false) // true if used for generating variants, false for general specs
   values      ProductAttributeValue[]
   createdAt   TimestamptzString       @default(now())
+
+  @@index([productId])
+  @@index([attributeId])
 }
 
 model ProductAttributeValue {
@@ -46,6 +51,9 @@ model ProductAttributeValue {
   attributeValue     AttributeValue?  @relation(fields: [attributeValueId], references: [id], onDelete: SetNull)
   customValue        String?          // For non-predefined custom specifications
   createdAt          TimestamptzString @default(now())
+
+  @@index([productAttributeId])
+  @@index([attributeValueId])
 }
 
 model ProductVariantAttributeValue {
@@ -57,4 +65,8 @@ model ProductVariantAttributeValue {
   attributeValueId String
   attributeValue   AttributeValue @relation(fields: [attributeValueId], references: [id], onDelete: Cascade)
   createdAt        TimestamptzString @default(now())
+
+  @@index([variantId])
+  @@index([attributeValueId])
+  @@index([attributeId])
 }

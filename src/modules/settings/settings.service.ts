@@ -214,12 +214,13 @@ export const DEFAULT_SETTINGS: Record<string, { value: any; group: string; descr
   },
 };
 
-/**
- * Get all public website settings as a key-value dictionary.
- * Ensures any missing settings from DEFAULT_SETTINGS are automatically backfilled.
- */
-export const getAllSettings = async () => {
-  const settings = await db.orm.public.WebsiteSetting.all();
+// Settings are read on every cart/checkout request but change rarely, so keep them in memory briefly.
+// Writes through updateSettings clear the cache; other instances pick changes up within the TTL.
+const SETTINGS_TTL_MS = 60_000;
+let settingsCache: { value: Record<string, any>; expiresAt: number } | null = null;
+
+const loadSettings = async () => {
+  let settings = await db.orm.public.WebsiteSetting.all();
   const existingMap = new Map(settings.map((s) => [s.key, s]));
 
   // Backfill any missing default settings
@@ -233,14 +234,25 @@ export const getAllSettings = async () => {
         description: item.description,
       });
     }
+    settings = await db.orm.public.WebsiteSetting.all();
   }
 
-  const all = await db.orm.public.WebsiteSetting.all();
   const result: Record<string, any> = {};
-  for (const s of all) {
+  for (const s of settings) {
     result[s.key] = s.value;
   }
   return result;
+};
+
+/**
+ * Get all public website settings as a key-value dictionary.
+ * Ensures any missing settings from DEFAULT_SETTINGS are automatically backfilled.
+ */
+export const getAllSettings = async () => {
+  if (!settingsCache || settingsCache.expiresAt < Date.now()) {
+    settingsCache = { value: await loadSettings(), expiresAt: Date.now() + SETTINGS_TTL_MS };
+  }
+  return { ...settingsCache.value };
 };
 
 /**
@@ -262,6 +274,7 @@ export const updateSettings = async (payload: Record<string, any>) => {
     }
   }
 
+  settingsCache = null;
   return await getAllSettings();
 };
 

@@ -1,51 +1,73 @@
 import { db } from "../../config/db.ts";
 import { ORDER_STATUS, SELLER_STATUS, PRODUCT_STATUS } from "../../constants/index.ts";
+import { firstRow } from "../../utils/rawQuery.ts";
 
 /**
  * Admin: Platform-wide High-Level Business Metrics
  */
 export const getAdminPlatformAnalytics = async () => {
-  // 1. Order and Revenue Aggregates
-  const totalOrdersCount = await db.orm.public.Order.aggregate((a) => ({ count: a.count() }));
-  const deliveredOrdersCount = await db.orm.public.Order
-    .where({ orderStatus: ORDER_STATUS.DELIVERED })
-    .aggregate((a) => ({ count: a.count() }));
+  const count = (q: { aggregate: (fn: (a: any) => any) => Promise<any> }) => q.aggregate((a) => ({ count: a.count() }));
 
-  const pendingOrdersCount = await db.orm.public.Order
-    .where({ orderStatus: ORDER_STATUS.PENDING })
-    .aggregate((a) => ({ count: a.count() }));
-
-  // Gross Revenue of delivered/paid orders
-  const revenueAgg = await db.orm.public.Order
-    .where({ paymentStatus: "PAID" })
-    .aggregate((a) => ({ total: a.sum("totalAmount") }));
-
-  // Platform Commission Earned from delivered SubOrders
-  const commissionAgg = await db.orm.public.SubOrder
-    .where({ status: ORDER_STATUS.DELIVERED })
-    .aggregate((a) => ({ total: a.sum("commissionAmount") }));
-
-  // 2. User & Seller Counts
-  const totalUsers = await db.orm.public.User.aggregate((a) => ({ count: a.count() }));
-  const activeSellers = await db.orm.public.SellerProfile
-    .where({ status: SELLER_STATUS.APPROVED })
-    .aggregate((a) => ({ count: a.count() }));
-
-  const pendingSellers = await db.orm.public.SellerProfile
-    .where({ status: SELLER_STATUS.PENDING })
-    .aggregate((a) => ({ count: a.count() }));
-
-  // 3. Product Counts
-  const totalProducts = await db.orm.public.Product.aggregate((a) => ({ count: a.count() }));
-  const publishedProducts = await db.orm.public.Product
-    .where({ status: PRODUCT_STATUS.PUBLISHED })
-    .aggregate((a) => ({ count: a.count() }));
-
-  // 4. Top Selling Products
-  const topProducts = await db.orm.public.Product
-    .orderBy((p) => p.totalSold.desc())
-    .limit(5)
-    .all();
+  // 1-4. All headline aggregates run in parallel; inventory and profit maths happen in SQL
+  const [
+    totalOrdersCount,
+    deliveredOrdersCount,
+    pendingOrdersCount,
+    revenueAgg,
+    commissionAgg,
+    totalUsers,
+    activeSellers,
+    pendingSellers,
+    totalProducts,
+    publishedProducts,
+    topProducts,
+    recentOrders,
+    investment,
+    directSales,
+  ] = await Promise.all([
+    count(db.orm.public.Order),
+    count(db.orm.public.Order.where({ orderStatus: ORDER_STATUS.DELIVERED })),
+    count(db.orm.public.Order.where({ orderStatus: ORDER_STATUS.PENDING })),
+    // Gross Revenue of paid orders
+    db.orm.public.Order.where({ paymentStatus: "PAID" }).aggregate((a) => ({ total: a.sum("totalAmount") })),
+    // Platform Commission Earned from delivered SubOrders
+    db.orm.public.SubOrder.where({ status: ORDER_STATUS.DELIVERED }).aggregate((a) => ({ total: a.sum("commissionAmount") })),
+    count(db.orm.public.User),
+    count(db.orm.public.SellerProfile.where({ status: SELLER_STATUS.APPROVED })),
+    count(db.orm.public.SellerProfile.where({ status: SELLER_STATUS.PENDING })),
+    count(db.orm.public.Product),
+    count(db.orm.public.Product.where({ status: PRODUCT_STATUS.PUBLISHED })),
+    db.orm.public.Product.orderBy((p) => p.totalSold.desc()).limit(5).all(),
+    db.orm.public.Order.orderBy((o) => o.createdAt.desc()).limit(6).all(),
+    // Stock investment: variable products value each variant's stock (variant cost, falling back to product cost)
+    firstRow<{ total: number; platform: number }>(
+      db.raw.sql`
+        WITH inv AS (
+          SELECT p."isPlatformOwned", p."sellerId",
+            CASE WHEN p."productType" = 'VARIABLE' AND EXISTS (SELECT 1 FROM "ProductVariant" v WHERE v."productId" = p."id")
+              THEN (SELECT SUM(COALESCE(v."stock", 0) * COALESCE(v."costPrice", p."costPrice", 0)) FROM "ProductVariant" v WHERE v."productId" = p."id")
+              ELSE COALESCE(p."stock", 0) * COALESCE(p."costPrice", 0)
+            END AS invest
+          FROM "Product" p
+        )
+        SELECT COALESCE(SUM(invest), 0)::float8 AS total,
+               COALESCE(SUM(invest) FILTER (WHERE "isPlatformOwned" OR "sellerId" IS NULL), 0)::float8 AS platform
+        FROM inv`
+        .returnsRow({ total: "pg/float8@1", platform: "pg/float8@1" })
+        .build()
+    ),
+    // Platform-owned items in delivered sub-orders
+    firstRow<{ revenue: number; cost: number }>(
+      db.raw.sql`
+        SELECT COALESCE(SUM(COALESCE(oi."price", 0) * COALESCE(NULLIF(oi."quantity", 0), 1)), 0)::float8 AS revenue,
+               COALESCE(SUM(COALESCE(oi."costPrice", 0) * COALESCE(NULLIF(oi."quantity", 0), 1)), 0)::float8 AS cost
+        FROM "OrderItem" oi
+        JOIN "SubOrder" so ON so."id" = oi."subOrderId"
+        WHERE so."status" = ${ORDER_STATUS.DELIVERED} AND oi."sellerId" IS NULL`
+        .returnsRow({ revenue: "pg/float8@1", cost: "pg/float8@1" })
+        .build()
+    ),
+  ]);
 
   const prodUseMediaIds = [...new Set(topProducts.map((p: any) => p.mainImageId ?? p.mainImageUseMediaId).filter((id): id is string => typeof id === "string" && Boolean(id)))];
   const useMedias = prodUseMediaIds.length > 0 ? await db.orm.public.UseMedia.where((um) => um.id.in(prodUseMediaIds)).all() : [];
@@ -54,67 +76,11 @@ export const getAdminPlatformAnalytics = async () => {
   const mediaMap = new Map(medias.map((m) => [m.id, m.url]));
   const useMediaMap = new Map(useMedias.map((um) => [um.id, mediaMap.get(um.mediaId) ?? ""]));
 
-  // 5. Recent 6 Orders
-  const recentOrders = await db.orm.public.Order
-    .orderBy((o) => o.createdAt.desc())
-    .limit(6)
-    .all();
-
-  // 6. Active Stock Investment & Net Profit Calculations
-  const allProducts = await db.orm.public.Product.all();
-  const allVariants = await db.orm.public.ProductVariant.all();
-  const variantMapByProduct = new Map<string, any[]>();
-  for (const v of allVariants) {
-    const list = variantMapByProduct.get(v.productId) || [];
-    list.push(v);
-    variantMapByProduct.set(v.productId, list);
-  }
-
-  let platformInventoryInvestment = 0;
-  let totalCatalogInvestment = 0;
-
-  for (const p of allProducts) {
-    const pVars = variantMapByProduct.get(p.id) || [];
-    let pInvest = 0;
-    if (p.productType === "VARIABLE" && pVars.length > 0) {
-      for (const v of pVars) {
-        const vCost = typeof v.costPrice === "number" ? v.costPrice : (typeof p.costPrice === "number" ? p.costPrice : 0);
-        pInvest += (v.stock || 0) * vCost;
-      }
-    } else {
-      const pCost = typeof p.costPrice === "number" ? p.costPrice : 0;
-      pInvest += (p.stock || 0) * pCost;
-    }
-
-    totalCatalogInvestment += pInvest;
-    if (p.isPlatformOwned || !p.sellerId) {
-      platformInventoryInvestment += pInvest;
-    }
-  }
-
-  // Calculate Net Profit from delivered order items
-  const deliveredSubOrders = await db.orm.public.SubOrder
-    .where({ status: ORDER_STATUS.DELIVERED })
-    .all();
-  const deliveredSubOrderIds = new Set(deliveredSubOrders.map((so) => so.id));
-
-  const allOrderItems = await db.orm.public.OrderItem.all();
-  let directSalesRevenue = 0;
-  let directSalesCost = 0;
-  let directSalesProfit = 0;
-
-  for (const it of allOrderItems) {
-    if (it.subOrderId && deliveredSubOrderIds.has(it.subOrderId)) {
-      if (!it.sellerId) {
-        // Platform-owned direct item
-        const itemRevenue = (it.price || 0) * (it.quantity || 1);
-        const itemCost = (it.costPrice || 0) * (it.quantity || 1);
-        directSalesRevenue += itemRevenue;
-        directSalesCost += itemCost;
-        directSalesProfit += (itemRevenue - itemCost);
-      }
-    }
-  }
+  const platformInventoryInvestment = investment?.platform ?? 0;
+  const totalCatalogInvestment = investment?.total ?? 0;
+  const directSalesRevenue = directSales?.revenue ?? 0;
+  const directSalesCost = directSales?.cost ?? 0;
+  const directSalesProfit = directSalesRevenue - directSalesCost;
 
   const platformCommissionTotal = commissionAgg.total ?? 0;
   const grossSalesTotal = revenueAgg.total ?? 0;

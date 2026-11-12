@@ -437,6 +437,15 @@ export const createOrder = async (
     // 5.2. Create SubOrders and OrderItems for each Seller group
     const standardFee = typeof settings.shipping_fee_standard === "number" ? settings.shipping_fee_standard : 70;
     const freeShippingThreshold = typeof settings.free_shipping_threshold === "number" ? settings.free_shipping_threshold : 1500;
+    // Seller profiles for every vendor in the cart, fetched once
+    const sellerIds = [...new Set(validatedItems.map((it) => it.sellerId).filter((id): id is string => Boolean(id)))];
+    const sellerProfiles = sellerIds.length > 0
+      ? await tx.orm.public.SellerProfile.where((sp) => sp.id.in(sellerIds)).select("id", "userId", "commissionRate").all()
+      : [];
+    const sellerProfileMap = new Map(sellerProfiles.map((sp) => [sp.id, sp]));
+    // Notifications are collected and written in one insert at the end
+    const notifications: { userId: string; title: string; message: string; type: string; link: string }[] = [];
+
     let vendorIndex = 1;
     for (const [groupKey, groupItems] of vendorGroups.entries()) {
       const isPlatformOwned = groupKey === "PLATFORM";
@@ -448,7 +457,7 @@ export const createOrder = async (
       // Determine commission rate
       let commissionRate = 0;
       if (!isPlatformOwned && sellerId) {
-        const sellerProfile = await tx.orm.public.SellerProfile.where({ id: sellerId }).first();
+        const sellerProfile = sellerProfileMap.get(sellerId);
         commissionRate =
           sellerProfile?.commissionRate !== null && sellerProfile?.commissionRate !== undefined
             ? sellerProfile.commissionRate
@@ -483,9 +492,9 @@ export const createOrder = async (
         status: ORDER_STATUS.PENDING,
       });
 
-      // Create OrderItem records
-      for (const it of groupItems) {
-        await tx.orm.public.OrderItem.create({
+      // Create OrderItem records (one insert per vendor package)
+      await tx.orm.public.OrderItem.createAndCount(
+        groupItems.map((it) => ({
           orderId: order.id,
           subOrderId: subOrder.id,
           productId: it.productId,
@@ -499,24 +508,24 @@ export const createOrder = async (
           costPrice: it.costPrice ?? null,
           quantity: it.quantity,
           totalPrice: it.totalPrice,
-        });
+        }))
+      );
 
-        // 5.3. Deduct stock and increment totalSold
+      // 5.3. Deduct stock and increment totalSold
+      for (const it of groupItems) {
         await deductStock(tx, { ...it, variantId: it.selectedVariant ? it.variantId : null });
       }
 
       // Notify Seller if third-party vendor
-      if (!isPlatformOwned && sellerId) {
-        const sellerProfile = await tx.orm.public.SellerProfile.where({ id: sellerId }).first();
-        if (sellerProfile) {
-          await tx.orm.public.Notification.create({
-            userId: sellerProfile.userId,
-            title: `New Order Received: ${subOrderNumber}`,
-            message: `You received a new order for ${groupItems.length} item(s). Total: ${groupSubtotal} BDT. Please process it.`,
-            type: "ORDER",
-            link: `/seller/orders/${subOrder.id}`,
-          });
-        }
+      const sellerUserId = sellerId ? sellerProfileMap.get(sellerId)?.userId : undefined;
+      if (!isPlatformOwned && sellerUserId) {
+        notifications.push({
+          userId: sellerUserId,
+          title: `New Order Received: ${subOrderNumber}`,
+          message: `You received a new order for ${groupItems.length} item(s). Total: ${groupSubtotal} BDT. Please process it.`,
+          type: "ORDER",
+          link: `/seller/orders/${subOrder.id}`,
+        });
       }
     }
 
@@ -533,15 +542,18 @@ export const createOrder = async (
     );
 
     // Broadcast notification to all store Administrators
-    const admins = await tx.orm.public.User.where({ role: "ADMIN", isActive: true }).all();
+    const admins = await tx.orm.public.User.where({ role: "ADMIN", isActive: true }).select("id").all();
     for (const admin of admins) {
-      await tx.orm.public.Notification.create({
+      notifications.push({
         userId: admin.id,
         title: `New Order Placed: ${orderNumber}`,
         message: `${payload.shippingAddress.fullName} placed order #${orderNumber} (${payload.items.length} item(s), Total: ${order.totalAmount} BDT).`,
         type: "ORDER",
         link: `/admin/orders/${order.id}`,
       });
+    }
+    if (notifications.length > 0) {
+      await tx.orm.public.Notification.createAndCount(notifications);
     }
 
     // Clear cart items for this customer (or guest session)

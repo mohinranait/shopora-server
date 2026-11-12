@@ -14,6 +14,8 @@ model Coupon {
   sellerId          String? // NULL = Platform-wide; or specific SellerProfile id
   createdAt         TimestamptzString          @default(now())
   updatedAt         temporal.updatedAtString()
+
+  @@index([sellerId])
 }
 
 model Banner {
@@ -32,6 +34,8 @@ model Banner {
   endDate       TimestamptzString?
   createdAt     TimestamptzString          @default(now())
   updatedAt     temporal.updatedAtString()
+
+  @@index([position, isActive, displayOrder])
 }
 
 model Slider {
@@ -56,6 +60,8 @@ model Slider {
   endDate       TimestamptzString?
   createdAt     TimestamptzString          @default(now())
   updatedAt     temporal.updatedAtString()
+
+  @@index([isActive, displayOrder])
 }
 
 model WebsiteSetting {
@@ -77,4 +83,6 @@ model Notification {
   link      String?
   isRead    Boolean           @default(false)
   createdAt TimestamptzString @default(now())
+
+  @@index([userId, isRead, createdAt])
 }

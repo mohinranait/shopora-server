@@ -7,6 +7,7 @@ import {
   ORDER_STATUS,
 } from "../../constants/index.ts";
 import { slugify } from "../../utils/slugify.ts";
+import { firstRow } from "../../utils/rawQuery.ts";
 import type { IUseMediaWithMedia, IMediaRecord } from "../brands/brand.interface.ts";
 import type {
   IPublicStoreFilters,
@@ -203,88 +204,49 @@ export const getSellerDashboardStats = async (userId: string) => {
     throw new AppError("Seller profile not found", 404);
   }
 
-  // Wallet
-  const wallet = await db.orm.public.SellerWallet.where({ sellerId: seller.id }).first();
+  const count = (q: { aggregate: (fn: (a: any) => any) => Promise<any> }) => q.aggregate((a) => ({ count: a.count() }));
+  const products = () => db.orm.public.Product.where({ sellerId: seller.id });
+  const subOrders = () => db.orm.public.SubOrder.where({ sellerId: seller.id });
 
-  // Product Counts
-  const totalProducts = await db.orm.public.Product
-    .where({ sellerId: seller.id })
-    .aggregate((a) => ({ count: a.count() }));
+  const [wallet, totalProducts, approvedProducts, pendingProducts, totalOrders, pendingOrders, recentOrders, investment, sales] =
+    await Promise.all([
+      db.orm.public.SellerWallet.where({ sellerId: seller.id }).first(),
+      count(products()),
+      count(products().where({ approvalStatus: PRODUCT_APPROVAL_STATUS.APPROVED })),
+      count(products().where({ approvalStatus: PRODUCT_APPROVAL_STATUS.PENDING })),
+      count(subOrders()),
+      count(subOrders().where({ status: "PENDING" })),
+      // Recent 5 SubOrders
+      subOrders().orderBy((o) => o.createdAt.desc()).limit(5).all(),
+      // Active Stock Investment: variable products value each variant's stock (variant cost, falling back to product cost)
+      firstRow<{ total: number }>(
+        db.raw.sql`
+          SELECT COALESCE(SUM(
+            CASE WHEN p."productType" = 'VARIABLE' AND EXISTS (SELECT 1 FROM "ProductVariant" v WHERE v."productId" = p."id")
+              THEN (SELECT SUM(COALESCE(v."stock", 0) * COALESCE(v."costPrice", p."costPrice", 0)) FROM "ProductVariant" v WHERE v."productId" = p."id")
+              ELSE COALESCE(p."stock", 0) * COALESCE(p."costPrice", 0)
+            END), 0)::float8 AS total
+          FROM "Product" p
+          WHERE p."sellerId" = ${seller.id}`
+          .returnsRow({ total: "pg/float8@1" })
+          .build()
+      ),
+      // This seller's items in delivered sub-orders
+      firstRow<{ gross: number; cost: number }>(
+        db.raw.sql`
+          SELECT COALESCE(SUM(COALESCE(oi."price", 0) * COALESCE(NULLIF(oi."quantity", 0), 1)), 0)::float8 AS gross,
+                 COALESCE(SUM(COALESCE(oi."costPrice", 0) * COALESCE(NULLIF(oi."quantity", 0), 1)), 0)::float8 AS cost
+          FROM "OrderItem" oi
+          JOIN "SubOrder" so ON so."id" = oi."subOrderId"
+          WHERE oi."sellerId" = ${seller.id} AND so."sellerId" = ${seller.id} AND so."status" = ${ORDER_STATUS.DELIVERED}`
+          .returnsRow({ gross: "pg/float8@1", cost: "pg/float8@1" })
+          .build()
+      ),
+    ]);
 
-  const approvedProducts = await db.orm.public.Product
-    .where({ sellerId: seller.id })
-    .where({ approvalStatus: PRODUCT_APPROVAL_STATUS.APPROVED })
-    .aggregate((a) => ({ count: a.count() }));
-
-  const pendingProducts = await db.orm.public.Product
-    .where({ sellerId: seller.id })
-    .where({ approvalStatus: PRODUCT_APPROVAL_STATUS.PENDING })
-    .aggregate((a) => ({ count: a.count() }));
-
-  // SubOrders counts
-  const totalOrders = await db.orm.public.SubOrder
-    .where({ sellerId: seller.id })
-    .aggregate((a) => ({ count: a.count() }));
-
-  const pendingOrders = await db.orm.public.SubOrder
-    .where({ sellerId: seller.id })
-    .where({ status: "PENDING" })
-    .aggregate((a) => ({ count: a.count() }));
-
-  // Recent 5 SubOrders
-  const recentOrders = await db.orm.public.SubOrder
-    .where({ sellerId: seller.id })
-    .orderBy((o) => o.createdAt.desc())
-    .limit(5)
-    .all();
-
-  // Active Stock Investment for this seller
-  const sellerProducts = await db.orm.public.Product.where({ sellerId: seller.id }).all();
-  const sellerProductIds = sellerProducts.map((p) => p.id);
-  const sellerVariants = sellerProductIds.length > 0
-    ? await db.orm.public.ProductVariant.where((v) => v.productId.in(sellerProductIds)).all()
-    : [];
-  const variantMapByProduct = new Map<string, any[]>();
-  for (const v of sellerVariants) {
-    const list = variantMapByProduct.get(v.productId) || [];
-    list.push(v);
-    variantMapByProduct.set(v.productId, list);
-  }
-
-  let activeStockInvestment = 0;
-  for (const p of sellerProducts) {
-    const pVars = variantMapByProduct.get(p.id) || [];
-    if (p.productType === "VARIABLE" && pVars.length > 0) {
-      for (const v of pVars) {
-        const vCost = typeof v.costPrice === "number" ? v.costPrice : (typeof p.costPrice === "number" ? p.costPrice : 0);
-        activeStockInvestment += (v.stock || 0) * vCost;
-      }
-    } else {
-      const pCost = typeof p.costPrice === "number" ? p.costPrice : 0;
-      activeStockInvestment += (p.stock || 0) * pCost;
-    }
-  }
-
-  // Delivered SubOrders performance
-  const deliveredSubOrders = await db.orm.public.SubOrder
-    .where({ sellerId: seller.id })
-    .where({ status: ORDER_STATUS.DELIVERED })
-    .all();
-  const deliveredSubOrderIds = new Set(deliveredSubOrders.map((so) => so.id));
-
-  // OrderItems for this seller in delivered orders
-  const sellerDeliveredItems = deliveredSubOrderIds.size > 0
-    ? await db.orm.public.OrderItem.where({ sellerId: seller.id }).all()
-    : [];
-
-  let sellerGrossSales = 0;
-  let sellerCostOfGoods = 0;
-  for (const it of sellerDeliveredItems) {
-    if (it.subOrderId && deliveredSubOrderIds.has(it.subOrderId)) {
-      sellerGrossSales += (it.price || 0) * (it.quantity || 1);
-      sellerCostOfGoods += (it.costPrice || 0) * (it.quantity || 1);
-    }
-  }
+  const activeStockInvestment = investment?.total ?? 0;
+  const sellerGrossSales = sales?.gross ?? 0;
+  const sellerCostOfGoods = sales?.cost ?? 0;
 
   const sellerNetEarnings = wallet?.totalEarnings ?? 0;
   // Net Profit for Seller = (Seller Earnings after platform commission) - Cost of Goods Sold

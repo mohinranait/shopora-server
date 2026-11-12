@@ -13,6 +13,9 @@ model ProductReview {
   isApproved         Boolean                    @default(true)
   createdAt          TimestamptzString          @default(now())
   updatedAt          temporal.updatedAtString()
+
+  @@index([productId, createdAt])
+  @@index([userId])
 }
 
 model WishlistItem {
@@ -22,6 +25,9 @@ model WishlistItem {
   productId String
   product   Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
   createdAt TimestamptzString @default(now())
+
+  @@index([userId, productId])
+  @@index([productId])
 }
 
 model CartItem {
@@ -36,4 +42,8 @@ model CartItem {
   quantity  Int                        @default(1)
   createdAt TimestamptzString          @default(now())
   updatedAt temporal.updatedAtString()
+
+  @@index([userId])
+  @@index([sessionId])
+  @@index([productId])
 }

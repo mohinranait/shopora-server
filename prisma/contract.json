@@ -6432,6 +6432,16 @@
                   "name": "Banner_mobileImageId_idx_47a4ac51",
                   "prefix": "Banner_mobileImageId_idx",
                   "unique": false
+                },
+                {
+                  "columns": [
+                    "position",
+                    "isActive",
+                    "displayOrder"
+                  ],
+                  "name": "Banner_position_isActive_displayOrder_idx_d9dd82b4",
+                  "prefix": "Banner_position_isActive_displayOrder_idx",
+                  "unique": false
                 }
               ],
               "primaryKey": {
@@ -6666,6 +6676,14 @@
                 },
                 {
                   "columns": [
+                    "sessionId"
+                  ],
+                  "name": "CartItem_sessionId_idx_29f415d4",
+                  "prefix": "CartItem_sessionId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
                     "userId"
                   ],
                   "name": "CartItem_userId_idx_a489d58a",
@@ -6811,6 +6829,15 @@
                 },
                 {
                   "columns": [
+                    "isActive",
+                    "displayOrder"
+                  ],
+                  "name": "Category_isActive_displayOrder_idx_9399faee",
+                  "prefix": "Category_isActive_displayOrder_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
                     "parentId"
                   ],
                   "name": "Category_parentId_idx_6a68f597",
@@ -6921,7 +6948,16 @@
                 }
               },
               "foreignKeys": [],
-              "indexes": [],
+              "indexes": [
+                {
+                  "columns": [
+                    "sellerId"
+                  ],
+                  "name": "Coupon_sellerId_idx_d71255f2",
+                  "prefix": "Coupon_sellerId_idx",
+                  "unique": false
+                }
+              ],
               "primaryKey": {
                 "columns": [
                   "id"
@@ -7055,6 +7091,15 @@
                 },
                 {
                   "columns": [
+                    "userId",
+                    "createdAt"
+                  ],
+                  "name": "Media_userId_createdAt_idx_f726f04a",
+                  "prefix": "Media_userId_createdAt_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
                     "userId"
                   ],
                   "name": "Media_userId_idx_a489d58a",
@@ -7159,6 +7204,16 @@
                   ],
                   "name": "Notification_userId_idx_a489d58a",
                   "prefix": "Notification_userId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "userId",
+                    "isRead",
+                    "createdAt"
+                  ],
+                  "name": "Notification_userId_isRead_createdAt_idx_33778255",
+                  "prefix": "Notification_userId_isRead_createdAt_idx",
                   "unique": false
                 }
               ],
@@ -7323,6 +7378,48 @@
                 }
               ],
               "indexes": [
+                {
+                  "columns": [
+                    "createdAt"
+                  ],
+                  "name": "Order_createdAt_idx_9575dbd7",
+                  "prefix": "Order_createdAt_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "guestPhone"
+                  ],
+                  "name": "Order_guestPhone_idx_cb137f06",
+                  "prefix": "Order_guestPhone_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "orderStatus",
+                    "createdAt"
+                  ],
+                  "name": "Order_orderStatus_createdAt_idx_ea0aa662",
+                  "prefix": "Order_orderStatus_createdAt_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "paymentStatus"
+                  ],
+                  "name": "Order_paymentStatus_idx_6874c030",
+                  "prefix": "Order_paymentStatus_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "userId",
+                    "createdAt"
+                  ],
+                  "name": "Order_userId_createdAt_idx_f726f04a",
+                  "prefix": "Order_userId_createdAt_idx",
+                  "unique": false
+                },
                 {
                   "columns": [
                     "userId"
@@ -7528,6 +7625,14 @@
                 },
                 {
                   "columns": [
+                    "sellerId"
+                  ],
+                  "name": "OrderItem_sellerId_idx_d71255f2",
+                  "prefix": "OrderItem_sellerId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
                     "subOrderId"
                   ],
                   "name": "OrderItem_subOrderId_idx_2de664c3",
@@ -7641,10 +7746,27 @@
               "indexes": [
                 {
                   "columns": [
+                    "sellerId",
+                    "createdAt"
+                  ],
+                  "name": "PayoutRequest_sellerId_createdAt_idx_a21eaac1",
+                  "prefix": "PayoutRequest_sellerId_createdAt_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
                     "sellerId"
                   ],
                   "name": "PayoutRequest_sellerId_idx_d71255f2",
                   "prefix": "PayoutRequest_sellerId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "status"
+                  ],
+                  "name": "PayoutRequest_status_idx_e98638ab",
+                  "prefix": "PayoutRequest_status_idx",
                   "unique": false
                 }
               ],
@@ -8011,6 +8133,36 @@
               "indexes": [
                 {
                   "columns": [
+                    "approvalStatus",
+                    "status",
+                    "basePrice"
+                  ],
+                  "name": "Product_approvalStatus_status_basePrice_idx_db78f7cb",
+                  "prefix": "Product_approvalStatus_status_basePrice_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "approvalStatus",
+                    "status",
+                    "createdAt"
+                  ],
+                  "name": "Product_approvalStatus_status_createdAt_idx_ecc94f4f",
+                  "prefix": "Product_approvalStatus_status_createdAt_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "approvalStatus",
+                    "status",
+                    "totalSold"
+                  ],
+                  "name": "Product_approvalStatus_status_totalSold_idx_94682523",
+                  "prefix": "Product_approvalStatus_status_totalSold_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
                     "brandId"
                   ],
                   "name": "Product_brandId_idx_02e95397",
@@ -8035,10 +8187,40 @@
                 },
                 {
                   "columns": [
+                    "sellerId",
+                    "createdAt"
+                  ],
+                  "name": "Product_sellerId_createdAt_idx_a21eaac1",
+                  "prefix": "Product_sellerId_createdAt_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
                     "sellerId"
                   ],
                   "name": "Product_sellerId_idx_d71255f2",
                   "prefix": "Product_sellerId_idx",
+                  "unique": false
+                },
+                {
+                  "expression": "\"name\" gin_trgm_ops",
+                  "name": "product_name_trgm_a9e31182",
+                  "prefix": "product_name_trgm",
+                  "type": "gin",
+                  "unique": false
+                },
+                {
+                  "expression": "\"shortDescription\" gin_trgm_ops",
+                  "name": "product_short_desc_trgm_7af4f81d",
+                  "prefix": "product_short_desc_trgm",
+                  "type": "gin",
+                  "unique": false
+                },
+                {
+                  "expression": "\"sku\" gin_trgm_ops",
+                  "name": "product_sku_trgm_b34a624a",
+                  "prefix": "product_sku_trgm",
+                  "type": "gin",
                   "unique": false
                 }
               ],
@@ -8365,6 +8547,15 @@
                 },
                 {
                   "columns": [
+                    "productId",
+                    "displayOrder"
+                  ],
+                  "name": "ProductImage_productId_displayOrder_idx_9879f395",
+                  "prefix": "ProductImage_productId_displayOrder_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
                     "productId"
                   ],
                   "name": "ProductImage_productId_idx_5858600a",
@@ -8509,6 +8700,15 @@
                   ],
                   "name": "ProductQuestion_answeredBy_idx_ea16a636",
                   "prefix": "ProductQuestion_answeredBy_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "productId",
+                    "createdAt"
+                  ],
+                  "name": "ProductQuestion_productId_createdAt_idx_58d1a09b",
+                  "prefix": "ProductQuestion_productId_createdAt_idx",
                   "unique": false
                 },
                 {
@@ -8658,6 +8858,15 @@
                 }
               ],
               "indexes": [
+                {
+                  "columns": [
+                    "productId",
+                    "createdAt"
+                  ],
+                  "name": "ProductReview_productId_createdAt_idx_58d1a09b",
+                  "prefix": "ProductReview_productId_createdAt_idx",
+                  "unique": false
+                },
                 {
                   "columns": [
                     "productId"
@@ -9157,6 +9366,23 @@
                 },
                 {
                   "columns": [
+                    "status"
+                  ],
+                  "name": "ReturnRequest_status_idx_e98638ab",
+                  "prefix": "ReturnRequest_status_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "userId",
+                    "createdAt"
+                  ],
+                  "name": "ReturnRequest_userId_createdAt_idx_f726f04a",
+                  "prefix": "ReturnRequest_userId_createdAt_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
                     "userId"
                   ],
                   "name": "ReturnRequest_userId_idx_a489d58a",
@@ -9389,6 +9615,14 @@
                   ],
                   "name": "SellerProfile_logoId_idx_7e02a476",
                   "prefix": "SellerProfile_logoId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "status"
+                  ],
+                  "name": "SellerProfile_status_idx_e98638ab",
+                  "prefix": "SellerProfile_status_idx",
                   "unique": false
                 }
               ],
@@ -9700,6 +9934,15 @@
                 },
                 {
                   "columns": [
+                    "isActive",
+                    "displayOrder"
+                  ],
+                  "name": "Slider_isActive_displayOrder_idx_9399faee",
+                  "prefix": "Slider_isActive_displayOrder_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
                     "mobileImageId"
                   ],
                   "name": "Slider_mobileImageId_idx_47a4ac51",
@@ -9933,6 +10176,32 @@
                   ],
                   "name": "SubOrder_sellerId_idx_d71255f2",
                   "prefix": "SubOrder_sellerId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "sellerId",
+                    "status",
+                    "createdAt"
+                  ],
+                  "name": "SubOrder_sellerId_status_createdAt_idx_7f95605c",
+                  "prefix": "SubOrder_sellerId_status_createdAt_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "status"
+                  ],
+                  "name": "SubOrder_status_idx_e98638ab",
+                  "prefix": "SubOrder_status_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "trackingNumber"
+                  ],
+                  "name": "SubOrder_trackingNumber_idx_abd2abb3",
+                  "prefix": "SubOrder_trackingNumber_idx",
                   "unique": false
                 }
               ],
@@ -10195,6 +10464,23 @@
                   "name": "User_avatarId_idx_14b51a84",
                   "prefix": "User_avatarId_idx",
                   "unique": false
+                },
+                {
+                  "columns": [
+                    "phone"
+                  ],
+                  "name": "User_phone_idx_8db23f45",
+                  "prefix": "User_phone_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "role",
+                    "isActive"
+                  ],
+                  "name": "User_role_isActive_idx_d369089a",
+                  "prefix": "User_role_isActive_idx",
+                  "unique": false
                 }
               ],
               "primaryKey": {
@@ -10275,6 +10561,15 @@
                 }
               ],
               "indexes": [
+                {
+                  "columns": [
+                    "walletId",
+                    "createdAt"
+                  ],
+                  "name": "WalletTransaction_walletId_createdAt_idx_5931d2fb",
+                  "prefix": "WalletTransaction_walletId_createdAt_idx",
+                  "unique": false
+                },
                 {
                   "columns": [
                     "walletId"
@@ -10428,6 +10723,15 @@
                   "name": "WishlistItem_userId_idx_a489d58a",
                   "prefix": "WishlistItem_userId_idx",
                   "unique": false
+                },
+                {
+                  "columns": [
+                    "userId",
+                    "productId"
+                  ],
+                  "name": "WishlistItem_userId_productId_idx_787f1db3",
+                  "prefix": "WishlistItem_userId_productId_idx",
+                  "unique": false
                 }
               ],
               "primaryKey": {
@@ -10443,7 +10747,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "e4307d621e04df83822f4967691f48a62b7275ae3d876a198cbdd76b34981a5a"
+    "storageHash": "5ef170ec70796306b26ccc3fcde66541c10d7e09b586965efa0c69c297222a9b"
   },
   "execution": {
     "executionHash": "5893d5883ad3defd495818abc9da068be774f01db5143bdcabede87852d91089",

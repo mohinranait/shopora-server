@@ -24,6 +24,12 @@ model Order {
   returnRequests       ReturnRequest[]
   createdAt            TimestamptzString          @default(now())
   updatedAt            temporal.updatedAtString()
+
+  @@index([userId, createdAt])
+  @@index([orderStatus, createdAt])
+  @@index([paymentStatus])
+  @@index([guestPhone])
+  @@index([createdAt])
 }
 
 model SubOrder {
@@ -53,6 +59,11 @@ model SubOrder {
   items            OrderItem[]
   createdAt        TimestamptzString          @default(now())
   updatedAt        temporal.updatedAtString()
+
+  @@index([orderId])
+  @@index([sellerId, status, createdAt])
+  @@index([status])
+  @@index([trackingNumber])
 }
 
 model OrderItem {
@@ -76,6 +87,12 @@ model OrderItem {
   totalPrice     Float
   returnRequests ReturnRequest[]
   createdAt      TimestamptzString @default(now())
+
+  @@index([orderId])
+  @@index([subOrderId])
+  @@index([productId])
+  @@index([variantId])
+  @@index([sellerId])
 }
 
 model ReturnRequest {
@@ -94,4 +111,9 @@ model ReturnRequest {
   adminNote       String?
   createdAt       TimestamptzString          @default(now())
   updatedAt       temporal.updatedAtString()
+
+  @@index([orderId])
+  @@index([orderItemId])
+  @@index([userId, createdAt])
+  @@index([status])
 }
