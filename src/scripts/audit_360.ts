@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { toPaisa, toTaka } from "../utils/money.ts";
 import { db } from "../config/db.ts";
 import { AuthService } from "../modules/auth/auth.service.ts";
 import { ProductService } from "../modules/products/product.service.ts";
@@ -275,7 +276,7 @@ async function runAudit() {
     const expectedCommission = (expectedSubtotal * 10) / 100;
     const expectedEarnings = expectedSubtotal - expectedCommission;
 
-    const mathCorrect = subOrder && subOrder.subtotal === expectedSubtotal && subOrder.commissionAmount === expectedCommission && subOrder.sellerEarnings === expectedEarnings;
+    const mathCorrect = subOrder && toPaisa(subOrder.subtotal) === toPaisa(expectedSubtotal) && toPaisa(subOrder.commissionAmount) === toPaisa(expectedCommission) && toPaisa(subOrder.sellerEarnings) === toPaisa(expectedEarnings);
 
     // Check seller order notification
     const orderNotifs = await db.orm.public.Notification.where({ userId: sellerUser.id, type: "ORDER" }).all();
@@ -353,7 +354,7 @@ async function runAudit() {
   // -----------------------------------------------------------------
   try {
     const wallet = await db.orm.public.SellerWallet.where({ sellerId: sellerProfile.id }).first();
-    const withdrawAmount = Math.min(2000, wallet?.balance || 2000);
+    const withdrawAmount = Math.min(2000, wallet ? toTaka(wallet.balance) : 2000);
 
     const payoutReq = await PayoutService.requestPayout(sellerUser.id, {
       amount: withdrawAmount,
@@ -475,9 +476,11 @@ async function runAudit() {
 }
 
 runAudit()
+  .then(() => {
+    // Non-zero exit so CI fails when any workflow fails
+    process.exit(results.some((r) => !r.success) ? 1 : 0);
+  })
   .catch((err) => {
     console.error("Fatal audit error:", err);
-  })
-  .finally(() => {
-    process.exit(0);
+    process.exit(1);
   });

@@ -16,7 +16,7 @@ model SellerProfile {
   bkashOrNagad      String?
   status            String                     @default("PENDING") // "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED"
   rejectionReason   String?
-  commissionRate    Float? // Custom commission rate % (null = uses global setting)
+  commissionRate    Numeric(5, 2)? // Custom commission rate % (null = uses global setting)
   isVerified        Boolean                    @default(false)
   verifiedAt        TimestamptzString?
   isHolidayMode     Boolean                    @default(false)
@@ -41,11 +41,11 @@ model SellerWallet {
   id                  String                     @id @default(uuid())
   sellerId            String                     @unique
   seller              SellerProfile              @relation(fields: [sellerId], references: [id], onDelete: Cascade)
-  balance             Float                      @default(0.0) // Available for withdrawal
-  pendingBalance      Float                      @default(0.0) // On hold until order delivered / return window
-  totalWithdrawn      Float                      @default(0.0)
-  totalEarnings       Float                      @default(0.0) // Lifetime net earnings
-  totalCommissionPaid Float                      @default(0.0) // Lifetime platform commission paid
+  balance             Numeric(12, 2)                      @default(0.0) // Available for withdrawal
+  pendingBalance      Numeric(12, 2)                      @default(0.0) // On hold until order delivered / return window
+  totalWithdrawn      Numeric(12, 2)                      @default(0.0)
+  totalEarnings       Numeric(12, 2)                      @default(0.0) // Lifetime net earnings
+  totalCommissionPaid Numeric(12, 2)                      @default(0.0) // Lifetime platform commission paid
   transactions        WalletTransaction[]
   createdAt           TimestamptzString          @default(now())
   updatedAt           temporal.updatedAtString()
@@ -56,7 +56,7 @@ model WalletTransaction {
   walletId    String
   wallet      SellerWallet      @relation(fields: [walletId], references: [id], onDelete: Cascade)
   subOrderId  String?
-  amount      Float
+  amount      Numeric(12, 2)
   type        String // "ORDER_EARNING" | "COMMISSION_DEDUCTION" | "PAYOUT_WITHDRAWAL" | "REFUND_REVERSAL"
   description String
   createdAt   TimestamptzString @default(now())
@@ -68,7 +68,7 @@ model PayoutRequest {
   id                   String                     @id @default(uuid())
   sellerId             String
   seller               SellerProfile              @relation(fields: [sellerId], references: [id], onDelete: Cascade)
-  amount               Float
+  amount               Numeric(12, 2)
   paymentMethod        String // "BANK" | "BKASH" | "NAGAD"
   accountDetails       Json
   status               String                     @default("PENDING") // "PENDING" | "APPROVED" | "PAID" | "REJECTED"

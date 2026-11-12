@@ -1,6 +1,7 @@
 import { db } from "../../config/db.ts";
 import { ORDER_STATUS, SELLER_STATUS, PRODUCT_STATUS } from "../../constants/index.ts";
 import { firstRow } from "../../utils/rawQuery.ts";
+import { toPaisa, toTaka, paisaToTaka } from "../../utils/money.ts";
 
 /**
  * Admin: Platform-wide High-Level Business Metrics
@@ -40,7 +41,7 @@ export const getAdminPlatformAnalytics = async () => {
     db.orm.public.Product.orderBy((p) => p.totalSold.desc()).limit(5).all(),
     db.orm.public.Order.orderBy((o) => o.createdAt.desc()).limit(6).all(),
     // Stock investment: variable products value each variant's stock (variant cost, falling back to product cost)
-    firstRow<{ total: number; platform: number }>(
+    firstRow<{ total: string; platform: string }>(
       db.raw.sql`
         WITH inv AS (
           SELECT p."isPlatformOwned", p."sellerId",
@@ -50,21 +51,21 @@ export const getAdminPlatformAnalytics = async () => {
             END AS invest
           FROM "Product" p
         )
-        SELECT COALESCE(SUM(invest), 0)::float8 AS total,
-               COALESCE(SUM(invest) FILTER (WHERE "isPlatformOwned" OR "sellerId" IS NULL), 0)::float8 AS platform
+        SELECT COALESCE(SUM(invest), 0)::text AS total,
+               COALESCE(SUM(invest) FILTER (WHERE "isPlatformOwned" OR "sellerId" IS NULL), 0)::text AS platform
         FROM inv`
-        .returnsRow({ total: "pg/float8@1", platform: "pg/float8@1" })
+        .returnsRow({ total: "pg/text@1", platform: "pg/text@1" })
         .build()
     ),
     // Platform-owned items in delivered sub-orders
-    firstRow<{ revenue: number; cost: number }>(
+    firstRow<{ revenue: string; cost: string }>(
       db.raw.sql`
-        SELECT COALESCE(SUM(COALESCE(oi."price", 0) * COALESCE(NULLIF(oi."quantity", 0), 1)), 0)::float8 AS revenue,
-               COALESCE(SUM(COALESCE(oi."costPrice", 0) * COALESCE(NULLIF(oi."quantity", 0), 1)), 0)::float8 AS cost
+        SELECT COALESCE(SUM(COALESCE(oi."price", 0) * COALESCE(NULLIF(oi."quantity", 0), 1)), 0)::text AS revenue,
+               COALESCE(SUM(COALESCE(oi."costPrice", 0) * COALESCE(NULLIF(oi."quantity", 0), 1)), 0)::text AS cost
         FROM "OrderItem" oi
         JOIN "SubOrder" so ON so."id" = oi."subOrderId"
         WHERE so."status" = ${ORDER_STATUS.DELIVERED} AND oi."sellerId" IS NULL`
-        .returnsRow({ revenue: "pg/float8@1", cost: "pg/float8@1" })
+        .returnsRow({ revenue: "pg/text@1", cost: "pg/text@1" })
         .build()
     ),
   ]);
@@ -76,16 +77,21 @@ export const getAdminPlatformAnalytics = async () => {
   const mediaMap = new Map(medias.map((m) => [m.id, m.url]));
   const useMediaMap = new Map(useMedias.map((um) => [um.id, mediaMap.get(um.mediaId) ?? ""]));
 
-  const platformInventoryInvestment = investment?.platform ?? 0;
-  const totalCatalogInvestment = investment?.total ?? 0;
-  const directSalesRevenue = directSales?.revenue ?? 0;
-  const directSalesCost = directSales?.cost ?? 0;
-  const directSalesProfit = directSalesRevenue - directSalesCost;
+  const platformInventoryInvestment = toTaka(investment?.platform);
+  const totalCatalogInvestment = toTaka(investment?.total);
+  const directRevenuePaisa = toPaisa(directSales?.revenue);
+  const directCostPaisa = toPaisa(directSales?.cost);
+  const directSalesRevenue = paisaToTaka(directRevenuePaisa);
+  const directSalesCost = paisaToTaka(directCostPaisa);
+  const directSalesProfit = paisaToTaka(directRevenuePaisa - directCostPaisa);
 
-  const platformCommissionTotal = commissionAgg.total ?? 0;
-  const grossSalesTotal = revenueAgg.total ?? 0;
-  const netPlatformProfit = directSalesProfit + platformCommissionTotal;
-  const profitMarginPercent = grossSalesTotal > 0 ? (netPlatformProfit / grossSalesTotal) * 100 : 0;
+  const commissionPaisa = toPaisa(commissionAgg.total);
+  const grossSalesPaisa = toPaisa(revenueAgg.total);
+  const platformCommissionTotal = paisaToTaka(commissionPaisa);
+  const grossSalesTotal = paisaToTaka(grossSalesPaisa);
+  const netProfitPaisa = directRevenuePaisa - directCostPaisa + commissionPaisa;
+  const netPlatformProfit = paisaToTaka(netProfitPaisa);
+  const profitMarginPercent = grossSalesPaisa > 0 ? (netProfitPaisa / grossSalesPaisa) * 100 : 0;
 
   return {
     revenue: {

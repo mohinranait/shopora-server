@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { zPercent } from "../../utils/moneySchema.ts";
 import { SELLER_STATUS } from "../../constants/index.ts";
 
 export const updateSellerProfileSchema = z.object({
@@ -27,7 +28,7 @@ export const reviewSellerApplicationSchema = z.object({
       SELLER_STATUS.PENDING,
     ]),
     rejectionReason: z.string().optional(),
-    commissionRate: z.number().min(0).max(100).optional(), // Custom commission % (e.g. 8.5%)
+    commissionRate: zPercent().optional(), // Custom commission % (e.g. 8.5%)
     isVerified: z.boolean().optional(),
   }),
 });

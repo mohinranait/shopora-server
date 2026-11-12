@@ -1,24 +1,28 @@
 import { z } from "zod";
+import { zMoney } from "../../utils/moneySchema.ts";
 
 export const createCouponSchema = z.object({
   body: z.object({
     code: z.string().min(3, "Coupon code must be at least 3 characters").toUpperCase(),
     discountType: z.enum(["PERCENTAGE", "FIXED"]),
-    discountValue: z.number().positive("Discount value must be greater than 0"),
-    minOrderAmount: z.number().nonnegative().default(0),
-    maxDiscountAmount: z.number().positive().optional(),
+    discountValue: zMoney().positive("Discount value must be greater than 0"),
+    minOrderAmount: zMoney().nonnegative().default(0),
+    maxDiscountAmount: zMoney().positive().optional(),
     usageLimit: z.number().int().positive().optional(),
     startDate: z.string().optional(),
     endDate: z.string().optional(),
     isActive: z.boolean().default(true).optional(),
     sellerId: z.string().nullable().optional(),
+  }).refine((b) => b.discountType !== "PERCENTAGE" || b.discountValue <= 100, {
+    message: "A percentage discount cannot exceed 100",
+    path: ["discountValue"],
   }),
 });
 
 export const validateCouponSchema = z.object({
   body: z.object({
     code: z.string().min(1, "Coupon code is required"),
-    orderAmount: z.number().positive("Order amount is required"),
+    orderAmount: zMoney().positive("Order amount is required"),
   }),
 });
 

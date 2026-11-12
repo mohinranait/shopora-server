@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "npx tsx src/scripts/audit_360.ts",
-    "audit": "npx tsx src/scripts/audit_360.ts",
+    "test": "node src/scripts/audit_360.ts",
+    "audit": "node src/scripts/audit_360.ts",
     "contract:emit": "prisma contract emit",
     "seed": "node src/scripts/seed.ts",
     "db:clean": "node src/scripts/clean_db.ts",
@@ -13,7 +13,8 @@
     "start": "node src/index.ts",
     "db:extensions": "node src/scripts/db_extensions.ts",
     "db:update": "npm run db:extensions && prisma db update",
-    "typecheck": "tsc --noEmit -p ."
+    "typecheck": "tsc --noEmit -p .",
+    "test:money": "node src/scripts/money_flow_test.ts"
   },
   "keywords": [],
   "author": "",
@@ -23,7 +24,7 @@
     "schema": "prisma"
   },
   "dependencies": {
-    "@prisma/orm-postgres": "^8.0.0-rc.18",
+    "@prisma/orm-postgres": "8.0.0-rc.18",
     "@types/pg": "^8.23.1",
     "bcryptjs": "^3.0.3",
     "cloudinary": "^2.11.0",
@@ -51,7 +52,7 @@
     "@types/morgan": "^1.9.10",
     "@types/multer": "^2.3.0",
     "@types/node": "^26.6.5",
-    "prisma": "^8.0.0-rc.23",
+    "prisma": "8.0.0-rc.23",
     "puppeteer-core": "^25.16.0",
     "typescript": "^5.9.3"
   },

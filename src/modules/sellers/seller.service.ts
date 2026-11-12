@@ -8,6 +8,7 @@ import {
 } from "../../constants/index.ts";
 import { slugify } from "../../utils/slugify.ts";
 import { firstRow } from "../../utils/rawQuery.ts";
+import { toPaisa, toTaka, paisaToTaka, toDbRateOrNull } from "../../utils/money.ts";
 import type { IUseMediaWithMedia, IMediaRecord } from "../brands/brand.interface.ts";
 import type {
   IPublicStoreFilters,
@@ -219,38 +220,38 @@ export const getSellerDashboardStats = async (userId: string) => {
       // Recent 5 SubOrders
       subOrders().orderBy((o) => o.createdAt.desc()).limit(5).all(),
       // Active Stock Investment: variable products value each variant's stock (variant cost, falling back to product cost)
-      firstRow<{ total: number }>(
+      firstRow<{ total: string }>(
         db.raw.sql`
           SELECT COALESCE(SUM(
             CASE WHEN p."productType" = 'VARIABLE' AND EXISTS (SELECT 1 FROM "ProductVariant" v WHERE v."productId" = p."id")
               THEN (SELECT SUM(COALESCE(v."stock", 0) * COALESCE(v."costPrice", p."costPrice", 0)) FROM "ProductVariant" v WHERE v."productId" = p."id")
               ELSE COALESCE(p."stock", 0) * COALESCE(p."costPrice", 0)
-            END), 0)::float8 AS total
+            END), 0)::text AS total
           FROM "Product" p
           WHERE p."sellerId" = ${seller.id}`
-          .returnsRow({ total: "pg/float8@1" })
+          .returnsRow({ total: "pg/text@1" })
           .build()
       ),
       // This seller's items in delivered sub-orders
-      firstRow<{ gross: number; cost: number }>(
+      firstRow<{ gross: string; cost: string }>(
         db.raw.sql`
-          SELECT COALESCE(SUM(COALESCE(oi."price", 0) * COALESCE(NULLIF(oi."quantity", 0), 1)), 0)::float8 AS gross,
-                 COALESCE(SUM(COALESCE(oi."costPrice", 0) * COALESCE(NULLIF(oi."quantity", 0), 1)), 0)::float8 AS cost
+          SELECT COALESCE(SUM(COALESCE(oi."price", 0) * COALESCE(NULLIF(oi."quantity", 0), 1)), 0)::text AS gross,
+                 COALESCE(SUM(COALESCE(oi."costPrice", 0) * COALESCE(NULLIF(oi."quantity", 0), 1)), 0)::text AS cost
           FROM "OrderItem" oi
           JOIN "SubOrder" so ON so."id" = oi."subOrderId"
           WHERE oi."sellerId" = ${seller.id} AND so."sellerId" = ${seller.id} AND so."status" = ${ORDER_STATUS.DELIVERED}`
-          .returnsRow({ gross: "pg/float8@1", cost: "pg/float8@1" })
+          .returnsRow({ gross: "pg/text@1", cost: "pg/text@1" })
           .build()
       ),
     ]);
 
-  const activeStockInvestment = investment?.total ?? 0;
-  const sellerGrossSales = sales?.gross ?? 0;
-  const sellerCostOfGoods = sales?.cost ?? 0;
+  const activeStockInvestment = toTaka(investment?.total);
+  const sellerGrossSales = toTaka(sales?.gross);
+  const sellerCostOfGoods = toTaka(sales?.cost);
 
-  const sellerNetEarnings = wallet?.totalEarnings ?? 0;
+  const sellerNetEarnings = toTaka(wallet?.totalEarnings);
   // Net Profit for Seller = (Seller Earnings after platform commission) - Cost of Goods Sold
-  const netProfit = Math.max(0, sellerNetEarnings - sellerCostOfGoods);
+  const netProfit = Math.max(0, paisaToTaka(toPaisa(sellerNetEarnings) - toPaisa(sellerCostOfGoods)));
   const profitMarginPercent = sellerGrossSales > 0 ? (netProfit / sellerGrossSales) * 100 : 0;
 
   return {
@@ -262,10 +263,10 @@ export const getSellerDashboardStats = async (userId: string) => {
       pendingProducts: pendingProducts.count,
       totalOrders: totalOrders.count,
       pendingOrders: pendingOrders.count,
-      availableBalance: wallet?.balance ?? 0,
-      pendingBalance: wallet?.pendingBalance ?? 0,
-      totalEarnings: wallet?.totalEarnings ?? 0,
-      totalCommissionPaid: wallet?.totalCommissionPaid ?? 0,
+      availableBalance: toTaka(wallet?.balance),
+      pendingBalance: toTaka(wallet?.pendingBalance),
+      totalEarnings: toTaka(wallet?.totalEarnings),
+      totalCommissionPaid: toTaka(wallet?.totalCommissionPaid),
       activeStockInvestment,
       grossSales: sellerGrossSales,
       costOfGoodsSold: sellerCostOfGoods,
@@ -379,7 +380,7 @@ export const adminReviewSellerApplication = async (
   };
 
   if (payload.commissionRate !== undefined) {
-    updateData.commissionRate = payload.commissionRate;
+    updateData.commissionRate = toDbRateOrNull(payload.commissionRate);
   }
 
   if (payload.isVerified !== undefined) {
@@ -459,9 +460,9 @@ export const adminGetSellerDetails = async (sellerId: string) => {
   const cancelledOrders = subOrders.filter((s) => s.status === "CANCELLED").length;
   const returnedOrders = subOrders.filter((s) => s.status === "RETURNED").length;
 
-  const grossSales = subOrders.reduce((sum, s) => sum + (s.totalAmount || 0), 0);
-  const netEarnings = subOrders.reduce((sum, s) => sum + (s.sellerEarnings || 0), 0);
-  const platformCommission = subOrders.reduce((sum, s) => sum + (s.commissionAmount || 0), 0);
+  const grossSales = paisaToTaka(subOrders.reduce((sum, s) => sum + toPaisa(s.totalAmount), 0));
+  const netEarnings = paisaToTaka(subOrders.reduce((sum, s) => sum + toPaisa(s.sellerEarnings), 0));
+  const platformCommission = paisaToTaka(subOrders.reduce((sum, s) => sum + toPaisa(s.commissionAmount), 0));
 
   const fulfillmentRate = totalOrders > 0 ? (deliveredOrders / totalOrders) * 100 : 100;
   const cancellationRate = totalOrders > 0 ? (cancelledOrders / totalOrders) * 100 : 0;

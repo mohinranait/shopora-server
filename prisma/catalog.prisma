@@ -52,9 +52,9 @@ model Product {
   rejectionReason     String?
   status              String                     @default("PUBLISHED") // "PUBLISHED" | "UNPUBLISHED" | "ARCHIVED"
   productType         String                     @default("SIMPLE") // "SIMPLE" | "VARIABLE"
-  basePrice           Float
-  comparePrice        Float?
-  costPrice           Float?
+  basePrice           Numeric(12, 2)
+  comparePrice        Numeric(12, 2)?
+  costPrice           Numeric(12, 2)?
   stock               Int                        @default(0)
   lowStockThreshold   Int                        @default(5)
   mainImageId         String?
@@ -120,9 +120,9 @@ model ProductVariant {
   product           Product                        @relation(fields: [productId], references: [id], onDelete: Cascade)
   sku               String                         @unique
   title             String                         // e.g. "Red / XL"
-  price             Float
-  comparePrice      Float?
-  costPrice         Float?
+  price             Numeric(12, 2)
+  comparePrice      Numeric(12, 2)?
+  costPrice         Numeric(12, 2)?
   stock             Int                            @default(0)
   lowStockThreshold Int                            @default(5)
   imageId           String?

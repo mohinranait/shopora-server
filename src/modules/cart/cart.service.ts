@@ -1,6 +1,7 @@
 import { db } from "../../config/db.ts";
 import { AppError } from "../../errors/AppError.ts";
 import { PRODUCT_APPROVAL_STATUS, PRODUCT_STATUS } from "../../constants/index.ts";
+import { toPaisa, toTaka, paisaToTaka } from "../../utils/money.ts";
 
 type CartOwner = { userId: string | null; sessionId?: string };
 
@@ -61,7 +62,7 @@ export const getCart = async (userId: string | null, sessionId?: string) => {
     return { items: [], subtotal: 0, totalItems: 0 };
   }
 
-  let subtotal = 0;
+  let subtotalPaisa = 0;
   let totalItems = 0;
 
   const populated = items.map((item) => {
@@ -73,15 +74,17 @@ export const getCart = async (userId: string | null, sessionId?: string) => {
       product.status === PRODUCT_STATUS.PUBLISHED &&
       (!variant || variant.isActive);
 
-    const unitPrice = variant ? variant.price : product?.basePrice ?? 0;
-    const comparePrice = variant ? variant.comparePrice ?? null : product?.comparePrice ?? null;
+    const unitPrice = toTaka(variant ? variant.price : product?.basePrice);
+    const rawCompare = variant ? variant.comparePrice : product?.comparePrice;
+    const comparePrice = rawCompare != null ? toTaka(rawCompare) : null;
     const maxAvailableStock = isAvailable ? (variant ? variant.stock : product!.stock) : 0;
     const inStock = maxAvailableStock > 0;
-    const itemTotal = unitPrice * item.quantity;
+    const itemTotalPaisa = toPaisa(unitPrice) * item.quantity;
+    const itemTotal = paisaToTaka(itemTotalPaisa);
 
     // Only purchasable lines count towards the total
     if (isAvailable && inStock) {
-      subtotal += itemTotal;
+      subtotalPaisa += itemTotalPaisa;
       totalItems += item.quantity;
     }
 
@@ -112,7 +115,7 @@ export const getCart = async (userId: string | null, sessionId?: string) => {
             mainImage: mainImageUrl,
             mainImageId: product.mainImageId ?? null,
             mainImageUseMediaId: product.mainImageId ?? null,
-            basePrice: product.basePrice,
+            basePrice: toTaka(product.basePrice),
             stock: product.stock,
             isPlatformOwned: product.isPlatformOwned,
             isFreeShipping: product.isFreeShipping,
@@ -123,7 +126,7 @@ export const getCart = async (userId: string | null, sessionId?: string) => {
             id: variant.id,
             title: variant.title,
             sku: variant.sku,
-            price: variant.price,
+            price: toTaka(variant.price),
             stock: variant.stock,
             image: variantImageUrl,
             imageId: variant.imageId ?? null,
@@ -143,7 +146,7 @@ export const getCart = async (userId: string | null, sessionId?: string) => {
 
   return {
     items: populated,
-    subtotal,
+    subtotal: paisaToTaka(subtotalPaisa),
     totalItems,
   };
 };

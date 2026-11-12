@@ -8,11 +8,11 @@ model Order {
   guestPhone           String?
   shippingAddress      Json
   billingAddress       Json?
-  subtotal             Float
-  discount             Float                      @default(0.0)
-  shippingFee          Float                      @default(0.0)
-  tax                  Float                      @default(0.0)
-  totalAmount          Float
+  subtotal             Numeric(12, 2)
+  discount             Numeric(12, 2)                      @default(0.0)
+  shippingFee          Numeric(12, 2)                      @default(0.0)
+  tax                  Numeric(12, 2)                      @default(0.0)
+  totalAmount          Numeric(12, 2)
   paymentMethod        String                     @default("COD") // "COD" | "STRIPE" | "BKASH" | "SSLCOMMERZ"
   paymentStatus        String                     @default("PENDING") // "PENDING" | "PAID" | "FAILED" | "REFUNDED"
   paymentTransactionId String?
@@ -40,19 +40,19 @@ model SubOrder {
   sellerId         String? // NULL = Platform-owned order item
   seller           SellerProfile?             @relation(fields: [sellerId], references: [id], onDelete: SetNull)
   isPlatformOwned  Boolean                    @default(false)
-  subtotal         Float
-  shippingFee      Float                      @default(0.0)
-  tax              Float                      @default(0.0)
-  totalAmount      Float
-  commissionRate   Float                      @default(0.0)
-  commissionAmount Float                      @default(0.0)
-  sellerEarnings   Float                      @default(0.0)
+  subtotal         Numeric(12, 2)
+  shippingFee      Numeric(12, 2)                      @default(0.0)
+  tax              Numeric(12, 2)                      @default(0.0)
+  totalAmount      Numeric(12, 2)
+  commissionRate   Numeric(5, 2)                      @default(0.0)
+  commissionAmount Numeric(12, 2)                      @default(0.0)
+  sellerEarnings   Numeric(12, 2)                      @default(0.0)
   isPayoutSettled  Boolean                    @default(false)
   status           String                     @default("PENDING") // "PENDING" | "CONFIRMED" | "PROCESSING" | "SHIPPED" | "DELIVERED" | "CANCELLED" | "RETURNED"
   trackingNumber   String?
   courierName      String?
   consignmentId    String?
-  shippingCost     Float                      @default(0.0)
+  shippingCost     Numeric(12, 2)                      @default(0.0)
   escrowHoldUntil  TimestamptzString?
   escrowStatus     String                     @default("PENDING") // "PENDING" | "HELD" | "RELEASED" | "REFUNDED"
   escrowReleasedAt TimestamptzString?
@@ -81,10 +81,10 @@ model OrderItem {
   variantTitle   String?
   productImage   String?
   sku            String?
-  price          Float
-  costPrice      Float?
+  price          Numeric(12, 2)
+  costPrice      Numeric(12, 2)?
   quantity       Int
-  totalPrice     Float
+  totalPrice     Numeric(12, 2)
   returnRequests ReturnRequest[]
   createdAt      TimestamptzString @default(now())
 
@@ -107,7 +107,7 @@ model ReturnRequest {
   customerComment String?
   images          String[]
   status          String                     @default("REQUESTED") // "REQUESTED" | "APPROVED" | "REJECTED" | "COMPLETED"
-  refundAmount    Float
+  refundAmount    Numeric(12, 2)
   adminNote       String?
   createdAt       TimestamptzString          @default(now())
   updatedAt       temporal.updatedAtString()

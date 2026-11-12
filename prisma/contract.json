@@ -1213,8 +1213,12 @@
               "discountValue": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/float8@1",
-                  "kind": "scalar"
+                  "codecId": "pg/numeric@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 }
               },
               "endDate": {
@@ -1241,15 +1245,23 @@
               "maxDiscountAmount": {
                 "nullable": true,
                 "type": {
-                  "codecId": "pg/float8@1",
-                  "kind": "scalar"
+                  "codecId": "pg/numeric@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 }
               },
               "minOrderAmount": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/float8@1",
-                  "kind": "scalar"
+                  "codecId": "pg/numeric@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 }
               },
               "sellerId": {
@@ -1651,8 +1663,12 @@
               "discount": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/float8@1",
-                  "kind": "scalar"
+                  "codecId": "pg/numeric@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 }
               },
               "guestEmail": {
@@ -1728,29 +1744,45 @@
               "shippingFee": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/float8@1",
-                  "kind": "scalar"
+                  "codecId": "pg/numeric@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 }
               },
               "subtotal": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/float8@1",
-                  "kind": "scalar"
+                  "codecId": "pg/numeric@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 }
               },
               "tax": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/float8@1",
-                  "kind": "scalar"
+                  "codecId": "pg/numeric@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 }
               },
               "totalAmount": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/float8@1",
-                  "kind": "scalar"
+                  "codecId": "pg/numeric@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 }
               },
               "updatedAt": {
@@ -1903,8 +1935,12 @@
               "costPrice": {
                 "nullable": true,
                 "type": {
-                  "codecId": "pg/float8@1",
-                  "kind": "scalar"
+                  "codecId": "pg/numeric@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 }
               },
               "createdAt": {
@@ -1931,8 +1967,12 @@
               "price": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/float8@1",
-                  "kind": "scalar"
+                  "codecId": "pg/numeric@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 }
               },
               "productId": {
@@ -1987,8 +2027,12 @@
               "totalPrice": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/float8@1",
-                  "kind": "scalar"
+                  "codecId": "pg/numeric@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 }
               },
               "variantId": {
@@ -2151,8 +2195,12 @@
               "amount": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/float8@1",
-                  "kind": "scalar"
+                  "codecId": "pg/numeric@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 }
               },
               "createdAt": {
@@ -2289,8 +2337,12 @@
               "basePrice": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/float8@1",
-                  "kind": "scalar"
+                  "codecId": "pg/numeric@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 }
               },
               "brandId": {
@@ -2320,15 +2372,23 @@
               "comparePrice": {
                 "nullable": true,
                 "type": {
-                  "codecId": "pg/float8@1",
-                  "kind": "scalar"
+                  "codecId": "pg/numeric@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 }
               },
               "costPrice": {
                 "nullable": true,
                 "type": {
-                  "codecId": "pg/float8@1",
-                  "kind": "scalar"
+                  "codecId": "pg/numeric@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 }
               },
               "createdAt": {
@@ -3512,15 +3572,23 @@
               "comparePrice": {
                 "nullable": true,
                 "type": {
-                  "codecId": "pg/float8@1",
-                  "kind": "scalar"
+                  "codecId": "pg/numeric@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 }
               },
               "costPrice": {
                 "nullable": true,
                 "type": {
-                  "codecId": "pg/float8@1",
-                  "kind": "scalar"
+                  "codecId": "pg/numeric@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 }
               },
               "createdAt": {
@@ -3575,8 +3643,12 @@
               "price": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/float8@1",
-                  "kind": "scalar"
+                  "codecId": "pg/numeric@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 }
               },
               "productId": {
@@ -3936,8 +4008,12 @@
               "refundAmount": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/float8@1",
-                  "kind": "scalar"
+                  "codecId": "pg/numeric@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 }
               },
               "status": {
@@ -4102,8 +4178,12 @@
               "commissionRate": {
                 "nullable": true,
                 "type": {
-                  "codecId": "pg/float8@1",
-                  "kind": "scalar"
+                  "codecId": "pg/numeric@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 5,
+                    "scale": 2
+                  }
                 }
               },
               "createdAt": {
@@ -4451,8 +4531,12 @@
               "balance": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/float8@1",
-                  "kind": "scalar"
+                  "codecId": "pg/numeric@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 }
               },
               "createdAt": {
@@ -4472,8 +4556,12 @@
               "pendingBalance": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/float8@1",
-                  "kind": "scalar"
+                  "codecId": "pg/numeric@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 }
               },
               "sellerId": {
@@ -4486,22 +4574,34 @@
               "totalCommissionPaid": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/float8@1",
-                  "kind": "scalar"
+                  "codecId": "pg/numeric@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 }
               },
               "totalEarnings": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/float8@1",
-                  "kind": "scalar"
+                  "codecId": "pg/numeric@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 }
               },
               "totalWithdrawn": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/float8@1",
-                  "kind": "scalar"
+                  "codecId": "pg/numeric@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 }
               },
               "updatedAt": {
@@ -4818,15 +4918,23 @@
               "commissionAmount": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/float8@1",
-                  "kind": "scalar"
+                  "codecId": "pg/numeric@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 }
               },
               "commissionRate": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/float8@1",
-                  "kind": "scalar"
+                  "codecId": "pg/numeric@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 5,
+                    "scale": 2
+                  }
                 }
               },
               "consignmentId": {
@@ -4902,8 +5010,12 @@
               "sellerEarnings": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/float8@1",
-                  "kind": "scalar"
+                  "codecId": "pg/numeric@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 }
               },
               "sellerId": {
@@ -4916,15 +5028,23 @@
               "shippingCost": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/float8@1",
-                  "kind": "scalar"
+                  "codecId": "pg/numeric@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 }
               },
               "shippingFee": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/float8@1",
-                  "kind": "scalar"
+                  "codecId": "pg/numeric@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 }
               },
               "status": {
@@ -4944,22 +5064,34 @@
               "subtotal": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/float8@1",
-                  "kind": "scalar"
+                  "codecId": "pg/numeric@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 }
               },
               "tax": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/float8@1",
-                  "kind": "scalar"
+                  "codecId": "pg/numeric@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 }
               },
               "totalAmount": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/float8@1",
-                  "kind": "scalar"
+                  "codecId": "pg/numeric@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 }
               },
               "trackingNumber": {
@@ -5746,8 +5878,12 @@
               "amount": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/float8@1",
-                  "kind": "scalar"
+                  "codecId": "pg/numeric@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 }
               },
               "createdAt": {
@@ -6880,9 +7016,13 @@
                   "nullable": false
                 },
                 "discountValue": {
-                  "codecId": "pg/float8@1",
-                  "dataType": "pg/float8",
-                  "nullable": false
+                  "codecId": "pg/numeric@1",
+                  "dataType": "pg/numeric",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 },
                 "endDate": {
                   "codecId": "pg/timestamptz-string@1",
@@ -6904,18 +7044,26 @@
                   "nullable": false
                 },
                 "maxDiscountAmount": {
-                  "codecId": "pg/float8@1",
-                  "dataType": "pg/float8",
-                  "nullable": true
+                  "codecId": "pg/numeric@1",
+                  "dataType": "pg/numeric",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 },
                 "minOrderAmount": {
-                  "codecId": "pg/float8@1",
-                  "dataType": "pg/float8",
+                  "codecId": "pg/numeric@1",
+                  "dataType": "pg/numeric",
                   "default": {
                     "kind": "literal",
-                    "value": 0
+                    "value": "0.0"
                   },
-                  "nullable": false
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 },
                 "sellerId": {
                   "codecId": "pg/text@1",
@@ -7246,13 +7394,17 @@
                   "nullable": false
                 },
                 "discount": {
-                  "codecId": "pg/float8@1",
-                  "dataType": "pg/float8",
+                  "codecId": "pg/numeric@1",
+                  "dataType": "pg/numeric",
                   "default": {
                     "kind": "literal",
-                    "value": 0
+                    "value": "0.0"
                   },
-                  "nullable": false
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 },
                 "guestEmail": {
                   "codecId": "pg/text@1",
@@ -7317,32 +7469,48 @@
                   "nullable": false
                 },
                 "shippingFee": {
-                  "codecId": "pg/float8@1",
-                  "dataType": "pg/float8",
+                  "codecId": "pg/numeric@1",
+                  "dataType": "pg/numeric",
                   "default": {
                     "kind": "literal",
-                    "value": 0
+                    "value": "0.0"
                   },
-                  "nullable": false
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 },
                 "subtotal": {
-                  "codecId": "pg/float8@1",
-                  "dataType": "pg/float8",
-                  "nullable": false
+                  "codecId": "pg/numeric@1",
+                  "dataType": "pg/numeric",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 },
                 "tax": {
-                  "codecId": "pg/float8@1",
-                  "dataType": "pg/float8",
+                  "codecId": "pg/numeric@1",
+                  "dataType": "pg/numeric",
                   "default": {
                     "kind": "literal",
-                    "value": 0
+                    "value": "0.0"
                   },
-                  "nullable": false
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 },
                 "totalAmount": {
-                  "codecId": "pg/float8@1",
-                  "dataType": "pg/float8",
-                  "nullable": false
+                  "codecId": "pg/numeric@1",
+                  "dataType": "pg/numeric",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 },
                 "updatedAt": {
                   "codecId": "pg/timestamptz-string@1",
@@ -7445,9 +7613,13 @@
             "OrderItem": {
               "columns": {
                 "costPrice": {
-                  "codecId": "pg/float8@1",
-                  "dataType": "pg/float8",
-                  "nullable": true
+                  "codecId": "pg/numeric@1",
+                  "dataType": "pg/numeric",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 },
                 "createdAt": {
                   "codecId": "pg/timestamptz-string@1",
@@ -7469,9 +7641,13 @@
                   "nullable": false
                 },
                 "price": {
-                  "codecId": "pg/float8@1",
-                  "dataType": "pg/float8",
-                  "nullable": false
+                  "codecId": "pg/numeric@1",
+                  "dataType": "pg/numeric",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 },
                 "productId": {
                   "codecId": "pg/text@1",
@@ -7509,9 +7685,13 @@
                   "nullable": true
                 },
                 "totalPrice": {
-                  "codecId": "pg/float8@1",
-                  "dataType": "pg/float8",
-                  "nullable": false
+                  "codecId": "pg/numeric@1",
+                  "dataType": "pg/numeric",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 },
                 "variantId": {
                   "codecId": "pg/text@1",
@@ -7663,9 +7843,13 @@
                   "nullable": false
                 },
                 "amount": {
-                  "codecId": "pg/float8@1",
-                  "dataType": "pg/float8",
-                  "nullable": false
+                  "codecId": "pg/numeric@1",
+                  "dataType": "pg/numeric",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 },
                 "createdAt": {
                   "codecId": "pg/timestamptz-string@1",
@@ -7801,9 +7985,13 @@
                   "nullable": false
                 },
                 "basePrice": {
-                  "codecId": "pg/float8@1",
-                  "dataType": "pg/float8",
-                  "nullable": false
+                  "codecId": "pg/numeric@1",
+                  "dataType": "pg/numeric",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 },
                 "brandId": {
                   "codecId": "pg/text@1",
@@ -7828,14 +8016,22 @@
                   "nullable": false
                 },
                 "comparePrice": {
-                  "codecId": "pg/float8@1",
-                  "dataType": "pg/float8",
-                  "nullable": true
+                  "codecId": "pg/numeric@1",
+                  "dataType": "pg/numeric",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 },
                 "costPrice": {
-                  "codecId": "pg/float8@1",
-                  "dataType": "pg/float8",
-                  "nullable": true
+                  "codecId": "pg/numeric@1",
+                  "dataType": "pg/numeric",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 },
                 "createdAt": {
                   "codecId": "pg/timestamptz-string@1",
@@ -8904,14 +9100,22 @@
                   "nullable": true
                 },
                 "comparePrice": {
-                  "codecId": "pg/float8@1",
-                  "dataType": "pg/float8",
-                  "nullable": true
+                  "codecId": "pg/numeric@1",
+                  "dataType": "pg/numeric",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 },
                 "costPrice": {
-                  "codecId": "pg/float8@1",
-                  "dataType": "pg/float8",
-                  "nullable": true
+                  "codecId": "pg/numeric@1",
+                  "dataType": "pg/numeric",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 },
                 "createdAt": {
                   "codecId": "pg/timestamptz-string@1",
@@ -8965,9 +9169,13 @@
                   "nullable": false
                 },
                 "price": {
-                  "codecId": "pg/float8@1",
-                  "dataType": "pg/float8",
-                  "nullable": false
+                  "codecId": "pg/numeric@1",
+                  "dataType": "pg/numeric",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 },
                 "productId": {
                   "codecId": "pg/text@1",
@@ -9261,9 +9469,13 @@
                   "nullable": false
                 },
                 "refundAmount": {
-                  "codecId": "pg/float8@1",
-                  "dataType": "pg/float8",
-                  "nullable": false
+                  "codecId": "pg/numeric@1",
+                  "dataType": "pg/numeric",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 },
                 "status": {
                   "codecId": "pg/text@1",
@@ -9430,9 +9642,13 @@
                   "nullable": true
                 },
                 "commissionRate": {
-                  "codecId": "pg/float8@1",
-                  "dataType": "pg/float8",
-                  "nullable": true
+                  "codecId": "pg/numeric@1",
+                  "dataType": "pg/numeric",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 5,
+                    "scale": 2
+                  }
                 },
                 "createdAt": {
                   "codecId": "pg/timestamptz-string@1",
@@ -9652,13 +9868,17 @@
             "SellerWallet": {
               "columns": {
                 "balance": {
-                  "codecId": "pg/float8@1",
-                  "dataType": "pg/float8",
+                  "codecId": "pg/numeric@1",
+                  "dataType": "pg/numeric",
                   "default": {
                     "kind": "literal",
-                    "value": 0
+                    "value": "0.0"
                   },
-                  "nullable": false
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 },
                 "createdAt": {
                   "codecId": "pg/timestamptz-string@1",
@@ -9675,13 +9895,17 @@
                   "nullable": false
                 },
                 "pendingBalance": {
-                  "codecId": "pg/float8@1",
-                  "dataType": "pg/float8",
+                  "codecId": "pg/numeric@1",
+                  "dataType": "pg/numeric",
                   "default": {
                     "kind": "literal",
-                    "value": 0
+                    "value": "0.0"
                   },
-                  "nullable": false
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 },
                 "sellerId": {
                   "codecId": "pg/text@1",
@@ -9689,31 +9913,43 @@
                   "nullable": false
                 },
                 "totalCommissionPaid": {
-                  "codecId": "pg/float8@1",
-                  "dataType": "pg/float8",
+                  "codecId": "pg/numeric@1",
+                  "dataType": "pg/numeric",
                   "default": {
                     "kind": "literal",
-                    "value": 0
+                    "value": "0.0"
                   },
-                  "nullable": false
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 },
                 "totalEarnings": {
-                  "codecId": "pg/float8@1",
-                  "dataType": "pg/float8",
+                  "codecId": "pg/numeric@1",
+                  "dataType": "pg/numeric",
                   "default": {
                     "kind": "literal",
-                    "value": 0
+                    "value": "0.0"
                   },
-                  "nullable": false
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 },
                 "totalWithdrawn": {
-                  "codecId": "pg/float8@1",
-                  "dataType": "pg/float8",
+                  "codecId": "pg/numeric@1",
+                  "dataType": "pg/numeric",
                   "default": {
                     "kind": "literal",
-                    "value": 0
+                    "value": "0.0"
                   },
-                  "nullable": false
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 },
                 "updatedAt": {
                   "codecId": "pg/timestamptz-string@1",
@@ -9960,22 +10196,30 @@
             "SubOrder": {
               "columns": {
                 "commissionAmount": {
-                  "codecId": "pg/float8@1",
-                  "dataType": "pg/float8",
+                  "codecId": "pg/numeric@1",
+                  "dataType": "pg/numeric",
                   "default": {
                     "kind": "literal",
-                    "value": 0
+                    "value": "0.0"
                   },
-                  "nullable": false
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 },
                 "commissionRate": {
-                  "codecId": "pg/float8@1",
-                  "dataType": "pg/float8",
+                  "codecId": "pg/numeric@1",
+                  "dataType": "pg/numeric",
                   "default": {
                     "kind": "literal",
-                    "value": 0
+                    "value": "0.0"
                   },
-                  "nullable": false
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 5,
+                    "scale": 2
+                  }
                 },
                 "consignmentId": {
                   "codecId": "pg/text@1",
@@ -10044,13 +10288,17 @@
                   "nullable": false
                 },
                 "sellerEarnings": {
-                  "codecId": "pg/float8@1",
-                  "dataType": "pg/float8",
+                  "codecId": "pg/numeric@1",
+                  "dataType": "pg/numeric",
                   "default": {
                     "kind": "literal",
-                    "value": 0
+                    "value": "0.0"
                   },
-                  "nullable": false
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 },
                 "sellerId": {
                   "codecId": "pg/text@1",
@@ -10058,22 +10306,30 @@
                   "nullable": true
                 },
                 "shippingCost": {
-                  "codecId": "pg/float8@1",
-                  "dataType": "pg/float8",
+                  "codecId": "pg/numeric@1",
+                  "dataType": "pg/numeric",
                   "default": {
                     "kind": "literal",
-                    "value": 0
+                    "value": "0.0"
                   },
-                  "nullable": false
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 },
                 "shippingFee": {
-                  "codecId": "pg/float8@1",
-                  "dataType": "pg/float8",
+                  "codecId": "pg/numeric@1",
+                  "dataType": "pg/numeric",
                   "default": {
                     "kind": "literal",
-                    "value": 0
+                    "value": "0.0"
                   },
-                  "nullable": false
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 },
                 "status": {
                   "codecId": "pg/text@1",
@@ -10090,23 +10346,35 @@
                   "nullable": false
                 },
                 "subtotal": {
-                  "codecId": "pg/float8@1",
-                  "dataType": "pg/float8",
-                  "nullable": false
+                  "codecId": "pg/numeric@1",
+                  "dataType": "pg/numeric",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 },
                 "tax": {
-                  "codecId": "pg/float8@1",
-                  "dataType": "pg/float8",
+                  "codecId": "pg/numeric@1",
+                  "dataType": "pg/numeric",
                   "default": {
                     "kind": "literal",
-                    "value": 0
+                    "value": "0.0"
                   },
-                  "nullable": false
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 },
                 "totalAmount": {
-                  "codecId": "pg/float8@1",
-                  "dataType": "pg/float8",
-                  "nullable": false
+                  "codecId": "pg/numeric@1",
+                  "dataType": "pg/numeric",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 },
                 "trackingNumber": {
                   "codecId": "pg/text@1",
@@ -10499,9 +10767,13 @@
             "WalletTransaction": {
               "columns": {
                 "amount": {
-                  "codecId": "pg/float8@1",
-                  "dataType": "pg/float8",
-                  "nullable": false
+                  "codecId": "pg/numeric@1",
+                  "dataType": "pg/numeric",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 12,
+                    "scale": 2
+                  }
                 },
                 "createdAt": {
                   "codecId": "pg/timestamptz-string@1",
@@ -10747,7 +11019,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "5ef170ec70796306b26ccc3fcde66541c10d7e09b586965efa0c69c297222a9b"
+    "storageHash": "2e5cfb0866311e00982b1201318dcf3631bf3f5e4b240516d5229328e71bd03b"
   },
   "execution": {
     "executionHash": "5893d5883ad3defd495818abc9da068be774f01db5143bdcabede87852d91089",

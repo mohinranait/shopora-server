@@ -42,3 +42,45 @@ jobs:
           for i in $(seq 1 20); do curl -fs http://127.0.0.1:5000/ >/dev/null && break; sleep 1; done
           curl -fs http://127.0.0.1:5000/ >/dev/null
           kill %1
+
+  integration:
+    # End-to-end flows (orders, escrow, payouts, money maths) against a throwaway Postgres
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: shopora_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://postgres:test@127.0.0.1:5432/shopora_test
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Create schema
+        run: |
+          npm run db:extensions
+          npx prisma db init --yes
+
+      - run: npm run seed
+
+      - name: 360° application audit
+        run: npm test
+
+      - name: Money flow and concurrency
+        run: npm run test:money

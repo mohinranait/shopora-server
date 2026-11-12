@@ -1,4 +1,5 @@
 import { db } from "../../config/db.ts";
+import { fromPaisa, toDbRate } from "../../utils/money.ts";
 import { AppError } from "../../errors/AppError.ts";
 import { hashPassword, comparePassword } from "../../utils/hash.ts";
 import {
@@ -125,7 +126,7 @@ export const registerSeller = async (
       bankRouting: payload.bankRouting ?? null,
       bkashOrNagad: payload.bkashOrNagad ?? null,
       status: autoApprove ? SELLER_STATUS.APPROVED : SELLER_STATUS.PENDING,
-      commissionRate: defaultCommission,
+      commissionRate: toDbRate(defaultCommission),
       isVerified: autoApprove,
       verifiedAt: autoApprove ? new Date().toISOString() : null,
     });
@@ -133,11 +134,11 @@ export const registerSeller = async (
     // 3. Initialize Seller Wallet
     await tx.orm.public.SellerWallet.create({
       sellerId: seller.id,
-      balance: 0.0,
-      pendingBalance: 0.0,
-      totalWithdrawn: 0.0,
-      totalEarnings: 0.0,
-      totalCommissionPaid: 0.0,
+      balance: fromPaisa(0),
+      pendingBalance: fromPaisa(0),
+      totalWithdrawn: fromPaisa(0),
+      totalEarnings: fromPaisa(0),
+      totalCommissionPaid: fromPaisa(0),
     });
 
     // Notify Admins about new seller registration

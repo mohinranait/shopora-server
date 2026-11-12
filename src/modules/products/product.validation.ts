@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { zMoney } from "../../utils/moneySchema.ts";
 import { PRODUCT_TYPE, PRODUCT_STATUS, PRODUCT_APPROVAL_STATUS } from "../../constants/index.ts";
 
 /**
@@ -17,9 +18,9 @@ export const variantInputSchema = z.object({
   id: z.string().optional(),
   title: z.string().min(1, "Variant title is required"), // e.g. "Black / XL"
   sku: z.string().optional(),
-  price: z.number().nonnegative("Variant price must be non-negative"),
-  comparePrice: z.number().nonnegative().nullable().optional(),
-  costPrice: z.number().nonnegative().nullable().optional(),
+  price: zMoney().nonnegative("Variant price must be non-negative"),
+  comparePrice: zMoney().nonnegative().nullable().optional(),
+  costPrice: zMoney().nonnegative().nullable().optional(),
   stock: z.number().int().nonnegative("Variant stock cannot be negative").default(0),
   lowStockThreshold: z.number().int().default(5).optional(),
   imageId: z.string().nullable().optional(),
@@ -65,9 +66,9 @@ export const createProductSchema = z.object({
     brandId: z.string().nullable().optional(),
     sku: z.string().optional(),
     productType: z.enum([PRODUCT_TYPE.SIMPLE, PRODUCT_TYPE.VARIABLE]).default(PRODUCT_TYPE.SIMPLE),
-    basePrice: z.number().positive("Base price must be greater than 0"),
-    comparePrice: z.number().positive().nullable().optional(),
-    costPrice: z.number().positive().nullable().optional(),
+    basePrice: zMoney().positive("Base price must be greater than 0"),
+    comparePrice: zMoney().positive().nullable().optional(),
+    costPrice: zMoney().positive().nullable().optional(),
     stock: z.number().int().nonnegative().default(0),
     lowStockThreshold: z.number().int().default(5).optional(),
     mainImageId: z.string().nullable().optional(),
@@ -108,9 +109,9 @@ export const updateProductSchema = z.object({
     categoryId: z.string().optional(),
     brandId: z.string().nullable().optional(),
     productType: z.enum([PRODUCT_TYPE.SIMPLE, PRODUCT_TYPE.VARIABLE]).optional(),
-    basePrice: z.number().positive().optional(),
-    comparePrice: z.number().positive().nullable().optional(),
-    costPrice: z.number().positive().nullable().optional(),
+    basePrice: zMoney().positive().optional(),
+    comparePrice: zMoney().positive().nullable().optional(),
+    costPrice: zMoney().positive().nullable().optional(),
     stock: z.number().int().nonnegative().optional(),
     lowStockThreshold: z.number().int().optional(),
     mainImageId: z.string().nullable().optional(),

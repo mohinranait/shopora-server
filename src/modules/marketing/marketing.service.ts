@@ -1,5 +1,6 @@
 import { db } from "../../config/db.ts";
 import { AppError } from "../../errors/AppError.ts";
+import { toPaisa, toTaka, paisaToTaka, percentOfPaisa, toDb, toDbOrNull } from "../../utils/money.ts";
 
 /**
  * Validate and calculate coupon discount
@@ -13,35 +14,42 @@ export const validateCoupon = async (code: string, orderAmount: number) => {
     throw new AppError("Invalid or inactive coupon code", 400);
   }
 
+  // Same validity window as checkout, so this endpoint never approves a coupon checkout rejects
+  const now = Date.now();
+  const toTime = (v: unknown) => (v ? new Date(String(v).replace(" ", "T").replace(/([+-]\d{2})$/, "$1:00")).getTime() : NaN);
+  if (coupon.startDate && toTime(coupon.startDate) > now) {
+    throw new AppError("This coupon is not active yet", 400);
+  }
+  if (coupon.endDate && toTime(coupon.endDate) < now) {
+    throw new AppError("This coupon has expired", 400);
+  }
+
   // Check usage limit
-  if (coupon.usageLimit && coupon.usedCount >= coupon.usageLimit) {
+  if (coupon.usageLimit != null && coupon.usedCount >= coupon.usageLimit) {
     throw new AppError("This coupon has reached its maximum usage limit", 400);
   }
 
   // Check minimum order amount
-  if (orderAmount < coupon.minOrderAmount) {
-    throw new AppError(`Minimum order amount of ${coupon.minOrderAmount} BDT is required for this coupon`, 400);
+  const order = toPaisa(orderAmount);
+  const minOrder = toPaisa(coupon.minOrderAmount);
+  if (order < minOrder) {
+    throw new AppError(`Minimum order amount of ${paisaToTaka(minOrder)} BDT is required for this coupon`, 400);
   }
 
-  // Calculate discount
-  let discountAmount = 0;
-  if (coupon.discountType === "PERCENTAGE") {
-    discountAmount = (orderAmount * coupon.discountValue) / 100;
-    if (coupon.maxDiscountAmount && discountAmount > coupon.maxDiscountAmount) {
-      discountAmount = coupon.maxDiscountAmount;
-    }
-  } else {
-    discountAmount = coupon.discountValue;
-  }
-
-  discountAmount = Math.min(discountAmount, orderAmount);
+  // Calculate discount (whole taka, same rule as checkout)
+  let discount =
+    coupon.discountType === "PERCENTAGE" ? percentOfPaisa(order, coupon.discountValue) : toPaisa(coupon.discountValue);
+  const maxDiscount = toPaisa(coupon.maxDiscountAmount);
+  if (maxDiscount > 0 && discount > maxDiscount) discount = maxDiscount;
+  discount = Math.min(discount, order);
+  discount = Math.sign(discount) * Math.round(Math.abs(discount) / 100) * 100;
 
   return {
     code: coupon.code,
     discountType: coupon.discountType,
-    discountValue: coupon.discountValue,
-    discountAmount,
-    finalAmount: orderAmount - discountAmount,
+    discountValue: toTaka(coupon.discountValue),
+    discountAmount: paisaToTaka(discount),
+    finalAmount: paisaToTaka(order - discount),
   };
 };
 
@@ -58,9 +66,9 @@ export const createCoupon = async (payload: any) => {
   return await db.orm.public.Coupon.create({
     code,
     discountType: payload.discountType,
-    discountValue: payload.discountValue,
-    minOrderAmount: payload.minOrderAmount || 0,
-    maxDiscountAmount: payload.maxDiscountAmount ?? null,
+    discountValue: toDb(payload.discountValue),
+    minOrderAmount: toDb(payload.minOrderAmount),
+    maxDiscountAmount: toDbOrNull(payload.maxDiscountAmount),
     usageLimit: payload.usageLimit ?? null,
     startDate: payload.startDate ?? null,
     endDate: payload.endDate ?? null,

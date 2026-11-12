@@ -1,4 +1,5 @@
 import { db } from "../../config/db.ts";
+import { toPaisa, paisaToTaka } from "../../utils/money.ts";
 import { AppError } from "../../errors/AppError.ts";
 import type { IUseMediaWithMedia } from "../brands/brand.interface.ts";
 import type {
@@ -200,7 +201,7 @@ export const adminGetAllUsers = async (
     const userOrders = orders.filter((o) => o.userId === u.id);
     const userAddresses = addresses.filter((a) => a.userId === u.id);
     const validOrders = userOrders.filter((o) => o.orderStatus !== "CANCELLED");
-    const totalSpent = validOrders.reduce((acc, o) => acc + (Number(o.totalAmount) || 0), 0);
+    const totalSpent = paisaToTaka(validOrders.reduce((acc, o) => acc + toPaisa(o.totalAmount), 0));
     const defaultAddress = userAddresses.find((a) => a.isDefault) || userAddresses[0] || null;
     const targetAvatarId = u.avatarId ?? u.avatarUseMediaId;
     const avatarUseMedia = targetAvatarId ? useMediaMap.get(targetAvatarId) ?? null : null;
@@ -306,7 +307,7 @@ export const adminGetUserDetail = async (userId: string): Promise<IAdminUserDeta
   });
 
   const validOrders = orders.filter((o) => o.orderStatus !== "CANCELLED");
-  const totalSpent = validOrders.reduce((sum, o) => sum + (Number(o.totalAmount) || 0), 0);
+  const totalSpent = paisaToTaka(validOrders.reduce((sum, o) => sum + toPaisa(o.totalAmount), 0));
   const deliveredOrders = orders.filter((o) => o.orderStatus === "DELIVERED").length;
   const cancelledOrders = orders.filter((o) => o.orderStatus === "CANCELLED").length;
   const pendingOrders = orders.filter((o) =>

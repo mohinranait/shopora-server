@@ -10,11 +10,14 @@ import {
   PRODUCT_STATUS,
   USER_ROLES,
   TRANSACTION_TYPE,
+  ESCROW_STATUS,
   ENABLED_PAYMENT_METHODS,
   type PaymentMethod,
 } from "../../constants/index.ts";
 import { ENV } from "../../config/env.ts";
+import { adjustWallet, transitionEscrow } from "../payouts/wallet.ts";
 import { getAllSettings } from "../settings/settings.service.ts";
+import { toPaisa, toTaka, paisaToTaka, fromPaisa, percentOfPaisa, toDb, toDbOrNull, toDbRate } from "../../utils/money.ts";
 
 import type {
   IOrderItemInput,
@@ -27,6 +30,34 @@ import type {
 export type { IOrderItemInput, IPricedLine };
 
 export const SHIPPING_RULES = { freeShippingThreshold: 1500, flatFee: 70 } as const;
+
+/** Round paisa to whole taka (half away from zero) */
+const roundToTaka = (paisa: number) => Math.sign(paisa) * Math.round(Math.abs(paisa) / 100) * 100;
+
+/** Shipping fee and free-shipping threshold from settings, in paisa */
+const shippingRules = (settings: Record<string, any>) => ({
+  standardFee: toPaisa(
+    typeof settings.shipping_fee_standard === "number" ? settings.shipping_fee_standard : SHIPPING_RULES.flatFee
+  ),
+  freeShippingThreshold: toPaisa(
+    typeof settings.free_shipping_threshold === "number"
+      ? settings.free_shipping_threshold
+      : SHIPPING_RULES.freeShippingThreshold
+  ),
+});
+
+/**
+ * Shipping for one vendor package (multi-vendor split shipping): free when every item ships
+ * free or the package subtotal reaches the threshold. Shared by quotes and checkout.
+ */
+const packageShippingPaisa = (
+  lines: Pick<IPricedLine, "isFreeShipping">[],
+  subtotalPaisa: number,
+  rules: { standardFee: number; freeShippingThreshold: number }
+) =>
+  lines.length === 0 || lines.every((l) => l.isFreeShipping) || subtotalPaisa >= rules.freeShippingThreshold
+    ? 0
+    : rules.standardFee;
 
 /**
  * Validate a coupon against the priced lines. Never throws: returns why it doesn't apply.
@@ -47,18 +78,23 @@ const evaluateCoupon = async (code: string, lines: IPricedLine[]) => {
 
   // Seller coupons only discount that seller's items
   const eligible = coupon.sellerId ? lines.filter((l) => l.sellerId === coupon.sellerId) : lines;
-  const eligibleSubtotal = eligible.reduce((sum, l) => sum + l.totalPrice, 0);
+  const eligibleSubtotal = eligible.reduce((sum, l) => sum + toPaisa(l.totalPrice), 0);
   if (eligible.length === 0) return fail("This coupon doesn't apply to items in your cart");
-  if (eligibleSubtotal < coupon.minOrderAmount) {
-    return fail(`Add ৳${Math.ceil(coupon.minOrderAmount - eligibleSubtotal).toLocaleString("en-US")} more to use this coupon`);
+  const minOrder = toPaisa(coupon.minOrderAmount);
+  if (eligibleSubtotal < minOrder) {
+    return fail(`Add ৳${Math.ceil(paisaToTaka(minOrder - eligibleSubtotal)).toLocaleString("en-US")} more to use this coupon`);
   }
 
   let discount =
-    coupon.discountType === "PERCENTAGE" ? (eligibleSubtotal * coupon.discountValue) / 100 : coupon.discountValue;
-  if (coupon.maxDiscountAmount && discount > coupon.maxDiscountAmount) discount = coupon.maxDiscountAmount;
-  discount = Math.round(Math.min(discount, eligibleSubtotal));
+    coupon.discountType === "PERCENTAGE"
+      ? percentOfPaisa(eligibleSubtotal, coupon.discountValue)
+      : toPaisa(coupon.discountValue);
+  const maxDiscount = toPaisa(coupon.maxDiscountAmount);
+  if (maxDiscount > 0 && discount > maxDiscount) discount = maxDiscount;
+  // Discounts are whole taka
+  discount = roundToTaka(Math.min(discount, eligibleSubtotal));
 
-  return { coupon, discount, message: "Coupon applied" };
+  return { coupon, discount: paisaToTaka(discount), message: "Coupon applied" };
 };
 
 /**
@@ -107,9 +143,9 @@ export const priceOrder = async (items: IOrderItemInput[], couponCode?: string) 
     }
 
     let selectedVariant: any = null;
-    let unitPrice = product.basePrice;
-    let comparePrice = product.comparePrice ?? null;
-    let costPrice = product.costPrice ?? null;
+    let unitPrice = toTaka(product.basePrice);
+    let comparePrice = product.comparePrice != null ? toTaka(product.comparePrice) : null;
+    let costPrice = product.costPrice != null ? toTaka(product.costPrice) : null;
     let stock = product.stock;
     let variantTitle: string | null = null;
     let sku = product.sku;
@@ -120,9 +156,10 @@ export const priceOrder = async (items: IOrderItemInput[], couponCode?: string) 
         issue(`Selected option for "${product.name}" is no longer available`);
         continue;
       }
-      unitPrice = selectedVariant.price;
-      comparePrice = selectedVariant.comparePrice ?? null;
-      costPrice = selectedVariant.costPrice ?? product.costPrice ?? null;
+      unitPrice = toTaka(selectedVariant.price);
+      comparePrice = selectedVariant.comparePrice != null ? toTaka(selectedVariant.comparePrice) : null;
+      const variantCost = selectedVariant.costPrice ?? product.costPrice;
+      costPrice = variantCost != null ? toTaka(variantCost) : null;
       stock = selectedVariant.stock;
       variantTitle = selectedVariant.title;
       sku = selectedVariant.sku;
@@ -157,14 +194,16 @@ export const priceOrder = async (items: IOrderItemInput[], couponCode?: string) 
       comparePrice,
       costPrice,
       quantity: item.quantity,
-      totalPrice: unitPrice * item.quantity,
+      totalPrice: paisaToTaka(toPaisa(unitPrice) * item.quantity),
       isFreeShipping: Boolean(product.isFreeShipping),
     });
   }
 
-  const subtotal = lines.reduce((sum, l) => sum + l.totalPrice, 0);
-  const savings = lines.reduce(
-    (sum, l) => sum + (l.comparePrice && l.comparePrice > l.price ? (l.comparePrice - l.price) * l.quantity : 0),
+  // All totals are summed in paisa and converted back to taka once
+  const subtotalPaisa = lines.reduce((sum, l) => sum + toPaisa(l.totalPrice), 0);
+  const savingsPaisa = lines.reduce(
+    (sum, l) =>
+      sum + (l.comparePrice && l.comparePrice > l.price ? (toPaisa(l.comparePrice) - toPaisa(l.price)) * l.quantity : 0),
     0
   );
 
@@ -179,8 +218,7 @@ export const priceOrder = async (items: IOrderItemInput[], couponCode?: string) 
   }
 
   const settings: Record<string, any> = await getAllSettings().catch(() => ({} as Record<string, any>));
-  const standardFee = typeof settings.shipping_fee_standard === "number" ? settings.shipping_fee_standard : 70;
-  const freeShippingThreshold = typeof settings.free_shipping_threshold === "number" ? settings.free_shipping_threshold : 1500;
+  const { standardFee, freeShippingThreshold } = shippingRules(settings);
   const vatPercentage = typeof settings.vat_percentage === "number" ? settings.vat_percentage : 0;
 
   // Group lines by vendor (Platform vs individual sellers) - Daraz Multi-Vendor Split Shipping Model
@@ -192,7 +230,7 @@ export const priceOrder = async (items: IOrderItemInput[], couponCode?: string) 
     vendorGroupsMap.set(key, existing);
   }
 
-  let totalMultiVendorShipping = 0;
+  let totalShippingPaisa = 0;
   const packages: Array<{
     sellerId: string | null;
     isPlatformOwned: boolean;
@@ -203,39 +241,39 @@ export const priceOrder = async (items: IOrderItemInput[], couponCode?: string) 
   }> = [];
 
   for (const [key, groupLines] of vendorGroupsMap.entries()) {
-    const groupSubtotal = groupLines.reduce((acc, l) => acc + l.totalPrice, 0);
-    const allGroupFreeShipping = groupLines.every((l) => l.isFreeShipping);
-    const packageFee =
-      lines.length === 0 || allGroupFreeShipping || groupSubtotal >= freeShippingThreshold ? 0 : standardFee;
-    totalMultiVendorShipping += packageFee;
+    const groupSubtotal = groupLines.reduce((acc, l) => acc + toPaisa(l.totalPrice), 0);
+    const packageFee = packageShippingPaisa(groupLines, groupSubtotal, { standardFee, freeShippingThreshold });
+    totalShippingPaisa += packageFee;
 
     packages.push({
       sellerId: key === "PLATFORM" ? null : key,
       isPlatformOwned: key === "PLATFORM",
       itemCount: groupLines.reduce((acc, l) => acc + l.quantity, 0),
-      subtotal: groupSubtotal,
-      shippingFee: packageFee,
+      subtotal: paisaToTaka(groupSubtotal),
+      shippingFee: paisaToTaka(packageFee),
       isFreeShipping: packageFee === 0,
     });
   }
 
-  const shippingFee = lines.length === 0 ? 0 : totalMultiVendorShipping;
-  const tax = Math.round(subtotal * (vatPercentage / 100));
-  const totalAmount = Math.max(0, subtotal - discount + shippingFee + tax);
+  const discountPaisa = toPaisa(discount);
+  const shippingPaisa = lines.length === 0 ? 0 : totalShippingPaisa;
+  // VAT is whole taka
+  const taxPaisa = roundToTaka(percentOfPaisa(subtotalPaisa, vatPercentage));
+  const totalPaisa = Math.max(0, subtotalPaisa - discountPaisa + shippingPaisa + taxPaisa);
 
   return {
     lines,
     issues,
-    subtotal,
-    savings,
-    discount,
+    subtotal: paisaToTaka(subtotalPaisa),
+    savings: paisaToTaka(savingsPaisa),
+    discount: paisaToTaka(discountPaisa),
     coupon,
     couponMessage,
-    shippingFee,
+    shippingFee: paisaToTaka(shippingPaisa),
     packages,
-    tax,
-    totalAmount,
-    freeShippingThreshold,
+    tax: paisaToTaka(taxPaisa),
+    totalAmount: paisaToTaka(totalPaisa),
+    freeShippingThreshold: paisaToTaka(freeShippingThreshold),
   };
 };
 
@@ -422,11 +460,11 @@ export const createOrder = async (
         ...payload.shippingAddress,
         phone: normalizedPhone,
       }) as any),
-      subtotal,
-      discount,
-      shippingFee,
-      tax,
-      totalAmount,
+      subtotal: toDb(subtotal),
+      discount: toDb(discount),
+      shippingFee: toDb(shippingFee),
+      tax: toDb(tax),
+      totalAmount: toDb(totalAmount),
       paymentMethod: payload.paymentMethod,
       paymentStatus: PAYMENT_STATUS.PENDING,
       orderStatus: ORDER_STATUS.PENDING,
@@ -435,8 +473,7 @@ export const createOrder = async (
     });
 
     // 5.2. Create SubOrders and OrderItems for each Seller group
-    const standardFee = typeof settings.shipping_fee_standard === "number" ? settings.shipping_fee_standard : 70;
-    const freeShippingThreshold = typeof settings.free_shipping_threshold === "number" ? settings.free_shipping_threshold : 1500;
+    const rules = shippingRules(settings);
     // Seller profiles for every vendor in the cart, fetched once
     const sellerIds = [...new Set(validatedItems.map((it) => it.sellerId).filter((id): id is string => Boolean(id)))];
     const sellerProfiles = sellerIds.length > 0
@@ -452,10 +489,10 @@ export const createOrder = async (
       const sellerId = isPlatformOwned ? null : groupItems[0].sellerId;
       const subOrderNumber = generateSubOrderNumber(orderNumber, vendorIndex++);
 
-      const groupSubtotal = groupItems.reduce((acc, it) => acc + it.totalPrice, 0);
+      const groupSubtotal = groupItems.reduce((acc, it) => acc + toPaisa(it.totalPrice), 0);
 
-      // Determine commission rate
-      let commissionRate = 0;
+      // Determine commission rate (percent)
+      let commissionRate: string | number = 0;
       if (!isPlatformOwned && sellerId) {
         const sellerProfile = sellerProfileMap.get(sellerId);
         commissionRate =
@@ -465,13 +502,11 @@ export const createOrder = async (
       }
 
       // Calculate platform commission and seller net earnings
-      const commissionAmount = isPlatformOwned ? 0 : (groupSubtotal * commissionRate) / 100;
-      const sellerEarnings = isPlatformOwned ? groupSubtotal : groupSubtotal - commissionAmount;
+      const commissionAmount = isPlatformOwned ? 0 : percentOfPaisa(groupSubtotal, commissionRate);
+      const sellerEarnings = groupSubtotal - commissionAmount;
 
-      // Multi-Vendor Split Shipping Calculation for this vendor package
-      const allVendorFreeShipping = groupItems.every((it) => it.isFreeShipping);
-      const packageShippingFee =
-        allVendorFreeShipping || groupSubtotal >= freeShippingThreshold ? 0 : standardFee;
+      // Multi-Vendor Split Shipping Calculation for this vendor package (same rule as the quote)
+      const packageShippingFee = packageShippingPaisa(groupItems, groupSubtotal, rules);
 
       // Create SubOrder
       const subOrder = await tx.orm.public.SubOrder.create({
@@ -479,14 +514,14 @@ export const createOrder = async (
         orderId: order.id,
         sellerId,
         isPlatformOwned,
-        subtotal: groupSubtotal,
-        shippingFee: packageShippingFee,
-        shippingCost: packageShippingFee,
-        tax: 0,
-        totalAmount: groupSubtotal + packageShippingFee,
-        commissionRate,
-        commissionAmount,
-        sellerEarnings,
+        subtotal: fromPaisa(groupSubtotal),
+        shippingFee: fromPaisa(packageShippingFee),
+        shippingCost: fromPaisa(packageShippingFee),
+        tax: fromPaisa(0),
+        totalAmount: fromPaisa(groupSubtotal + packageShippingFee),
+        commissionRate: toDbRate(commissionRate),
+        commissionAmount: fromPaisa(commissionAmount),
+        sellerEarnings: fromPaisa(sellerEarnings),
         isPayoutSettled: false,
         escrowStatus: "PENDING",
         status: ORDER_STATUS.PENDING,
@@ -504,10 +539,10 @@ export const createOrder = async (
           variantTitle: it.variantTitle,
           productImage: it.productImage,
           sku: it.sku,
-          price: it.price,
-          costPrice: it.costPrice ?? null,
+          price: toDb(it.price),
+          costPrice: toDbOrNull(it.costPrice),
           quantity: it.quantity,
-          totalPrice: it.totalPrice,
+          totalPrice: toDb(it.totalPrice),
         }))
       );
 
@@ -522,7 +557,7 @@ export const createOrder = async (
         notifications.push({
           userId: sellerUserId,
           title: `New Order Received: ${subOrderNumber}`,
-          message: `You received a new order for ${groupItems.length} item(s). Total: ${groupSubtotal} BDT. Please process it.`,
+          message: `You received a new order for ${groupItems.length} item(s). Total: ${paisaToTaka(groupSubtotal)} BDT. Please process it.`,
           type: "ORDER",
           link: `/seller/orders/${subOrder.id}`,
         });
@@ -547,7 +582,7 @@ export const createOrder = async (
       notifications.push({
         userId: admin.id,
         title: `New Order Placed: ${orderNumber}`,
-        message: `${payload.shippingAddress.fullName} placed order #${orderNumber} (${payload.items.length} item(s), Total: ${order.totalAmount} BDT).`,
+        message: `${payload.shippingAddress.fullName} placed order #${orderNumber} (${payload.items.length} item(s), Total: ${toTaka(order.totalAmount)} BDT).`,
         type: "ORDER",
         link: `/admin/orders/${order.id}`,
       });
@@ -724,60 +759,55 @@ const applySubOrderStatus = async (
     await restoreStock(tx, items);
   }
 
-  // Credit the seller once the shipment is delivered via Escrow Hold
-  if (status === ORDER_STATUS.DELIVERED && !subOrder.isPayoutSettled && subOrder.sellerId) {
-    const wallet = await tx.orm.public.SellerWallet.where({ sellerId: subOrder.sellerId }).first();
-    if (wallet) {
+  const earnings = toPaisa(subOrder.sellerEarnings);
+  const commission = toPaisa(subOrder.commissionAmount);
+
+  // Credit the seller once the shipment is delivered via Escrow Hold.
+  // The PENDING -> HELD transition is atomic, so a repeated "delivered" update can't credit twice.
+  if (status === ORDER_STATUS.DELIVERED && subOrder.sellerId) {
+    const wallet = await tx.orm.public.SellerWallet.where({ sellerId: subOrder.sellerId }).select("id").first();
+    if (wallet && (await transitionEscrow(tx, subOrder.id, [ESCROW_STATUS.PENDING], ESCROW_STATUS.HELD, { settled: false }))) {
       const holdDays = 7; // 7-day escrow return window
       const holdUntil = new Date(Date.now() + holdDays * 24 * 60 * 60 * 1000).toISOString();
-      update.isPayoutSettled = false;
-      update.escrowStatus = "HELD";
       update.escrowHoldUntil = holdUntil;
 
-      await tx.orm.public.SellerWallet.where({ id: wallet.id }).update({
-        pendingBalance: wallet.pendingBalance + subOrder.sellerEarnings,
-        totalEarnings: wallet.totalEarnings + subOrder.sellerEarnings,
-        totalCommissionPaid: wallet.totalCommissionPaid + subOrder.commissionAmount,
-      });
-      await tx.orm.public.WalletTransaction.create({
-        walletId: wallet.id,
-        subOrderId: subOrder.id,
-        amount: subOrder.sellerEarnings,
-        type: TRANSACTION_TYPE.ORDER_EARNING,
-        description: `Delivered order payout held in escrow for ${holdDays} days (Available on ${new Date(holdUntil).toLocaleDateString()})`,
-      });
+      await adjustWallet(
+        tx,
+        wallet.id,
+        { pendingBalance: earnings, totalEarnings: earnings, totalCommissionPaid: commission },
+        {
+          subOrderId: subOrder.id,
+          amount: earnings,
+          type: TRANSACTION_TYPE.ORDER_EARNING,
+          description: `Delivered order payout held in escrow for ${holdDays} days (Available on ${new Date(holdUntil).toLocaleDateString()})`,
+        }
+      );
     }
   }
 
-  // Reverse the seller credit if a delivered shipment comes back during or after escrow
+  // Reverse the seller credit if a delivered shipment comes back during or after escrow.
+  // Only money that was actually credited (HELD or RELEASED) is reversed, exactly once.
   if (status === ORDER_STATUS.RETURNED && subOrder.sellerId) {
-    const wallet = await tx.orm.public.SellerWallet.where({ sellerId: subOrder.sellerId }).first();
-    if (wallet) {
-      const wasReleased = subOrder.escrowStatus === "RELEASED";
-      update.isPayoutSettled = false;
-      update.escrowStatus = "REFUNDED";
-
-      if (wasReleased) {
-        await tx.orm.public.SellerWallet.where({ id: wallet.id }).update({
-          balance: Math.max(0, wallet.balance - subOrder.sellerEarnings),
-          totalEarnings: Math.max(0, wallet.totalEarnings - subOrder.sellerEarnings),
-          totalCommissionPaid: Math.max(0, wallet.totalCommissionPaid - subOrder.commissionAmount),
-        });
-      } else {
-        await tx.orm.public.SellerWallet.where({ id: wallet.id }).update({
-          pendingBalance: Math.max(0, wallet.pendingBalance - subOrder.sellerEarnings),
-          totalEarnings: Math.max(0, wallet.totalEarnings - subOrder.sellerEarnings),
-          totalCommissionPaid: Math.max(0, wallet.totalCommissionPaid - subOrder.commissionAmount),
-        });
-      }
-
-      await tx.orm.public.WalletTransaction.create({
-        walletId: wallet.id,
-        subOrderId: subOrder.id,
-        amount: -subOrder.sellerEarnings,
-        type: TRANSACTION_TYPE.REFUND_REVERSAL,
-        description: `Return reversal for sub-order #${subOrder.subOrderNumber}`,
-      });
+    const wallet = await tx.orm.public.SellerWallet.where({ sellerId: subOrder.sellerId }).select("id").first();
+    const wasReleased = subOrder.escrowStatus === ESCROW_STATUS.RELEASED;
+    if (
+      wallet &&
+      (await transitionEscrow(tx, subOrder.id, [ESCROW_STATUS.HELD, ESCROW_STATUS.RELEASED], ESCROW_STATUS.REFUNDED, { settled: false }))
+    ) {
+      // A released payout comes out of the available balance, which may go negative (seller owes it back)
+      await adjustWallet(
+        tx,
+        wallet.id,
+        wasReleased
+          ? { balance: -earnings, totalEarnings: -earnings, totalCommissionPaid: -commission }
+          : { pendingBalance: -earnings, totalEarnings: -earnings, totalCommissionPaid: -commission },
+        {
+          subOrderId: subOrder.id,
+          amount: -earnings,
+          type: TRANSACTION_TYPE.REFUND_REVERSAL,
+          description: `Return reversal for sub-order #${subOrder.subOrderNumber}`,
+        }
+      );
     }
   }
 
@@ -831,10 +861,13 @@ export const syncParentOrder = async (tx: any, orderId: string) => {
 const payableAmount = (order: any, subOrders: any[]) => {
   const activeSubtotal = subOrders
     .filter((s) => s.status !== ORDER_STATUS.CANCELLED)
-    .reduce((sum, s) => sum + s.subtotal, 0);
+    .reduce((sum, s) => sum + toPaisa(s.subtotal), 0);
   if (activeSubtotal === 0) return 0;
-  const discount = order.subtotal > 0 ? (order.discount * activeSubtotal) / order.subtotal : 0;
-  return Math.max(0, Math.round(activeSubtotal - discount + order.shippingFee + (order.tax ?? 0)));
+  const orderSubtotal = toPaisa(order.subtotal);
+  const discount = orderSubtotal > 0 ? Math.round((toPaisa(order.discount) * activeSubtotal) / orderSubtotal) : 0;
+  const payable = activeSubtotal - discount + toPaisa(order.shippingFee) + toPaisa(order.tax);
+  // Whole taka, as before
+  return Math.max(0, Math.round(payable / 100));
 };
 
 /**
@@ -1182,13 +1215,14 @@ export const adminGetAllOrders = async (filters: {
 
   const total = Number(countResult.total) || 0;
   const counts: Record<string, number> = { ALL: 0 };
-  let revenue = 0;
+  let revenuePaisa = 0;
   for (const g of statusGroups) {
     const c = Number(g.count) || 0;
     counts[g.orderStatus] = c;
     counts.ALL += c;
-    if (g.orderStatus === ORDER_STATUS.DELIVERED) revenue += Number(g.revenue) || 0;
+    if (g.orderStatus === ORDER_STATUS.DELIVERED) revenuePaisa += toPaisa(g.revenue);
   }
+  const revenue = paisaToTaka(revenuePaisa);
 
   return {
     orders: await hydrateOrders(orders, { withCustomer: true }),
@@ -1255,41 +1289,47 @@ export const getSellerSubOrderById = async (userId: string, subOrderId: string) 
  */
 export const releaseMaturedEscrow = async () => {
   const matureSubOrders = await db.orm.public.SubOrder
-    .where({ status: ORDER_STATUS.DELIVERED, escrowStatus: "HELD" })
+    .where({ status: ORDER_STATUS.DELIVERED, escrowStatus: ESCROW_STATUS.HELD })
     .all();
 
   const toRelease = matureSubOrders.filter(
-    (s: any) => s.escrowHoldUntil && new Date(s.escrowHoldUntil).getTime() <= Date.now()
+    (s: any) => s.sellerId && s.escrowHoldUntil && new Date(s.escrowHoldUntil).getTime() <= Date.now()
   );
 
   let releasedCount = 0;
   for (const s of toRelease) {
-    if (!s.sellerId) continue;
-    const wallet = await db.orm.public.SellerWallet.where({ sellerId: s.sellerId }).first();
-    if (wallet) {
-      await db.transaction(async (tx) => {
-        await tx.orm.public.SubOrder.where({ id: s.id }).update({
-          escrowStatus: "RELEASED",
-          escrowReleasedAt: new Date().toISOString(),
-          isPayoutSettled: true,
-        });
-        await tx.orm.public.SellerWallet.where({ id: wallet.id }).update({
-          pendingBalance: Math.max(0, wallet.pendingBalance - s.sellerEarnings),
-          balance: wallet.balance + s.sellerEarnings,
-        });
-        await tx.orm.public.WalletTransaction.create({
-          walletId: wallet.id,
-          subOrderId: s.id,
-          amount: s.sellerEarnings,
-          type: "ESCROW_RELEASE",
-          description: `Escrow released to available balance for sub-order #${s.subOrderNumber}`,
-        });
-      });
+    if (await releaseEscrow(s, `Escrow released to available balance for sub-order #${s.subOrderNumber}`)) {
       releasedCount++;
     }
   }
 
   return { releasedCount };
+};
+
+/**
+ * Move one sub-order's held earnings from pending to available balance. The HELD -> RELEASED
+ * transition and the wallet move happen in one transaction, so a cron run racing an admin's
+ * manual release can never pay the seller twice. Returns false when it was already released.
+ */
+const releaseEscrow = async (subOrder: any, description: string) => {
+  const wallet = await db.orm.public.SellerWallet.where({ sellerId: subOrder.sellerId }).select("id").first();
+  if (!wallet) throw new AppError("Seller wallet not found", 404);
+  const earnings = toPaisa(subOrder.sellerEarnings);
+
+  return await db.transaction(async (tx) => {
+    const moved = await transitionEscrow(tx, subOrder.id, [ESCROW_STATUS.HELD], ESCROW_STATUS.RELEASED, {
+      releasedAt: true,
+      settled: true,
+    });
+    if (!moved) return false;
+    await adjustWallet(
+      tx,
+      wallet.id,
+      { pendingBalance: -earnings, balance: earnings },
+      { subOrderId: subOrder.id, amount: earnings, type: TRANSACTION_TYPE.ESCROW_RELEASE, description }
+    );
+    return true;
+  });
 };
 
 /**
@@ -1302,30 +1342,15 @@ export const releaseSubOrderEscrowEarly = async (subOrderId: string, adminUser: 
 
   const subOrder = await db.orm.public.SubOrder.where({ id: subOrderId }).first();
   if (!subOrder) throw new AppError("Sub-order not found", 404);
-  if (subOrder.escrowStatus === "RELEASED") throw new AppError("Escrow already released", 400);
   if (!subOrder.sellerId) throw new AppError("Platform shipments do not have seller escrow", 400);
+  if (subOrder.escrowStatus === ESCROW_STATUS.RELEASED) throw new AppError("Escrow already released", 400);
+  // Only delivered shipments have earnings sitting in escrow
+  if (subOrder.escrowStatus !== ESCROW_STATUS.HELD) {
+    throw new AppError("Only delivered shipments with earnings held in escrow can be released", 400);
+  }
 
-  const wallet = await db.orm.public.SellerWallet.where({ sellerId: subOrder.sellerId }).first();
-  if (!wallet) throw new AppError("Seller wallet not found", 404);
-
-  await db.transaction(async (tx) => {
-    await tx.orm.public.SubOrder.where({ id: subOrder.id }).update({
-      escrowStatus: "RELEASED",
-      escrowReleasedAt: new Date().toISOString(),
-      isPayoutSettled: true,
-    });
-    await tx.orm.public.SellerWallet.where({ id: wallet.id }).update({
-      pendingBalance: Math.max(0, wallet.pendingBalance - subOrder.sellerEarnings),
-      balance: wallet.balance + subOrder.sellerEarnings,
-    });
-    await tx.orm.public.WalletTransaction.create({
-      walletId: wallet.id,
-      subOrderId: subOrder.id,
-      amount: subOrder.sellerEarnings,
-      type: "ESCROW_RELEASE",
-      description: `Admin manual early escrow release for #${subOrder.subOrderNumber}`,
-    });
-  });
+  const released = await releaseEscrow(subOrder, `Admin manual early escrow release for #${subOrder.subOrderNumber}`);
+  if (!released) throw new AppError("Escrow already released", 409);
 
   return { success: true, message: `Escrow released for #${subOrder.subOrderNumber}` };
 };
@@ -1345,8 +1370,8 @@ export const getSellerEscrowHoldings = async (userId: string) => {
   const wallet = await db.orm.public.SellerWallet.where({ sellerId: seller.id }).first();
 
   return {
-    pendingBalance: wallet?.pendingBalance || 0,
-    availableBalance: wallet?.balance || 0,
+    pendingBalance: toTaka(wallet?.pendingBalance),
+    availableBalance: toTaka(wallet?.balance),
     heldShipments: heldSubOrders.map((s) => ({
       subOrderId: s.id,
       subOrderNumber: s.subOrderNumber,

@@ -3,9 +3,9 @@ model Coupon {
   id                String                     @id @default(uuid())
   code              String                     @unique
   discountType      String // "PERCENTAGE" | "FIXED"
-  discountValue     Float
-  minOrderAmount    Float                      @default(0.0)
-  maxDiscountAmount Float?
+  discountValue     Numeric(12, 2)
+  minOrderAmount    Numeric(12, 2)                      @default(0.0)
+  maxDiscountAmount Numeric(12, 2)?
   usageLimit        Int?
   usedCount         Int                        @default(0)
   startDate         TimestamptzString?

@@ -9,11 +9,14 @@ import { ApplicationRoutes } from "./routes/index.ts";
 import { notFoundHandler, globalErrorHandler } from "./errors/errorHandler.ts";
 import { db } from "./config/db.ts";
 import { firstRow } from "./utils/rawQuery.ts";
+import { moneyJsonReplacer } from "./utils/money.ts";
 import { apiLimiter, authLimiter, orderLimiter } from "./middlewares/rateLimit.ts";
 
 const app: Application = express();
 
 app.disable("x-powered-by");
+// Money columns come back from the DB as decimal strings; send them to clients as numbers
+app.set("json replacer", moneyJsonReplacer);
 // Behind Nginx / a load balancer: trust X-Forwarded-For so rate limits see real client IPs
 app.set("trust proxy", ENV.TRUST_PROXY);
 

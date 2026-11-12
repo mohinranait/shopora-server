@@ -1,4 +1,8 @@
 import { db } from "../../config/db.ts";
+import { toPaisa, toTaka, paisaToTaka, percentOfPaisa, toDb, toDbOrNull, MAX_MONEY } from "../../utils/money.ts";
+
+/** Keep user-supplied price filters inside what a numeric(12,2) column can compare against */
+const clampMoney = (v: number) => Math.max(-MAX_MONEY, Math.min(MAX_MONEY, v));
 import { AppError } from "../../errors/AppError.ts";
 import { slugify, generateSKU } from "../../utils/slugify.ts";
 import {
@@ -150,10 +154,10 @@ const buildProductQuery = (
     query = query.where((p) => p.ratingAverage.gte(filters.minRating!));
   }
   if (omit !== "price" && filters.minPrice !== undefined) {
-    query = query.where((p) => p.basePrice.gte(filters.minPrice!));
+    query = query.where((p) => p.basePrice.gte(toDb(clampMoney(filters.minPrice!))));
   }
   if (omit !== "price" && filters.maxPrice !== undefined) {
-    query = query.where((p) => p.basePrice.lte(filters.maxPrice!));
+    query = query.where((p) => p.basePrice.lte(toDb(clampMoney(filters.maxPrice!))));
   }
   if (filters.search?.trim()) {
     const pattern = `%${filters.search.trim()}%`;
@@ -506,9 +510,9 @@ export const createProduct = async (
       approvalStatus,
       status: PRODUCT_STATUS.PUBLISHED,
       productType: payload.productType || PRODUCT_TYPE.SIMPLE,
-      basePrice: payload.basePrice,
-      comparePrice: payload.comparePrice ?? null,
-      costPrice: payload.costPrice ?? null,
+      basePrice: toDb(payload.basePrice),
+      comparePrice: toDbOrNull(payload.comparePrice),
+      costPrice: toDbOrNull(payload.costPrice),
       stock: calculatedStock,
       lowStockThreshold: payload.lowStockThreshold || 5,
       mainImageId: payload.mainImageId ?? payload.mainImageUseMediaId ?? null,
@@ -584,9 +588,9 @@ export const createProduct = async (
           productId: newProduct.id,
           sku: vSku,
           title: v.title,
-          price: v.price,
-          comparePrice: v.comparePrice ?? null,
-          costPrice: v.costPrice ?? null,
+          price: toDb(v.price),
+          comparePrice: toDbOrNull(v.comparePrice),
+          costPrice: toDbOrNull(v.costPrice),
           stock: v.stock || 0,
           lowStockThreshold: v.lowStockThreshold || 5,
           imageId: targetVarImgId,
@@ -648,9 +652,9 @@ export const updateProduct = async (
     if (payload.description !== undefined) updateData.description = payload.description;
     if (payload.categoryId !== undefined) updateData.categoryId = payload.categoryId;
     if (payload.brandId !== undefined) updateData.brandId = payload.brandId;
-    if (payload.basePrice !== undefined) updateData.basePrice = payload.basePrice;
-    if (payload.comparePrice !== undefined) updateData.comparePrice = payload.comparePrice;
-    if (payload.costPrice !== undefined) updateData.costPrice = payload.costPrice;
+    if (payload.basePrice !== undefined) updateData.basePrice = toDb(payload.basePrice);
+    if (payload.comparePrice !== undefined) updateData.comparePrice = toDbOrNull(payload.comparePrice);
+    if (payload.costPrice !== undefined) updateData.costPrice = toDbOrNull(payload.costPrice);
     if (payload.lowStockThreshold !== undefined) updateData.lowStockThreshold = payload.lowStockThreshold;
     if (payload.mainImageId !== undefined || payload.mainImageUseMediaId !== undefined) {
       updateData.mainImageId = payload.mainImageId !== undefined ? payload.mainImageId : payload.mainImageUseMediaId;
@@ -748,9 +752,9 @@ export const updateProduct = async (
         if (variantId) {
           await tx.orm.public.ProductVariant.where({ id: variantId }).update({
             title: v.title,
-            price: v.price,
-            comparePrice: v.comparePrice ?? null,
-            costPrice: v.costPrice ?? null,
+            price: toDb(v.price),
+            comparePrice: toDbOrNull(v.comparePrice),
+            costPrice: toDbOrNull(v.costPrice),
             stock: v.stock || 0,
             lowStockThreshold: v.lowStockThreshold !== undefined ? v.lowStockThreshold : 5,
             imageId,
@@ -767,9 +771,9 @@ export const updateProduct = async (
             productId: product.id,
             sku: vSku,
             title: v.title,
-            price: v.price,
-            comparePrice: v.comparePrice ?? null,
-            costPrice: v.costPrice ?? null,
+            price: toDb(v.price),
+            comparePrice: toDbOrNull(v.comparePrice),
+            costPrice: toDbOrNull(v.costPrice),
             stock: v.stock || 0,
             lowStockThreshold: v.lowStockThreshold || 5,
             imageId,
@@ -987,7 +991,7 @@ export const getProductBundleRecommendations = async (productId: string) => {
       id: p.id,
       name: p.name,
       slug: p.slug,
-      basePrice: p.basePrice,
+      basePrice: toTaka(p.basePrice),
       mainImage: (mId ? useMediaMap.get(mId) : null) ?? "",
       stock: p.stock,
     };
@@ -995,9 +999,11 @@ export const getProductBundleRecommendations = async (productId: string) => {
 
   const bundleItems = companions.map(formatItem);
   const mainProduct = formatItem(current);
-  const bundleTotal = mainProduct.basePrice + bundleItems.reduce((acc, it) => acc + it.basePrice, 0);
+  const bundleTotalPaisa = [mainProduct, ...bundleItems].reduce((acc, it) => acc + toPaisa(it.basePrice), 0);
   const discountPercentage = 5;
-  const discountedTotal = Math.round(bundleTotal * (1 - discountPercentage / 100));
+  // Whole taka, as before
+  const discountedTotal = Math.round(paisaToTaka(bundleTotalPaisa - percentOfPaisa(bundleTotalPaisa, discountPercentage)));
+  const bundleTotal = paisaToTaka(bundleTotalPaisa);
 
   return {
     mainProduct,
@@ -1007,7 +1013,7 @@ export const getProductBundleRecommendations = async (productId: string) => {
     discountPercentage,
     bundleTotal,
     discountedTotal,
-    savings: bundleTotal - discountedTotal,
+    savings: paisaToTaka(bundleTotalPaisa - toPaisa(discountedTotal)),
   };
 };
 

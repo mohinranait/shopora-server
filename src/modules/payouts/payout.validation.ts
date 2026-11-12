@@ -1,9 +1,10 @@
-﻿import { z } from "zod";
+import { z } from "zod";
+import { zMoney } from "../../utils/moneySchema.ts";
 import { PAYOUT_STATUS } from "../../constants/index.ts";
 
 export const requestPayoutSchema = z.object({
   body: z.object({
-    amount: z.number().positive("Withdrawal amount must be greater than 0"),
+    amount: zMoney().positive("Withdrawal amount must be greater than 0"),
     paymentMethod: z.enum(["BANK", "BKASH", "NAGAD"]),
     accountDetails: z.record(z.string(), z.any()), // e.g. { bankName, accountNumber, accountHolderName, branchName } or { mobileNumber }
   }),

@@ -1,5 +1,6 @@
 import { db } from "../../config/db.ts";
 import { AppError } from "../../errors/AppError.ts";
+import { toTaka } from "../../utils/money.ts";
 import { ORDER_STATUS, USER_ROLES } from "../../constants/index.ts";
 import { syncParentOrder } from "../orders/order.service.ts";
 
@@ -228,9 +229,9 @@ export const getPackagingSlipData = async (subOrderId: string, user: any) => {
       address: `Courier Dispatched (${destinationCity})`,
     },
     financials: {
-      codAmount: order?.paymentMethod === "COD" ? subOrder.totalAmount : 0,
-      shippingFee: subOrder.shippingFee ?? 0,
-      itemsTotal: subOrder.subtotal ?? 0,
+      codAmount: order?.paymentMethod === "COD" ? toTaka(subOrder.totalAmount) : 0,
+      shippingFee: toTaka(subOrder.shippingFee),
+      itemsTotal: toTaka(subOrder.subtotal),
     },
     courier: {
       name: subOrder.courierName || "Standard Shipping",

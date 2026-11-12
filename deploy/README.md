@@ -25,6 +25,23 @@ DATABASE_URL=... npm run db:update
 This installs the `pg_trgm` extension and creates/updates tables and indexes. Use
 `npx prisma db update --dry-run` first to review the plan.
 
+### One-time: money columns Float → numeric(12,2)
+This release changes every money column to `numeric(12,2)` (commission rates to `numeric(5,2)`).
+Postgres converts the existing values in place (`ALTER COLUMN … TYPE numeric(12,2) USING …`), but
+Prisma asks for explicit consent for each type change. Take a backup first, then:
+
+```bash
+# 1. Review the plan (34 type changes + 15 defaults, no drops)
+DATABASE_URL=... npx prisma db update --dry-run
+# 2. Apply, consenting to each type change the plan lists
+DATABASE_URL=... npx prisma db update --yes $(npx prisma db update --dry-run --format json 2>/dev/null \
+  | grep '"kind":"result"' | node -e 'const r=JSON.parse(require("fs").readFileSync(0)).envelope.result;
+    console.log(r.dataLoss.map(d=>`--delete ${d.subject.model}.${d.subject.field}`).join(" "))')
+```
+
+Values with more than 2 decimals would be rounded; amounts above 9,999,999,999.99 would fail.
+Check before migrating if unsure.
+
 ## 3. Run
 **Docker**
 ```bash
@@ -39,6 +56,10 @@ NODE_ENV=production node src/index.ts
 ```
 
 Health check for load balancers / uptime monitors: `GET /api/health` (200 healthy, 503 when the DB is down).
+
+## Tests
+`npm test` (360° workflow audit) and `npm run test:money` (exact money maths, escrow and payout
+concurrency) need a seeded local test database. CI runs both against a throwaway Postgres on every push.
 
 ## Notes
 - Rate limits are kept in memory per process. With more than one instance, move them to a shared store (Redis).
