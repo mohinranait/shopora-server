@@ -11,6 +11,7 @@ import { db } from "./config/db.ts";
 import { firstRow } from "./utils/rawQuery.ts";
 import { moneyJsonReplacer } from "./utils/money.ts";
 import { apiLimiter, authLimiter, orderLimiter } from "./middlewares/rateLimit.ts";
+import { startEscrowReleaseJob } from "./jobs/escrowRelease.ts";
 
 const app: Application = express();
 
@@ -105,12 +106,18 @@ const server = app.listen(ENV.PORT, () => {
 });
 
 /**
+ * Background jobs
+ */
+const stopEscrowJob = startEscrowReleaseJob(ENV.ESCROW_RELEASE_INTERVAL_MINUTES);
+
+/**
  * Graceful Process Teardown
  */
 let shuttingDown = false;
 const shutdown = (exitCode = 0) => {
   if (shuttingDown) return;
   shuttingDown = true;
+  stopEscrowJob();
   console.log("\nInitiating graceful shutdown...");
 
   // Don't hang forever on keep-alive sockets or stuck queries

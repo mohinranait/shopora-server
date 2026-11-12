@@ -1,4 +1,4 @@
-﻿import "dotenv/config";
+import "dotenv/config";
 
 const NODE_ENV = process.env.NODE_ENV || "production";
 const isProduction = NODE_ENV === "production";
@@ -35,6 +35,8 @@ export const ENV = {
   CORS_ORIGINS: (process.env.CORS_ORIGINS || "").split(",").map((o) => o.trim()).filter(Boolean),
   // Number of reverse proxies in front of the app (Nginx, load balancer). Needed for real client IPs.
   TRUST_PROXY: Number(process.env.TRUST_PROXY ?? (isProduction ? 1 : 0)),
+  // How often matured escrow is released to seller balances, in minutes (0 disables the job)
+  ESCROW_RELEASE_INTERVAL_MINUTES: Number(process.env.ESCROW_RELEASE_INTERVAL_MINUTES ?? 60),
 
   // Cloudinary Image Storage Configuration
   cloudinary_name: process.env.CLOUDINARY_NAME || process.env.CLOUDINARY_CLOUD_NAME || "",

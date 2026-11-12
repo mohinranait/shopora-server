@@ -11,6 +11,7 @@ Set these on the server (see `.env.example` for all variables):
 | `CLIENT_URL` | Storefront origin, e.g. `https://shopora.com` |
 | `CORS_ORIGINS` | Optional extra origins, comma separated |
 | `TRUST_PROXY` | Number of proxies in front of the app (default `1`) |
+| `ESCROW_RELEASE_INTERVAL_MINUTES` | How often matured 7-day escrow is released to seller balances (default `60`, `0` disables) |
 | `CLOUDINARY_*` | Image storage credentials |
 
 The server refuses to start in production if a required secret is missing or weak.
@@ -60,6 +61,11 @@ Health check for load balancers / uptime monitors: `GET /api/health` (200 health
 ## Tests
 `npm test` (360° workflow audit) and `npm run test:money` (exact money maths, escrow and payout
 concurrency) need a seeded local test database. CI runs both against a throwaway Postgres on every push.
+
+## Frontend (Next.js)
+- `NEXT_PUBLIC_API_URL` must point at the versioned API, e.g. `https://api.shopora.com/api/v1`
+  (the un-versioned `/api/*` routes were removed).
+- The storefront's origin must be `CLIENT_URL` (or listed in `CORS_ORIGINS`), otherwise the browser blocks API calls.
 
 ## Notes
 - Rate limits are kept in memory per process. With more than one instance, move them to a shared store (Redis).
