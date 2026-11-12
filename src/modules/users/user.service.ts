@@ -1,25 +1,30 @@
 import { db } from "../../config/db.ts";
 import { AppError } from "../../errors/AppError.ts";
+import type { IUseMediaWithMedia } from "../brands/brand.interface.ts";
+import type {
+  IUpdateProfileInput,
+  IAddAddressInput,
+  IAdminUserFilters,
+  IAdminUpdateUserInput,
+  IUserUpdateDbPayload,
+  IUserProfileResponse,
+  IAdminUsersResponse,
+  IAdminUserDetailResponse,
+} from "./user.interface.ts";
 
 /**
  * Update current user profile
  */
 export const updateProfile = async (
   userId: string,
-  payload: {
-    name?: string;
-    phone?: string;
-    avatar?: string | null;
-    avatarId?: string | null;
-    avatarUseMediaId?: string | null;
-  }
-) => {
+  payload: IUpdateProfileInput
+): Promise<IUserProfileResponse> => {
   const user = await db.orm.public.User.where({ id: userId }).first();
   if (!user) {
     throw new AppError("User not found", 404);
   }
 
-  const updateData: any = {};
+  const updateData: IUserUpdateDbPayload = {};
   if (payload.name !== undefined) updateData.name = payload.name;
   if (payload.phone !== undefined) updateData.phone = payload.phone;
 
@@ -54,7 +59,7 @@ export const updateProfile = async (
     throw new AppError("Failed to update profile", 500);
   }
 
-  let avatarUseMedia: any = null;
+  let avatarUseMedia: IUseMediaWithMedia | null = null;
   const targetAvatarId = (updated as any).avatarId ?? (updated as any).avatarUseMediaId;
   if (targetAvatarId) {
     const um = await db.orm.public.UseMedia.where({ id: targetAvatarId }).first();
@@ -84,7 +89,7 @@ export const updateProfile = async (
 /**
  * Add an address for user
  */
-export const addAddress = async (userId: string, payload: any) => {
+export const addAddress = async (userId: string, payload: IAddAddressInput) => {
   if (payload.isDefault) {
     // Reset any existing default address
     await db.orm.public.Address
@@ -136,14 +141,9 @@ export const deleteAddress = async (addressId: string, userId: string) => {
 /**
  * Admin: Get all users with search, filters, pagination and order/address summaries
  */
-export const adminGetAllUsers = async (filters: {
-  role?: string;
-  isActive?: boolean;
-  isVerified?: boolean;
-  search?: string;
-  page?: number;
-  limit?: number;
-}) => {
+export const adminGetAllUsers = async (
+  filters: IAdminUserFilters
+): Promise<IAdminUsersResponse> => {
   const page = Math.max(1, Number(filters.page) || 1);
   const limit = Math.max(1, Math.min(100, Number(filters.limit) || 20));
   const offset = (page - 1) * limit;
@@ -244,7 +244,7 @@ export const adminGetAllUsers = async (filters: {
 /**
  * Admin: Get customer detail with order history, addresses, and statistics
  */
-export const adminGetUserDetail = async (userId: string) => {
+export const adminGetUserDetail = async (userId: string): Promise<IAdminUserDetailResponse> => {
   const user = await db.orm.public.User.where({ id: userId }).first();
   if (!user) {
     throw new AppError("Customer not found", 404);
@@ -313,7 +313,7 @@ export const adminGetUserDetail = async (userId: string) => {
     ["PENDING", "CONFIRMED", "PROCESSING", "SHIPPED"].includes(o.orderStatus)
   ).length;
 
-  let avatarUseMedia: any = null;
+  let avatarUseMedia: IUseMediaWithMedia | null = null;
   const userAvatarId = (user as any).avatarId ?? (user as any).avatarUseMediaId;
   if (userAvatarId) {
     const um = await db.orm.public.UseMedia.where({ id: userAvatarId }).first();
@@ -357,21 +357,14 @@ export const adminGetUserDetail = async (userId: string) => {
  */
 export const adminUpdateUser = async (
   userId: string,
-  payload: {
-    name?: string;
-    email?: string;
-    phone?: string | null;
-    isActive?: boolean;
-    isVerified?: boolean;
-    role?: "CUSTOMER" | "SELLER" | "ADMIN";
-  }
-) => {
+  payload: IAdminUpdateUserInput
+): Promise<IUserProfileResponse> => {
   const user = await db.orm.public.User.where({ id: userId }).first();
   if (!user) {
     throw new AppError("Customer not found", 404);
   }
 
-  const updateData: any = {};
+  const updateData: IUserUpdateDbPayload = {};
   if (payload.name !== undefined) updateData.name = payload.name.trim();
 
   if (payload.email !== undefined && payload.email.trim() !== user.email) {
@@ -403,7 +396,7 @@ export const adminUpdateUser = async (
     throw new AppError("Failed to update customer", 500);
   }
 
-  let avatarUseMedia: any = null;
+  let avatarUseMedia: IUseMediaWithMedia | null = null;
   const targetAvatarId = (updated as any).avatarId ?? (updated as any).avatarUseMediaId;
   if (targetAvatarId) {
     const um = await db.orm.public.UseMedia.where({ id: targetAvatarId }).first();

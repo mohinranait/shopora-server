@@ -9,16 +9,26 @@ import {
 import { slugify } from "../../utils/slugify.ts";
 import { USER_ROLES, SELLER_STATUS } from "../../constants/index.ts";
 import { getAllSettings } from "../settings/settings.service.ts";
+import type { IUseMediaWithMedia } from "../brands/brand.interface.ts";
+import type {
+  IRegisterCustomerInput,
+  IRegisterSellerInput,
+  ILoginInput,
+  IChangePasswordInput,
+  IRegisterCustomerResponse,
+  IRegisterSellerResponse,
+  ILoginResponse,
+  IMeResponse,
+  IRefreshTokenResponse,
+  IChangePasswordResponse,
+} from "./auth.interface.ts";
 
 /**
  * Register a new Customer
  */
-export const registerCustomer = async (payload: {
-  name: string;
-  email: string;
-  password: string;
-  phone?: string;
-}) => {
+export const registerCustomer = async (
+  payload: IRegisterCustomerInput
+): Promise<IRegisterCustomerResponse> => {
   const existingUser = await db.orm.public.User.where({
     email: payload.email.toLowerCase().trim(),
   }).first();
@@ -62,21 +72,9 @@ export const registerCustomer = async (payload: {
 /**
  * Register a new Seller with verification profile and wallet
  */
-export const registerSeller = async (payload: {
-  name: string;
-  email: string;
-  password: string;
-  phone: string;
-  storeName: string;
-  storeDescription?: string;
-  businessAddress: string;
-  taxNumber?: string;
-  nidOrTradeLicense?: string;
-  bankName?: string;
-  bankAccountNumber?: string;
-  bankRouting?: string;
-  bkashOrNagad?: string;
-}) => {
+export const registerSeller = async (
+  payload: IRegisterSellerInput
+): Promise<IRegisterSellerResponse> => {
   const email = payload.email.toLowerCase().trim();
 
   // Check email uniqueness
@@ -198,10 +196,7 @@ export const registerSeller = async (payload: {
 /**
  * Login for all users (Customer, Seller, Admin)
  */
-export const loginUser = async (payload: {
-  email: string;
-  password: string;
-}) => {
+export const loginUser = async (payload: ILoginInput): Promise<ILoginResponse> => {
   const email = payload.email.toLowerCase().trim();
 
   // Find user by email
@@ -235,7 +230,7 @@ export const loginUser = async (payload: {
   const accessToken = generateAccessToken(tokenPayload);
   const refreshToken = generateRefreshToken(tokenPayload);
 
-  let avatarUseMedia: any = null;
+  let avatarUseMedia: IUseMediaWithMedia | null = null;
   const userAvatarId = (user as any).avatarId ?? (user as any).avatarUseMediaId;
   if (userAvatarId) {
     const um = await db.orm.public.UseMedia.where({ id: userAvatarId }).first();
@@ -273,7 +268,7 @@ export const loginUser = async (payload: {
 /**
  * Get currently authenticated user profile
  */
-export const getMe = async (userId: string) => {
+export const getMe = async (userId: string): Promise<IMeResponse> => {
   const user = await db.orm.public.User.where({ id: userId }).first();
   if (!user) {
     throw new AppError("User not found", 404);
@@ -284,7 +279,7 @@ export const getMe = async (userId: string) => {
     seller = await db.orm.public.SellerProfile.where({ userId: user.id }).first();
   }
 
-  let avatarUseMedia: any = null;
+  let avatarUseMedia: IUseMediaWithMedia | null = null;
   const meAvatarId = (user as any).avatarId ?? (user as any).avatarUseMediaId;
   if (meAvatarId) {
     const um = await db.orm.public.UseMedia.where({ id: meAvatarId }).first();
@@ -317,7 +312,9 @@ export const getMe = async (userId: string) => {
 /**
  * Refresh Access Token
  */
-export const refreshUserToken = async (refreshToken: string) => {
+export const refreshUserToken = async (
+  refreshToken: string
+): Promise<IRefreshTokenResponse> => {
   try {
     const decoded = verifyRefreshToken(refreshToken);
 
@@ -352,8 +349,8 @@ export const refreshUserToken = async (refreshToken: string) => {
  */
 export const changePassword = async (
   userId: string,
-  payload: { oldPassword: string; newPassword: string }
-) => {
+  payload: IChangePasswordInput
+): Promise<IChangePasswordResponse> => {
   const user = await db.orm.public.User.where({ id: userId }).first();
   if (!user) {
     throw new AppError("User not found", 404);
